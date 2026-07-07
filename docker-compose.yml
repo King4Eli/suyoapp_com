@@ -1,0 +1,30 @@
+# docker compose -p suyoapp_com up -d --build
+
+services:
+  suyoapp_com_api:
+    image: kingeli/suyoapp_com_api:latest
+    container_name: suyoapp_com_api
+    restart: unless-stopped
+    networks:
+      - shared-global-network
+    env_file:
+      - .env/db.env
+      - .env/minio.env
+      - .env/session.env
+      - .env/stripe.env
+      - .env/smtp.env
+
+  suyoapp_com_admin:
+    image: kingeli/suyoapp_com_admin:latest
+    container_name: suyoapp_com_admin
+    networks:
+      - shared-global-network
+    env_file:
+      - .env/db.env
+      - .env/smtp.env
+      - .env/session.env
+      - .env/minio.env
+
+networks:
+  shared-global-network:
+    external: true

@@ -1,0 +1,1 @@
+<?php header("LOCATION: pages/dashboard.php");

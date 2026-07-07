@@ -1,0 +1,51 @@
+Last updated: 2026-05-19
+Last updated: 2026-06-22
+
+
+remove condition sending verification code
+
+Priority legend:
+[P0] Required before launch
+[P1] Important for beta quality
+[P2] Nice to have / post-beta
+- [P0] Decide which unfinished features are hidden for launch: voice call, video call, blocked users screen, communities, and developer/debug screens.
+- [P1] Document supported countries, age rules, moderation rules, and refund/support policy.
+
+- [P0] Add rate limits for login, signup, verification, profile updates, matches, messages, uploads, and log reports.
+
+
+=========== Matching And Discovery
+
+- [P0] Verify match uniqueness constraints and prevent reverse duplicate matches.
+- [P0] Ensure deleted/blocked matches cannot continue receiving messages.
+- [P0] Verify socket room join/leave authorization.
+- [P0] Confirm uploaded media paths cannot escape allowed buckets.
+- [P1] Add media deletion when a user deletes account or message history.
+- [P0] Add/verify indexes for users, matches, conversations, payments, subscriptions, reports, and lookup tables.
+
+- [P0] Verify Stripe webhook signature validation and failure logging.
+- [P0] Make webhook handlers idempotent for duplicate Stripe events.
+- [P0] Confirm subscription created, renewed, cancelled, failed, and expired states update DB correctly.
+- [P0] Confirm consumable purchase credits are granted exactly once.
+- [P0] Add entitlement refresh endpoint used by frontend after purchase/deep link.
+- [P0] Store enough Stripe metadata to reconcile user, product, subscription, and payment rows.
+- [P1] Add admin view for subscriptions, payments, failed webhook events, and manual entitlement correction.
+- [P1] Add tests using Stripe webhook fixtures.
+
+- [P0] Review CORS, network security config, API host selection, and production domains.
+
+========== Release QA Checklist
+- [P0] Fresh install -> signup -> complete profile -> view people.
+- [P0] User A likes User B -> User B likes User A -> match created.
+- [P0] Match opens chat -> send text -> receive real-time update.
+- [P0] Send photo -> upload succeeds -> other user can view it.
+- [P0] Send voice note -> upload succeeds -> playback works.
+- [P0] Block user -> user disappears from discovery/chat where expected.
+- [P0] Report user -> admin can view and action report.
+- [P0] Purchase subscription/consumable -> entitlement updates.
+- [P0] Payment cancel/fail -> entitlement does not update.
+- [P0] Network offline -> app shows understandable failure and recovers.
+- [P0] Logout/login -> app restores correct state.
+- [P0] App restart -> session, profile cache, chat list, and socket reconnect behave correctly.
+- [P0] Android release build installs and runs.
+- [P0] iOS release/archive build compiles and runs.

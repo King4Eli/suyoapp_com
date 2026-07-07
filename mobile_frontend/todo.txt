@@ -1,0 +1,62 @@
+datingapp-rn-frontend/android/app/src/main/AndroidManifest.xml
+    remove android:networkSecurityConfig
+    modify to domain. android:scheme
+
+datingapp-rn-frontend/android/app/src/main/res
+    Verify app icon, splash screen, package name, permissions, store metadata, and version numbers.
+
+
+- [P0] Remove or guard all dev-only routes, especially `zz_devv`, from production builds.
+
+- [P0] Verify login and signup validation for email, phone number, verification code, required profile fields, and invalid server responses.
+- [P0] Add clear loading, retry, and disabled-button states for all auth requests.
+- [P0] Confirm logout clears profile cache, products cache, socket state, and navigation history.
+- [P1] Improve offline behavior during signup/login with user-friendly errors.
+- [P2] Implement voice call and video call, or hide the buttons until ready.
+- [P0] Finalize Android keyboard behavior for the message input with `adjustResize` and test on at least two screen sizes.
+
+- [P0] Remove upload progress `console.log` statements from production.
+- [P0] Validate audio recording permission, cancel, preview, send, playback, and cleanup.
+- [P1] Add resend action for failed messages.
+
+========== Purchases And Subscriptions
+- [P0] Verify product list rendering for subscriptions and consumables.
+- [P0] Confirm Stripe/card purchase flow opens, completes, fails, and returns to the app through deep links.
+- [P0] Confirm purchase success updates entitlements locally and from backend refresh.
+- [P0] Hide or finish unavailable IAP path before launch.
+- [P0] Add clear failed-payment and cancelled-payment states.
+- [P1] Add restore purchases / refresh entitlement action.
+- [P1] Add purchase receipt/history view if needed for support.
+- [P1] Confirm subscription benefit text is complete; remove "Benefits coming soon."
+
+========== Settings, Safety, And Support
+- [P0] Finish report user flow and verify it writes to backend/admin.
+- [P0] Finish block user flow and ensure blocked users cannot message, appear in discovery, or view profile.
+- [P0] Hide or implement "Blocked users list coming soon."
+- [P0] Add privacy policy, terms, support/contact, and delete account links.
+- [P0] Confirm app notification permission prompts are timed and understandable.
+- [P1] Add account deletion confirmation and backend deletion/anonymization workflow.
+- [P1] Add notification settings controls.
+- [P1] Improve error messages so most failures use toast/inline UI instead of raw alerts.
+
+========= Discovery, Likes, And Matches
+
+- [P0] Verify `Peoples.tsx` swipe/action flows for like, pass, match, superlike, block, and empty states.
+- [P0] Confirm the discovery feed respects backend preferences: age, gender, distance, height, interests, and relationship goals.
+- [P0] Handle end-of-feed and refresh states cleanly.
+- [P0] Remove production `console.log` statements from discovery.
+- [P0] Verify likes screen shows incoming likes, existing matches, and locked/paid states correctly.
+- [P1] Add skeleton/loading states for feed and likes.
+- [P1] Add duplicate-action protection so rapid taps/swipes do not create duplicate matches.
+- [P1] Add graceful fallback when profile images fail to load.
+
+=========== Profile And Preferences
+
+- [P0] Verify profile creation cannot finish with missing required fields.
+- [P0] Validate image upload, image deletion, image ordering, and profile photo fallback states.
+- [P0] Confirm profile edit saves all fields correctly: bio, photos, location, job, education, height, DOB, gender, interests, prompts, and preferences.
+- [P0] Handle media upload failures without losing user edits.
+- [P0] Check date-of-birth and age gate rules on both frontend and backend.
+- [P1] Add unsaved-change confirmation when leaving profile edit screens.
+- [P1] Improve field-level errors instead of generic alerts.
+- [P1] Ensure all picker, slider, and range controls behave correctly on small Android devices.

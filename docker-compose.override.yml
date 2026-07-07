@@ -1,0 +1,19 @@
+services:
+  suyoapp_com_api:
+    build: ./api
+    volumes:
+      - ./api_v1:/app
+    command: npm run http-dev
+    environment:
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
+    extra_hosts:
+      - "s3.global.local:host-gateway"
+    ports:
+      - "2000:80"
+
+  suyoapp_com_admin:
+    build: ./admin
+    volumes:
+      - ./admin:/var/www/html
+    extra_hosts:
+      - "s3.global.local:host-gateway"
