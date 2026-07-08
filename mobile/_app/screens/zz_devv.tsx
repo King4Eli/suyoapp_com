@@ -1,0 +1,137 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  Pressable,
+  Linking,
+  Clipboard,
+} from 'react-native';
+import { Toastx } from '../funcs/customNotification';
+import { __init__app, cacheStorage, logReport } from '../funcs/functions';
+import RNRestart from 'react-native-restart';
+import { sessionManager } from '../funcs/SessionContext';
+import { __CONFIG__ } from '../funcs/static';
+
+export function Zz_devv({ navigation }: { route: any; navigation: any }) {
+  const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
+  const [_getProfile, setProfile] = useState<any>(null);
+  const getSession = sessionManager.getCurrentSession();
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const userProfile = await cacheStorage.getCurrentUserProfile();
+        if (mounted) {
+          setProfile(userProfile);
+        }
+      } catch {
+        if (mounted) {
+          setProfile(null);
+        }
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+  return (
+    <View style={{ flex: 1 }}>
+      <Text
+        style={{ backgroundColor: '#7eb400', color: '#fffdfd', padding: 10 }}
+      >
+        Debug Tools
+      </Text>
+      <ScrollView
+        style={[{ flex: 1 }]}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ padding: 10, gap: 20 }}
+      >
+        <Pressable
+          style={modernStyles.dangerSection}
+          onPress={async () => {
+            // is cache-first and would otherwise just reload the stale blob.
+            await cacheStorage.CONFIG.getMapper(true);
+            const [profile] = await Promise.all([
+              cacheStorage.getCurrentUserProfile(true),
+              cacheStorage.getProducts(true),
+              __init__app(),
+            ]);
+            setProfile(profile);
+            Toastx.show({
+              type: 'info',
+              message: '_ _init__app updated successfully',
+            });
+          }}
+        >
+          <Text>
+            reload update __init__app fun {__CONFIG__.HTTPS_API_DOMAIN}{' '}
+          </Text>
+        </Pressable>
+
+        <Pressable
+          style={modernStyles.dangerSection}
+          onPress={() => {
+            const u = __MAPPER?.img_domain;
+            if (u) Linking.openURL(u);
+          }}
+        >
+          <Text>Image url: {__MAPPER?.img_domain ?? '(unset)'}</Text>
+        </Pressable>
+
+        <Pressable
+          style={modernStyles.dangerSection}
+          onPress={async () => {
+            Clipboard.setString(getSession?.x_omi_payload ?? '');
+          }}
+        >
+          <Text>session token: {getSession?.x_omi_payload} </Text>
+        </Pressable>
+
+        <Pressable
+          style={modernStyles.dangerSection}
+          onPress={() => {
+            RNRestart.restart();
+          }}
+        >
+          <Text>reload app</Text>
+        </Pressable>
+
+        <Pressable
+          style={modernStyles.dangerSection}
+          onPress={async () => {
+            logReport({
+              type: 'tESTING',
+              extra: 'Empty',
+              useraction: 'Dev Tool',
+              url: 'null',
+              logMessage: 'string',
+            });
+          }}
+        >
+          <Text>Test Log function</Text>
+        </Pressable>
+
+        <Pressable
+          style={modernStyles.dangerSection}
+          onPress={async () => {
+            navigation.navigate('zz_nofile');
+          }}
+        >
+          <Text>Testing null page</Text>
+        </Pressable>
+      </ScrollView>
+    </View>
+  );
+}
+// Modern Styles
+const modernStyles = StyleSheet.create({
+  dangerSection: {
+    borderColor: '#ff4e42',
+    borderWidth: 1,
+    borderRadius: 15,
+    padding: 12,
+  },
+});

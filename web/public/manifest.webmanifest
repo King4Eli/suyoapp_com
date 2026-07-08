@@ -1,0 +1,35 @@
+{
+  "name": "SuyoApp",
+  "short_name": "SuyoApp",
+  "description": "Find your next favorite person with better matching and safer conversations.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fff8fa",
+  "theme_color": "#e8546f",
+  "icons": [
+    {
+      "src": "/favicon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

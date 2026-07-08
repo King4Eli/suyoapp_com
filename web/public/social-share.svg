@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">SuyoApp social preview</title>
+  <desc id="desc">A bright pink card representing SuyoApp with matching conversation cues.</desc>
+  <rect width="1200" height="630" rx="40" fill="#fff8fa"/>
+  <rect x="72" y="72" width="1056" height="486" rx="32" fill="#ffffff" stroke="#f0e0e5" stroke-width="4"/>
+  <circle cx="900" cy="208" r="120" fill="#e8546f"/>
+  <path d="M392 364c0-94 68-156 164-156 104 0 172 64 172 156 0 74-40 132-100 156l-72 40-72-40c-60-24-100-82-100-156Z" fill="#2d2430"/>
+  <text x="152" y="242" fill="#2d2430" font-family="Arial, sans-serif" font-size="64" font-weight="700">SuyoApp</text>
+  <text x="152" y="317" fill="#e8546f" font-family="Arial, sans-serif" font-size="38" font-weight="600">Find your next favorite person</text>
+  <text x="152" y="412" fill="#74636b" font-family="Arial, sans-serif" font-size="30">Better matches. Safer conversations. More real connections.</text>
+</svg>

@@ -1,0 +1,55 @@
+// pl_created has no default.
+const seededAt = new Date();
+
+export const productLists = [
+  {
+    plSku: "instantmessage_wu8yyur5mmmtua",
+    plName: "Instant Message",
+    plDescription: { features: [{ d: "", e: true }] },
+    category: "instantmessage",
+    plIsActive: "1",
+    plCreated: seededAt,
+  },
+  {
+    plSku: "plus_kywhm9u6ymw8ym3u69meno",
+    plName: "plus",
+    plDescription: {
+      features: [
+        { d: "5 roses per day", e: true },
+        { d: "See who liked you", e: true },
+        { d: "Unlimited likes", e: true },
+        { d: "Rewind missed matches", e: true },
+        { d: "Weekly profile boost", e: true },
+      ],
+    },
+    category: "mainsub",
+    plIsActive: "1",
+    plCreated: seededAt,
+  },
+  {
+    plSku: "superlikes_4pqojouyyyur5uyihgj898",
+    plName: "Roses",
+    plDescription: {
+      features: [{ d: "Roses are spent on super likes", e: true }],
+    },
+    category: "superlike",
+    plIsActive: "1",
+    plCreated: seededAt,
+  },
+  {
+    plSku: "vip_91n46w586u0m4eomircybdvsz",
+    plName: "vip",
+    plDescription: {
+      features: [
+        { d: "Unlimited Phone/Video calls", e: true },
+        { d: "10 roses per day", e: true },
+        { d: "Rewind missed matches", e: true },
+        { d: "Travel mode", e: true },
+        { d: "Priority customer support", e: true },
+      ],
+    },
+    category: "mainsub",
+    plIsActive: "1",
+    plCreated: seededAt,
+  },
+];

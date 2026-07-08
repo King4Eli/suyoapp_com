@@ -1,0 +1,25 @@
+# Dependencies
+/node_modules/
+/vendor/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Environment / secrets
+.env
+.env.*
+*.env
+
+# Caches
+.eslintcache
+.oxlintcache
+.cache/
+.npm/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+*.swp
+.idea/

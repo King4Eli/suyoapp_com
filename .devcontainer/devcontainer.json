@@ -1,0 +1,20 @@
+{
+  "name": "suyoapp_com",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "workspace",
+  "workspaceFolder": "/workspaces/suyoapp_com",
+  "shutdownAction": "stopCompose",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+  },
+  "forwardPorts": [19051, 19052, 19053, 13306, 6379],
+  "portsAttributes": {
+    "19051": { "label": "api" },
+    "19052": { "label": "admin" },
+    "19053": { "label": "web" },
+    "13306": { "label": "mysql (dev, isolated)" },
+    "6379": { "label": "redis (dev)" }
+  },
+  "postCreateCommand": "npm --prefix api install && npm --prefix web install && npm --prefix mobile install",
+  "postStartCommand": "echo 'Fresh dev DB -- run: npm --prefix api run migrate:apply && npm --prefix api run db:seed'"
+}

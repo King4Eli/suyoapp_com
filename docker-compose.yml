@@ -1,30 +1,37 @@
-# docker compose -p suyoapp_com up -d --build
-
+name: suyoapp_com
 services:
   suyoapp_com_api:
-    image: kingeli/suyoapp_com_api:latest
+    image: rg2.vintolab.com/suyoapp_com/api:latest
     container_name: suyoapp_com_api
     restart: unless-stopped
-    networks:
-      - shared-global-network
+    ports:
+      - "10.50.0.2:9051:80"
     env_file:
       - .env/db.env
-      - .env/minio.env
+      - .env/s3bender.env
       - .env/session.env
       - .env/stripe.env
       - .env/smtp.env
+      - .env/redis.env
+      - .env/iap.env
+      - .env/ratelimit.env
 
   suyoapp_com_admin:
-    image: kingeli/suyoapp_com_admin:latest
+    image: rg2.vintolab.com/suyoapp_com/admin:latest
     container_name: suyoapp_com_admin
-    networks:
-      - shared-global-network
+    restart: unless-stopped
+    ports:
+      - "10.50.0.2:9052:80"
     env_file:
       - .env/db.env
       - .env/smtp.env
       - .env/session.env
-      - .env/minio.env
+      - .env/s3bender.env
+      - .env/redis.env
 
-networks:
-  shared-global-network:
-    external: true
+  suyoapp_com_webui:
+    image: rg2.vintolab.com/suyoapp_com/webui:latest
+    container_name: suyoapp_com_webui
+    restart: unless-stopped
+    ports:
+      - "10.50.0.2:9053:80"

@@ -1,0 +1,14 @@
+{
+  "extends": "@react-native/typescript-config",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "paths": {
+      "rn-range-slider": ["./types/rn-range-slider.d.ts"],
+      "react-native-country-codes-picker": [
+        "./types/react-native-country-codes-picker.d.ts"
+      ]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["**/node_modules", "**/Pods"]
+}

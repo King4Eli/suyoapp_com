@@ -1,0 +1,18 @@
+export const gnPoliticalviewVariant = [
+  { code: 0, label: "Liberal", status: 1 },
+  { code: 1, label: "Conservative", status: 1 },
+  { code: 2, label: "Moderate", status: 1 },
+  { code: 3, label: "Apathetic", status: 1 },
+  { code: 4, label: "Fascism", status: 1 },
+  { code: 5, label: "Socialism", status: 1 },
+  { code: 6, label: "Communism", status: 1 },
+  { code: 7, label: "Anarchism", status: 1 },
+  { code: 8, label: "Authoritarianism", status: 1 },
+  { code: 9, label: "Environmentalism", status: 1 },
+  { code: 10, label: "Progressivism", status: 1 },
+  { code: 11, label: "Libertarianism", status: 1 },
+  { code: 12, label: "Nationalism", status: 1 },
+  { code: 13, label: "Populism", status: 1 },
+  { code: 14, label: "Centrism / Moderatism", status: 1 },
+  { code: 15, label: "Other", status: 1 },
+];

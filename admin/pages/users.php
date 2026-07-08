@@ -146,7 +146,7 @@ function build_page_url(int $page, string $query, int $limit): string
                         <?php
                         $images = $user['user_image'] ? json_decode($user['user_image'], true) : [];
                         $profile_src = (!empty($images) && isset($images[0]['p']))
-                            ? get_lookup_label($db, "img_domain", 0) . htmlspecialchars($images[0]['p'])
+                            ? img_domain_base_url() . htmlspecialchars($images[0]['p'])
                             : '';
                         ?>
                         <tr>

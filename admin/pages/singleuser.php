@@ -91,16 +91,78 @@ function get_user_active_subscription(PDO $db, string $user_id): ?array
     return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
 }
 
-function format_json_field(?string $json): string
+function get_user_prompts(PDO $db, string $user_id): array
 {
-    if (!$json)
-        return '';
-
-    $decoded = json_decode($json, true);
-    if (json_last_error() === JSON_ERROR_NONE && $decoded) {
-        return is_array($decoded) ? implode(', ', array_map('htmlspecialchars', $decoded)) : htmlspecialchars((string) $decoded);
+    try {
+        $stmt = $db->prepare('
+            SELECT pv.question, up.answer, up.date_created
+            FROM users_prompt up
+            INNER JOIN gn_prompts_variant pv ON up.prompts_variant_ref_id = pv.id_ai
+            WHERE up.user_id = ?
+            ORDER BY up.date_created ASC
+        ');
+        $stmt->execute([$user_id]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable $e) {
+        return [];
     }
-    return htmlspecialchars($json);
+}
+
+function get_user_interests(PDO $db, string $user_id): array
+{
+    try {
+        $stmt = $db->prepare('
+            SELECT iv.category, iv.interested_in
+            FROM users_interests ui
+            INNER JOIN gn_interests_variant iv ON ui.interests_variant_ref_id = iv.id_ai
+            WHERE ui.user_id = ?
+            ORDER BY iv.category ASC, iv.interested_in ASC
+        ');
+        $stmt->execute([$user_id]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable $e) {
+        return [];
+    }
+    $grouped = [];
+    foreach ($rows as $r) {
+        $grouped[$r['category']][] = $r['interested_in'];
+    }
+    return $grouped;
+}
+
+/** Which users.* columns are numeric codes, and the lookup type to resolve them with. */
+const USER_CODE_FIELDS = [
+    'user_active' => 'account_status',
+    'user_verified' => 'account_verified',
+    'user_bio_gender' => 'bio_gender',
+    'user_bio_ethnicity' => 'bio_ethnicity',
+    'user_bio_highesteducation' => 'bio_education',
+    'user_bio_relationshipgoal' => 'bio_intent',
+    'user_bio_politicalview' => 'bio_politicalview',
+    'user_bio_religion' => 'bio_religion',
+    'user_bio_smoking' => 'bio_smoking',
+    'user_bio_drinking' => 'bio_drinking',
+    'user_bio_children' => 'bio_children',
+    'user_bio_haspet' => 'bio_pets',
+    'user_preference_gender' => 'bio_gender',
+    'user_preference_ethnicity' => 'bio_ethnicity',
+    'user_preference_highesteducation' => 'bio_education',
+    'user_preference_relationshipgoal' => 'bio_intent',
+    'user_preference_politicalview' => 'bio_politicalview',
+    'user_preference_religion' => 'bio_religion',
+    'user_preference_smoking' => 'bio_smoking',
+    'user_preference_drinking' => 'bio_drinking',
+    'user_preference_children' => 'bio_pets',
+    'user_preference_pet' => 'bio_pets',
+];
+
+function coded_label(PDO $db, string $field, $value): ?string
+{
+    if (!isset(USER_CODE_FIELDS[$field]) || $value === null || $value === '') {
+        return null;
+    }
+    $label = get_lookup_label($db, USER_CODE_FIELDS[$field], (int) $value);
+    return in_array($label, ['Unknown', 'Any', 'Not set'], true) ? null : $label;
 }
 
 $user = get_user_data($db, $user_id);
@@ -111,50 +173,60 @@ if (!$user) {
 $match_stats = get_user_match_stats($db, $user_id);
 $active_subscription = get_user_active_subscription($db, $user_id);
 $is_subscribed = $active_subscription !== null;
+$prompts = get_user_prompts($db, $user_id);
+$interests = get_user_interests($db, $user_id);
 
-// Calculate age from DOB
+// Age from DOB (YYYYMMDD)
 $age = null;
-if (!empty($user['user_bio_dob']) && strlen($user['user_bio_dob']) === 8) {
-    $year = substr($user['user_bio_dob'], 0, 4);
-    $month = substr($user['user_bio_dob'], 4, 2);
-    $day = substr($user['user_bio_dob'], 6, 2);
-    $dob = "$year-$month-$day";
-    $birth_date = new DateTime($dob);
-    $today = new DateTime();
-    $age = $today->diff($birth_date)->y;
+if (!empty($user['user_bio_dob']) && strlen((string) $user['user_bio_dob']) === 8) {
+    $dob = substr($user['user_bio_dob'], 0, 4) . '-' . substr($user['user_bio_dob'], 4, 2) . '-' . substr($user['user_bio_dob'], 6, 2);
+    try {
+        $age = (new DateTime())->diff(new DateTime($dob))->y;
+    } catch (Throwable $e) {
+        $age = null;
+    }
 }
 
-// Parse JSON fields
-$location = $user['geo_meta'] ? json_decode($user['geo_meta'], true) : [];
-$prompts = $user['user_bio_prompt'] ? json_decode($user['user_bio_prompt'], true) : [];
-$settings = $user['user_settings'] ? json_decode($user['user_settings'], true) : [];
-$images = $user['user_image'] ? json_decode($user['user_image'], true) : [];
+$location = !empty($user['geo_meta']) ? json_decode((string) $user['geo_meta'], true) : [];
+$settings = !empty($user['user_settings']) ? json_decode((string) $user['user_settings'], true) : [];
+$phone_meta = !empty($user['user_phonenumber_meta']) ? json_decode((string) $user['user_phonenumber_meta'], true) : [];
+$device_stats = !empty($user['user_signedup_device_stats']) ? json_decode((string) $user['user_signedup_device_stats'], true) : null;
+$social_links = !empty($user['user_bio_social_links']) ? json_decode((string) $user['user_bio_social_links'], true) : [];
+$images = !empty($user['user_image']) ? json_decode((string) $user['user_image'], true) : [];
+
+$img_base = img_domain_base_url();
+
+$account_status_labels = [
+    '0' => ['Snoozed', 'secondary'],
+    '1' => ['Active', 'success'],
+    '2' => ['Locked', 'warning'],
+    '3' => ['Banned', 'danger'],
+    '-99' => ['Deleted', 'dark'],
+    '99' => ['Deleted', 'dark'],
+];
+[$status_text, $status_color] = $account_status_labels[(string) ($user['user_active'] ?? '')] ?? ['Unknown', 'secondary'];
+
+function fmt_ts(?string $ts): string
+{
+    if (!$ts || $ts === '0000-00-00 00:00:00') {
+        return '—';
+    }
+    $t = strtotime($ts);
+    return $t ? date('M j, Y H:i', $t) : htmlspecialchars($ts);
+}
 ?>
 <html>
 
 <head>
     <?php include "../global/head.php"; ?>
     <style>
-        .profile-image {
-            width: 100px;
-            height: 100px;
-            object-fit: cover;
-            border-radius: 8px;
-        }
-
-        .badge-sm {
-            font-size: 0.75em;
-            padding: 0.25em 0.5em;
-        }
-
-        .info-grid dt {
-            font-weight: 600;
-            color: #666;
-        }
-
-        .info-grid dd {
-            margin-bottom: 1rem;
-        }
+        .profile-image { width: 120px; height: 120px; object-fit: cover; border-radius: 10px; }
+        .info-grid dt { font-weight: 600; color: #6b7280; font-size: .85rem; }
+        .info-grid dd { margin-bottom: .9rem; word-break: break-word; }
+        .allfields td { vertical-align: top; }
+        .allfields td.k { white-space: nowrap; font-family: ui-monospace, monospace; font-size: .82rem; color: #374151; width: 240px; }
+        .allfields pre { white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow: auto; background: #f8f9fa; padding: .6rem; border-radius: 6px; }
+        .copy-btn { --bs-btn-padding-y: .1rem; --bs-btn-padding-x: .4rem; --bs-btn-font-size: .7rem; }
     </style>
 </head>
 
@@ -162,230 +234,219 @@ $images = $user['user_image'] ? json_decode($user['user_image'], true) : [];
     <?php include "../global/header.php"; ?>
 
     <div class="container-fluid py-4">
-        <nav aria-label="breadcrumb" class="mb-4">
+        <nav aria-label="breadcrumb" class="mb-3">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="users.php">Users</a></li>
-                <li class="breadcrumb-item active"><?php echo htmlspecialchars($user['user_fullname']); ?></li>
+                <li class="breadcrumb-item active"><?php echo htmlspecialchars((string) $user['user_fullname']); ?></li>
             </ol>
         </nav>
 
         <div class="row">
-            <!-- User Profile Card -->
+            <!-- ── Left column ─────────────────────────────────────────────── -->
             <div class="col-lg-4 mb-4">
                 <div class="card shadow-sm">
                     <div class="card-body text-center">
                         <?php if (!empty($images) && isset($images[0]['p'])): ?>
-                            <img src="<?php echo get_lookup_label($db, "img_domain", 0) . htmlspecialchars($images[0]['p']); ?>"
-                                class="profile-image mb-3" alt="Profile image">
+                            <img src="<?php echo htmlspecialchars($img_base . $images[0]['p']); ?>" class="profile-image mb-3" alt="Profile image">
                         <?php else: ?>
-                            <div class="profile-image mb-3 bg-light d-flex align-items-center justify-content-center">
-                                <span class="text-muted">No image</span>
+                            <div class="profile-image mb-3 bg-light d-inline-flex align-items-center justify-content-center">
+                                <span class="text-muted small">No image</span>
                             </div>
                         <?php endif; ?>
 
-                        <h4 class="mb-1"><?php echo htmlspecialchars($user['user_fullname']); ?></h4>
-                        <div class="text-muted mb-3">ID: <?php echo htmlspecialchars($user['user_id']); ?></div>
+                        <h4 class="mb-1"><?php echo htmlspecialchars((string) $user['user_fullname']); ?></h4>
+                        <div class="text-muted small mb-3">ID: <code><?php echo htmlspecialchars((string) $user['user_id']); ?></code></div>
 
-                        <div class="d-flex flex-wrap justify-content-center gap-2 mb-3">
-                            <span
-                                class="badge text-bg-<?php echo $user['user_active'] === '1' ? 'success' : 'secondary'; ?>">
-                                <?php echo $user['user_active'] === '1' ? 'Active' : 'Inactive'; ?>
-                            </span>
-                            <span
-                                class="badge text-bg-<?php echo $user['user_verified'] === '1' ? 'success' : 'secondary'; ?>">
-                                <?php echo $user['user_verified'] === '1' ? 'Verified' : 'Unverified'; ?>
+                        <div class="d-flex flex-wrap justify-content-center gap-2 mb-2">
+                            <span class="badge text-bg-<?php echo $status_color; ?>"><?php echo $status_text; ?></span>
+                            <span class="badge text-bg-<?php echo ($user['user_verified'] ?? '') === '1' ? 'success' : 'secondary'; ?>">
+                                <?php echo ($user['user_verified'] ?? '') === '1' ? 'Verified' : 'Unverified'; ?>
                             </span>
                             <span class="badge text-bg-<?php echo $is_subscribed ? 'primary' : 'secondary'; ?>">
-                                <?php echo $is_subscribed ? 'Subscribed' : 'Not subscribed'; ?>
+                                <?php echo $is_subscribed ? 'Subscribed' : 'Free'; ?>
                             </span>
-                            <?php if ($age): ?>
-                                <span class="badge text-bg-info">Age: <?php echo $age; ?></span>
-                            <?php endif; ?>
-                        </div>
-
-                        <div class="small text-muted mb-3">
-                            Member since: <?php echo date('M j, Y', strtotime($user['user_datecreated'])); ?>
-                        </div>
-
-                        <div class="d-grid gap-2">
-                            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal">
-                                Edit Profile
-                            </button>
-                            <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#banModal">
-                                Manage Status
-                            </button>
+                            <?php if ($age): ?><span class="badge text-bg-info">Age <?php echo $age; ?></span><?php endif; ?>
                         </div>
                     </div>
                 </div>
 
+                <!-- Account & Contact -->
+                <div class="card shadow-sm mt-3">
+                    <div class="card-header py-2"><strong class="small">Account &amp; Contact</strong></div>
+                    <div class="card-body">
+                        <dl class="info-grid mb-0">
+                            <dt>Email</dt>
+                            <dd><?php echo htmlspecialchars((string) ($user['user_email'] ?? '')) ?: '—'; ?></dd>
+
+                            <dt>Phone number</dt>
+                            <dd><?php echo htmlspecialchars((string) ($user['user_phonenumber'] ?? '')) ?: '—'; ?></dd>
+
+                            <?php if ($phone_meta): ?>
+                                <dt>Phone meta</dt>
+                                <dd><?php echo format_scalar_or_json($phone_meta); ?></dd>
+                            <?php endif; ?>
+
+                            <dt>Status</dt>
+                            <dd><?php echo htmlspecialchars((string) ($user['user_active'] ?? '')); ?>
+                                <span class="text-muted">(<?php echo $status_text; ?>)</span></dd>
+
+                            <dt>Verified</dt>
+                            <dd><?php echo get_lookup_label($db, 'account_verified', isset($user['user_verified']) ? (int) $user['user_verified'] : null); ?></dd>
+
+                            <dt>Member since</dt>
+                            <dd><?php echo fmt_ts($user['user_datecreated'] ?? null); ?></dd>
+
+                            <dt>Last accessed</dt>
+                            <dd><?php echo fmt_ts($user['user_last_accessed'] ?? null); ?></dd>
+
+                            <dt>Geo hash</dt>
+                            <dd><code><?php echo htmlspecialchars((string) ($user['geo_hash'] ?? '')) ?: '—'; ?></code></dd>
+
+                            <dt>Coordinates</dt>
+                            <dd><?php echo htmlspecialchars(trim(($user['geo_latd'] ?? '') . ', ' . ($user['geo_long'] ?? ''), ', ')) ?: '—'; ?></dd>
+
+                            <dt>Signup device</dt>
+                            <dd><?php echo $device_stats ? format_scalar_or_json($device_stats) : '<span class="text-muted">—</span>'; ?></dd>
+                        </dl>
+                    </div>
+                </div>
+
                 <!-- Quick Stats -->
-                <div class="card shadow-sm mt-4">
+                <div class="card shadow-sm mt-3">
                     <div class="card-body">
                         <h6 class="card-title mb-3">Quick Stats</h6>
-                        <div class="row text-center">
-                            <div class="col-6">
-                                <div class="h5 mb-1"><?php echo number_format($match_stats['count_matched']); ?></div>
-                                <div class="small text-muted">Matches</div>
-                            </div>   
-                            <div class="col-6 ">
-                                <div class="h6 mb-1"><?php echo number_format($match_stats['count_reported']); ?></div>
-                                <div class="small text-muted">Reported</div>
-                            </div>
-                            <div class="col-12 mt-3">
-                                <div class="h6 mb-1">
-                                    <?php echo $is_subscribed ? htmlspecialchars($active_subscription['plan_name'] ?? 'Subscribed') : 'Free'; ?>
-                                </div>
-                                <div class="small text-muted">Subscription</div>
-                            </div>
+                        <div class="row text-center g-2">
+                            <div class="col-4"><div class="h5 mb-0"><?php echo number_format($match_stats['count_matched']); ?></div><div class="small text-muted">Matches</div></div>
+                            <div class="col-4"><div class="h5 mb-0"><?php echo number_format($match_stats['count_likes_received']); ?></div><div class="small text-muted">Likes in</div></div>
+                            <div class="col-4"><div class="h5 mb-0"><?php echo number_format($match_stats['count_reported']); ?></div><div class="small text-muted">Reported</div></div>
+                            <div class="col-12 mt-2"><div class="h6 mb-0"><?php echo $is_subscribed ? htmlspecialchars((string) ($active_subscription['plan_name'] ?? 'Subscribed')) : 'Free'; ?></div><div class="small text-muted">Subscription</div></div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Main Content -->
+            <!-- ── Right column ────────────────────────────────────────────── -->
             <div class="col-lg-8">
-                <!-- Tabs -->
-                <ul class="nav nav-tabs mb-4" id="userTabs" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile"
-                            type="button">
-                            Profile
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="matches-tab" data-bs-toggle="tab" data-bs-target="#matches"
-                            type="button">
-                            Matches (<?php echo number_format($match_stats['total_matches']); ?>)
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="photos-tab" data-bs-toggle="tab" data-bs-target="#photos"
-                            type="button">
-                            Photos (<?php echo count($images); ?>)
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings"
-                            type="button">
-                            Settings
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="othertools-tab" data-bs-toggle="tab" data-bs-target="#othertools"
-                            type="button">
-                            othertools
-                        </button>
-                    </li>
+                <ul class="nav nav-tabs mb-3" id="userTabs" role="tablist">
+                    <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#profile" type="button">Profile</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#preferences" type="button">Preferences</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#matches" type="button">Matches (<?php echo number_format($match_stats['total_matches']); ?>)</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#photos" type="button">Photos (<?php echo count($images); ?>)</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#allfields" type="button">All Fields</button></li>
                 </ul>
 
                 <div class="tab-content" id="userTabsContent">
-                    <!-- Profile Tab -->
+                    <!-- Profile -->
                     <div class="tab-pane fade show active" id="profile">
                         <div class="card shadow-sm">
                             <div class="card-body">
-                                <h6 class="card-title mb-4">Bio Information</h6>
-
+                                <h6 class="card-title mb-3">Bio Information</h6>
                                 <div class="row info-grid">
                                     <div class="col-md-6">
                                         <dl>
                                             <dt>About</dt>
-                                            <dd><?php echo htmlspecialchars($user['user_bio_about'] ?? 'Not set'); ?>
-                                            </dd>
+                                            <dd><?php echo nl2br(htmlspecialchars((string) ($user['user_bio_about'] ?? ''))) ?: 'Not set'; ?></dd>
 
                                             <dt>Gender</dt>
-                                            <dd><?php echo get_lookup_label($db, 'bio_gender', $user['user_bio_gender'] ?? null); ?>
-                                            </dd>
+                                            <dd><?php echo get_lookup_label($db, 'bio_gender', isset($user['user_bio_gender']) ? (int) $user['user_bio_gender'] : null); ?></dd>
+
+                                            <dt>Date of birth</dt>
+                                            <dd><?php echo htmlspecialchars((string) ($user['user_bio_dob'] ?? '')) ?: 'Not set'; ?><?php echo $age ? " (age {$age})" : ''; ?></dd>
 
                                             <dt>Height</dt>
-                                            <dd><?php echo $user['user_bio_height'] ? $user['user_bio_height'] . ' cm' : 'Not set'; ?>
-                                            </dd>
+                                            <dd><?php echo $user['user_bio_height'] ? ((int) $user['user_bio_height']) . ' cm' : 'Not set'; ?></dd>
 
                                             <dt>Ethnicity</dt>
-                                            <dd><?php echo get_lookup_label($db, 'bio_ethnicity', $user['user_bio_ethnicity'] ?? null); ?>
-                                            </dd>
+                                            <dd><?php echo get_lookup_label($db, 'bio_ethnicity', isset($user['user_bio_ethnicity']) ? (int) $user['user_bio_ethnicity'] : null); ?></dd>
 
-                                            <dt>Body Type</dt>
-                                            <dd><?php echo get_lookup_label($db, 'bio_bodytype', $user['user_bio_bodytype'] ?? null); ?>
-                                            </dd>
+                                            <dt>Hometown</dt>
+                                            <dd><?php echo htmlspecialchars((string) ($user['user_bio_hometown'] ?? '')) ?: 'Not set'; ?></dd>
+
+                                            <dt>School attended</dt>
+                                            <dd><?php echo htmlspecialchars((string) ($user['user_bio_schoolattended'] ?? '')) ?: 'Not set'; ?></dd>
+
+                                            <dt>Company / Job role</dt>
+                                            <dd><?php echo htmlspecialchars(trim((string) ($user['user_bio_company'] ?? '') . ' / ' . (string) ($user['user_bio_jobrole'] ?? ''), ' /')) ?: 'Not set'; ?></dd>
                                         </dl>
                                     </div>
                                     <div class="col-md-6">
                                         <dl>
-                                            <dt>Relationship Goal</dt>
-                                            <dd><?php echo get_lookup_label($db, 'bio_intent', $user['user_bio_relationshipgoal'] ?? null); ?>
-                                            </dd>
+                                            <dt>Relationship goal</dt>
+                                            <dd><?php echo get_lookup_label($db, 'bio_intent', isset($user['user_bio_relationshipgoal']) ? (int) $user['user_bio_relationshipgoal'] : null); ?></dd>
 
                                             <dt>Education</dt>
-                                            <dd><?php echo get_lookup_label($db, 'bio_education', $user['user_bio_highesteducation'] ?? null); ?>
-                                            </dd>
+                                            <dd><?php echo get_lookup_label($db, 'bio_education', isset($user['user_bio_highesteducation']) ? (int) $user['user_bio_highesteducation'] : null); ?></dd>
 
                                             <dt>Religion</dt>
-                                            <dd><?php echo get_lookup_label($db, 'bio_religion', $user['user_bio_religion'] ?? null); ?>
-                                            </dd>
+                                            <dd><?php echo get_lookup_label($db, 'bio_religion', isset($user['user_bio_religion']) ? (int) $user['user_bio_religion'] : null); ?></dd>
 
-                                            <dt>Political View</dt>
-                                            <dd><?php echo get_lookup_label($db, 'bio_politicalview', $user['user_bio_politicalview'] ?? null); ?>
-                                            </dd>
+                                            <dt>Political view</dt>
+                                            <dd><?php echo get_lookup_label($db, 'bio_politicalview', isset($user['user_bio_politicalview']) ? (int) $user['user_bio_politicalview'] : null); ?></dd>
 
-                                            <dt>Smoking/Drinking</dt>
-                                            <dd>
-                                                <?php echo get_lookup_label($db, 'bio_smoking', (int) $user['user_bio_smoking']); ?>
-                                                /
-                                                <?php echo get_lookup_label($db, 'bio_drinking', (int) $user['user_bio_drinking']); ?>
-                                            </dd>
+                                            <dt>Smoking / Drinking</dt>
+                                            <dd><?php echo get_lookup_label($db, 'bio_smoking', isset($user['user_bio_smoking']) ? (int) $user['user_bio_smoking'] : null); ?>
+                                                / <?php echo get_lookup_label($db, 'bio_drinking', isset($user['user_bio_drinking']) ? (int) $user['user_bio_drinking'] : null); ?></dd>
+
+                                            <dt>Children / Pets</dt>
+                                            <dd><?php echo get_lookup_label($db, 'bio_children', isset($user['user_bio_children']) ? (int) $user['user_bio_children'] : null); ?>
+                                                / <?php echo get_lookup_label($db, 'bio_pets', isset($user['user_bio_haspet']) ? (int) $user['user_bio_haspet'] : null); ?></dd>
+
+                                            <dt>Languages (raw)</dt>
+                                            <dd><?php echo format_scalar_or_json($user['user_bio_language'] ?? null); ?></dd>
+
+                                            <dt>Social links</dt>
+                                            <dd><?php echo $social_links ? format_scalar_or_json($social_links) : '<span class="text-muted">—</span>'; ?></dd>
                                         </dl>
                                     </div>
                                 </div>
 
-
                                 <?php if ($prompts): ?>
-                                    <h6 class="mt-4 mb-2">Profile Prompts</h6>
-                                    <?php foreach ($prompts as $prompt): ?>
+                                    <h6 class="mt-3 mb-2">Profile Prompts</h6>
+                                    <?php foreach ($prompts as $p): ?>
                                         <div class="mb-2">
-                                            <strong><?php echo htmlspecialchars($prompt['q'] ?? ''); ?></strong>
-                                            <div><?php echo htmlspecialchars($prompt['a'] ?? ''); ?></div>
+                                            <strong><?php echo htmlspecialchars((string) ($p['question'] ?? '')); ?></strong>
+                                            <div><?php echo htmlspecialchars((string) ($p['answer'] ?? '')); ?></div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+
+                                <?php if ($interests): ?>
+                                    <h6 class="mt-3 mb-2">Interests</h6>
+                                    <?php foreach ($interests as $cat => $items): ?>
+                                        <div class="mb-2">
+                                            <span class="text-muted small"><?php echo htmlspecialchars((string) $cat); ?>:</span>
+                                            <?php foreach ($items as $it): ?>
+                                                <span class="badge text-bg-light border"><?php echo htmlspecialchars((string) $it); ?></span>
+                                            <?php endforeach; ?>
                                         </div>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
                             </div>
                         </div>
 
-                        <!-- Location Card -->
                         <?php if ($location): ?>
-                            <div class="card shadow-sm mt-4">
+                            <div class="card shadow-sm mt-3">
                                 <div class="card-body">
                                     <h6 class="card-title mb-3">Location</h6>
-                                    <div class="row">
+                                    <div class="row info-grid">
                                         <div class="col-md-6">
                                             <dl>
                                                 <dt>Address</dt>
-                                                <dd><?php echo htmlspecialchars($location['display_name'] ?? 'Unknown'); ?>
-                                                </dd>
-
+                                                <dd><?php echo htmlspecialchars((string) ($location['display_name'] ?? 'Unknown')); ?></dd>
                                                 <dt>City</dt>
-                                                <dd><?php echo htmlspecialchars($location['city'] ?? 'Unknown'); ?></dd>
-
-                                                <dt>State/Country</dt>
-                                                <dd><?php echo htmlspecialchars(($location['state'] ?? '') . ', ' . ($location['country'] ?? '')); ?>
-                                                </dd>
+                                                <dd><?php echo htmlspecialchars((string) ($location['city'] ?? 'Unknown')); ?></dd>
+                                                <dt>State / Country</dt>
+                                                <dd><?php echo htmlspecialchars(trim(($location['state'] ?? '') . ', ' . ($location['country'] ?? ''), ', ')); ?></dd>
                                             </dl>
                                         </div>
                                         <div class="col-md-6">
                                             <dl>
                                                 <dt>Coordinates</dt>
-                                                <dd><?php echo htmlspecialchars(($location['latd'] ?? '') . ', ' . ($location['long'] ?? '')); ?>
-                                                </dd>
-
+                                                <dd><?php echo htmlspecialchars(($location['latd'] ?? '') . ', ' . ($location['long'] ?? '')); ?></dd>
                                                 <dt>Accuracy</dt>
-                                                <dd><?php echo htmlspecialchars((string) ($location['accuracy'] ?? '')); ?>
-                                                    meters</dd>
-
-                                                <dt>Last Updated</dt>
-                                                <dd>
-                                                    <?php echo isset($location['timestamp']) ?
-                                                        date('Y-m-d H:i:s', (int) floor($location['timestamp'] / 1000)) :
-                                                        'Unknown'; ?>
-                                                </dd>
+                                                <dd><?php echo htmlspecialchars((string) ($location['accuracy'] ?? '')); ?> m</dd>
+                                                <dt>Reported at</dt>
+                                                <dd><?php echo isset($location['timestamp']) ? date('Y-m-d H:i:s', (int) floor(((int) $location['timestamp']) / 1000)) : 'Unknown'; ?></dd>
                                             </dl>
                                         </div>
                                     </div>
@@ -394,84 +455,102 @@ $images = $user['user_image'] ? json_decode($user['user_image'], true) : [];
                         <?php endif; ?>
                     </div>
 
-                    <!-- Matches Tab -->
+                    <!-- Preferences -->
+                    <div class="tab-pane fade" id="preferences">
+                        <div class="card shadow-sm">
+                            <div class="card-body">
+                                <h6 class="card-title mb-3">Match Preferences</h6>
+                                <div class="row info-grid">
+                                    <div class="col-md-6">
+                                        <dl>
+                                            <dt>Age range</dt>
+                                            <dd><?php echo ($user['user_preference_minimum_age'] ?? '?') . ' – ' . ($user['user_preference_maximum_age'] ?? '?'); ?></dd>
+                                            <dt>Height range</dt>
+                                            <dd><?php echo ($user['user_preference_height_minimum'] ?? '?') . ' – ' . ($user['user_preference_height_maximum'] ?? '?'); ?> cm</dd>
+                                            <dt>Distance</dt>
+                                            <dd><?php echo htmlspecialchars((string) ($user['user_preference_distance'] ?? '?')); ?> km</dd>
+                                            <dt>Gender</dt>
+                                            <dd><?php echo get_lookup_label($db, 'bio_gender', isset($user['user_preference_gender']) ? (int) $user['user_preference_gender'] : null); ?></dd>
+                                            <dt>Relationship goal</dt>
+                                            <dd><?php echo get_lookup_label($db, 'bio_intent', isset($user['user_preference_relationshipgoal']) ? (int) $user['user_preference_relationshipgoal'] : null); ?></dd>
+                                            <dt>Ethnicity</dt>
+                                            <dd><?php echo get_lookup_label($db, 'bio_ethnicity', isset($user['user_preference_ethnicity']) ? (int) $user['user_preference_ethnicity'] : null); ?></dd>
+                                        </dl>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <dl>
+                                            <dt>Education</dt>
+                                            <dd><?php echo get_lookup_label($db, 'bio_education', isset($user['user_preference_highesteducation']) ? (int) $user['user_preference_highesteducation'] : null); ?></dd>
+                                            <dt>Religion</dt>
+                                            <dd><?php echo get_lookup_label($db, 'bio_religion', isset($user['user_preference_religion']) ? (int) $user['user_preference_religion'] : null); ?></dd>
+                                            <dt>Political view</dt>
+                                            <dd><?php echo get_lookup_label($db, 'bio_politicalview', isset($user['user_preference_politicalview']) ? (int) $user['user_preference_politicalview'] : null); ?></dd>
+                                            <dt>Smoking / Drinking</dt>
+                                            <dd><?php echo get_lookup_label($db, 'bio_smoking', isset($user['user_preference_smoking']) ? (int) $user['user_preference_smoking'] : null); ?>
+                                                / <?php echo get_lookup_label($db, 'bio_drinking', isset($user['user_preference_drinking']) ? (int) $user['user_preference_drinking'] : null); ?></dd>
+                                            <dt>Children / Pets</dt>
+                                            <dd><?php echo get_lookup_label($db, 'bio_children', isset($user['user_preference_children']) ? (int) $user['user_preference_children'] : null); ?>
+                                                / <?php echo get_lookup_label($db, 'bio_pets', isset($user['user_preference_pet']) ? (int) $user['user_preference_pet'] : null); ?></dd>
+                                            <dt>Languages (raw)</dt>
+                                            <dd><?php echo format_scalar_or_json($user['user_preference_language'] ?? null); ?></dd>
+                                        </dl>
+                                    </div>
+                                </div>
+
+                                <h6 class="mt-3 mb-2">Privacy</h6>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <?php foreach ([
+                                        'Show distance' => 'user_privacy_show_distance',
+                                        'Show age' => 'user_privacy_show_age',
+                                        'Incognito' => 'user_privacy_incognito',
+                                        'Read receipts' => 'user_privacy_read_receipts',
+                                    ] as $lbl => $col): ?>
+                                        <span class="badge text-bg-<?php echo ($user[$col] ?? '') === '1' ? 'success' : 'secondary'; ?>">
+                                            <?php echo $lbl; ?>: <?php echo ($user[$col] ?? '0') === '1' ? 'on' : 'off'; ?>
+                                        </span>
+                                    <?php endforeach; ?>
+                                </div>
+
+                                <?php if ($settings): ?>
+                                    <h6 class="mt-3 mb-2">Settings JSON</h6>
+                                    <pre class="bg-light p-3 small rounded"><?php echo htmlspecialchars(json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)); ?></pre>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Matches -->
                     <div class="tab-pane fade" id="matches">
                         <div class="card shadow-sm">
                             <div class="card-body">
                                 <h6 class="card-title mb-3">Match Activity</h6>
                                 <div class="row g-3 text-center">
-                                    <div class="col-6 col-md-4">
-                                        <div class="border rounded p-3">
-                                            <div class="h4 mb-1"><?php echo number_format($match_stats['total_matches']); ?></div>
-                                            <div class="small text-muted">Total Activity</div>
+                                    <?php foreach ([
+                                        'Total activity' => 'total_matches',
+                                        'Likes sent' => 'count_likes_sent',
+                                        'Likes received' => 'count_likes_received',
+                                        'Matched' => 'count_matched',
+                                        'Waiting' => 'count_waiting',
+                                        'Not interested' => 'count_not_interested',
+                                        'Superliked total' => 'count_superliked',
+                                        'Superlikes sent' => 'count_superlikes_sent',
+                                        'Superlikes received' => 'count_superlikes_received',
+                                        'Blocked' => 'count_blocked',
+                                        'Reported' => 'count_reported',
+                                    ] as $lbl => $key): ?>
+                                        <div class="col-6 col-md-4">
+                                            <div class="border rounded p-3">
+                                                <div class="h4 mb-1"><?php echo number_format($match_stats[$key]); ?></div>
+                                                <div class="small text-muted"><?php echo $lbl; ?></div>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="col-6 col-md-4">
-                                        <div class="border rounded p-3">
-                                            <div class="h4 mb-1"><?php echo number_format($match_stats['count_likes_sent']); ?></div>
-                                            <div class="small text-muted">Likes Sent</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-6 col-md-4">
-                                        <div class="border rounded p-3">
-                                            <div class="h4 mb-1"><?php echo number_format($match_stats['count_likes_received']); ?></div>
-                                            <div class="small text-muted">Likes Received</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-6 col-md-4">
-                                        <div class="border rounded p-3">
-                                            <div class="h4 mb-1"><?php echo number_format($match_stats['count_matched']); ?></div>
-                                            <div class="small text-muted">Matched</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-6 col-md-4">
-                                        <div class="border rounded p-3">
-                                            <div class="h4 mb-1"><?php echo number_format($match_stats['count_waiting']); ?></div>
-                                            <div class="small text-muted">Waiting</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-6 col-md-4">
-                                        <div class="border rounded p-3">
-                                            <div class="h4 mb-1"><?php echo number_format($match_stats['count_not_interested']); ?></div>
-                                            <div class="small text-muted">Not Interested</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-6 col-md-4">
-                                        <div class="border rounded p-3">
-                                            <div class="h4 mb-1"><?php echo number_format($match_stats['count_superliked']); ?></div>
-                                            <div class="small text-muted">Superliked Total</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-6 col-md-4">
-                                        <div class="border rounded p-3">
-                                            <div class="h4 mb-1"><?php echo number_format($match_stats['count_superlikes_sent']); ?></div>
-                                            <div class="small text-muted">Superlikes Sent</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-6 col-md-4">
-                                        <div class="border rounded p-3">
-                                            <div class="h4 mb-1"><?php echo number_format($match_stats['count_superlikes_received']); ?></div>
-                                            <div class="small text-muted">Superlikes Received</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-6 col-md-4">
-                                        <div class="border rounded p-3">
-                                            <div class="h4 mb-1"><?php echo number_format($match_stats['count_blocked']); ?></div>
-                                            <div class="small text-muted">Blocked</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-6 col-md-4">
-                                        <div class="border rounded p-3">
-                                            <div class="h4 mb-1"><?php echo number_format($match_stats['count_reported']); ?></div>
-                                            <div class="small text-muted">Reported</div>
-                                        </div>
-                                    </div>
+                                    <?php endforeach; ?>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Photos Tab -->
+                    <!-- Photos -->
                     <div class="tab-pane fade" id="photos">
                         <div class="card shadow-sm">
                             <div class="card-body">
@@ -479,182 +558,50 @@ $images = $user['user_image'] ? json_decode($user['user_image'], true) : [];
                                     <div class="row row-cols-1 row-cols-md-3 g-4">
                                         <?php foreach ($images as $index => $image): ?>
                                             <div class="col">
-                                                <div class="card">
-                                                    <img src="<?php echo get_lookup_label($db, "img_domain", 0) . htmlspecialchars($image['p']); ?>"
-                                                        class="card-img-top" style="height: 200px; object-fit: cover;"
-                                                        alt="Photo <?php echo $index + 1; ?>">
+                                                <div class="card h-100">
+                                                    <img src="<?php echo htmlspecialchars($img_base . ($image['p'] ?? '')); ?>"
+                                                        class="card-img-top" style="height: 200px; object-fit: cover;" alt="Photo <?php echo $index + 1; ?>">
                                                     <div class="card-body text-center">
-                                                        <small class="text-muted">
-                                                            <?php echo ($image['w'] ?? '?') . '×' . ($image['h'] ?? '?'); ?> px
-                                                        </small>
+                                                        <small class="text-muted"><?php echo htmlspecialchars(($image['w'] ?? '?') . '×' . ($image['h'] ?? '?')); ?> px</small>
+                                                        <div class="text-muted text-break" style="font-size:.7rem;"><?php echo htmlspecialchars((string) ($image['p'] ?? '')); ?></div>
                                                     </div>
                                                 </div>
                                             </div>
                                         <?php endforeach; ?>
                                     </div>
                                 <?php else: ?>
-                                    <div class="text-center text-muted py-4">
-                                        No photos uploaded by this user.
-                                    </div>
+                                    <div class="text-center text-muted py-4">No photos uploaded by this user.</div>
                                 <?php endif; ?>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Settings Tab -->
-                    <div class="tab-pane fade" id="settings">
+                    <!-- All Fields -->
+                    <div class="tab-pane fade" id="allfields">
                         <div class="card shadow-sm">
                             <div class="card-body">
-                                <h6 class="card-title mb-3">User Preferences</h6>
-
-                                <div class="row info-grid">
-                                    <div class="col-md-6">
-                                        <dl>
-                                            <dt>Age Range</dt>
-                                            <dd><?php echo ($user['user_preference_minimum_age'] ?? 18) . ' - ' . ($user['user_preference_maximum_age'] ?? 25); ?>
-                                            </dd>
-
-                                            <dt>Gender Preference</dt>
-                                            <dd>
-                                                <?php echo $user['user_preference_gender'] == -99 ?
-                                                    'Any' :
-                                                    get_lookup_label($db, 'bio_gender', $user['user_preference_gender']);
-                                                ?>
-                                            </dd>
-
-                                            <dt>Distance</dt>
-                                            <dd><?php echo ($user['user_preference_distance'] ?? 55); ?> km</dd>
-
-                                            <dt>Height Range</dt>
-                                            <dd>
-                                                <?php echo ($user['user_preference_height_minimum'] ?? 153) . ' - ' .
-                                                    ($user['user_preference_height_maximum'] ?? 180); ?> cm
-                                            </dd>
-                                        </dl>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <dl>
-                                            <dt>Relationship Goal</dt>
-                                            <dd>
-                                                <?php echo $user['user_preference_relationshipgoal'] == -99 ?
-                                                    'Any' :
-                                                    get_lookup_label($db, 'bio_intent', $user['user_preference_relationshipgoal']);
-                                                ?>
-                                            </dd>
-
-                                            <dt>Smoking Preference</dt>
-                                            <dd><?php echo get_lookup_label($db, 'bio_smoking', (int) ($user['user_preference_smoking'] ?? -99)); ?>
-                                            </dd>
-
-                                            <dt>Drinking Preference</dt>
-                                            <dd><?php echo get_lookup_label($db, 'bio_drinking', (int) ($user['user_preference_drinking'] ?? -99)); ?>
-                                            </dd>
-
-                                            <dt>Children Preference</dt>
-                                            <dd>
-                                                <?php echo $user['user_preference_children'] == '-99' ?
-                                                    'Any' :
-                                                    ($user['user_preference_children'] == '1' ? 'Yes' : 'No');
-                                                ?>
-                                            </dd>
-                                        </dl>
-                                    </div>
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="card-title mb-0">Every <code>users</code> column</h6>
+                                    <button class="btn btn-outline-secondary btn-sm" id="copyJsonBtn">Copy row as JSON</button>
                                 </div>
-
-                                <?php if ($settings): ?>
-                                    <h6 class="mt-4 mb-2">Notification Settings</h6>
-                                    <pre class="bg-light p-3 small rounded"><?php
-                                    echo htmlspecialchars(json_encode($settings, JSON_PRETTY_PRINT));
-                                    ?></pre>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- other Tools -->
-                    <div class="tab-pane fade" id="othertools">
-                        <div class="card shadow-sm">
-                            <div class="card-body">
-                                <h6 class="card-title mb-3">Other Tools</h6>
-
-                                <div class="row info-grid">
-                                    <div class="col-md-6">
-                                        <dl>
-                                            <dt>Subscription</dt>
-                                            <dd>
-                                                <span class="badge text-bg-<?php echo $is_subscribed ? 'primary' : 'secondary'; ?>">
-                                                    <?php echo $is_subscribed ? 'Active' : 'None'; ?>
-                                                </span>
-                                            </dd>
-
-                                            <?php if ($active_subscription): ?>
-                                                <dt>Plan</dt>
-                                                <dd>
-                                                    <?php echo htmlspecialchars($active_subscription['plan_name'] ?? 'Unknown'); ?>
-                                                    <?php if (!empty($active_subscription['plan_variant'])): ?>
-                                                        <span class="text-muted">(<?php echo htmlspecialchars($active_subscription['plan_variant']); ?>)</span>
-                                                    <?php endif; ?>
-                                                </dd>
-
-                                                <dt>Expires</dt>
-                                                <dd><?php echo htmlspecialchars($active_subscription['end_date'] ?? ''); ?></dd>
-                                            <?php endif; ?>
-
-                                            <dt>Verification Code</dt>
-                                            <dd>
-                                                <?php echo $user['user_auth_verificationcode']; ?>
-                                            </dd>
-
-
-                                            <dt>Height Range</dt>
-                                            <dd>
-                                                <?php echo ($user['user_preference_height_minimum'] ?? 153) . ' - ' .
-                                                    ($user['user_preference_height_maximum'] ?? 180); ?> cm
-                                            </dd>
-                                        </dl>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <dl>
-                                            <?php if ($active_subscription): ?>
-                                                <dt>Subscription ID</dt>
-                                                <dd class="text-break"><?php echo htmlspecialchars($active_subscription['id'] ?? ''); ?></dd>
-
-                                                <dt>External ID</dt>
-                                                <dd class="text-break"><?php echo htmlspecialchars($active_subscription['external_id'] ?? ''); ?></dd>
-
-                                                <dt>Payment</dt>
-                                                <dd>
-                                                    <?php echo htmlspecialchars($active_subscription['payment_status'] ?? 'Unknown'); ?>
-                                                    <?php if (isset($active_subscription['payment_amount'])): ?>
-                                                        <span class="text-muted">
-                                                            <?php echo htmlspecialchars((string) $active_subscription['payment_amount']); ?>
-                                                            <?php echo htmlspecialchars($active_subscription['payment_currency'] ?? ''); ?>
-                                                        </span>
-                                                    <?php endif; ?>
-                                                </dd>
-                                            <?php endif; ?>
-
-                                            <dt>Verification Code</dt>
-                                            <dd>
-                                                <?php echo $user['user_auth_verificationcode'];
-
-                                                ?>
-                                            </dd>
-
-                                            <dt>Smoking Preference</dt>
-                                            <dd>
-                                                <?php echo get_lookup_label($db, 'bio_smoking', (int) ($user['user_preference_smoking'] ?? -99)); ?>
-                                            </dd>
-                                        </dl>
-                                    </div>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-striped allfields mb-0">
+                                        <tbody>
+                                            <?php foreach ($user as $col => $val): ?>
+                                                <?php $lbl = coded_label($db, (string) $col, $val); ?>
+                                                <tr>
+                                                    <td class="k"><?php echo htmlspecialchars((string) $col); ?></td>
+                                                    <td>
+                                                        <?php echo format_scalar_or_json($val); ?>
+                                                        <?php if ($lbl !== null): ?>
+                                                            <span class="badge text-bg-light border ms-1"><?php echo htmlspecialchars($lbl); ?></span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
                                 </div>
-
-                                <?php if ($settings): ?>
-                                    <h6 class="mt-4 mb-2">Notification Settings</h6>
-                                    <pre class="bg-light p-3 small rounded"><?php
-                                    echo htmlspecialchars(json_encode($settings, JSON_PRETTY_PRINT));
-                                    ?></pre>
-                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -663,18 +610,18 @@ $images = $user['user_image'] ? json_decode($user['user_image'], true) : [];
         </div>
     </div>
 
-    <!-- Modals will go here -->
-
     <script>
         $(function () {
-            // Initialize tabs
-            var triggerTabList = [].slice.call(document.querySelectorAll('#userTabs button'))
-            triggerTabList.forEach(function (triggerEl) {
-                var tabTrigger = new bootstrap.Tab(triggerEl)
-                triggerEl.addEventListener('click', function (event) {
-                    event.preventDefault()
-                    tabTrigger.show()
-                })
+            document.querySelectorAll('#userTabs button').forEach(function (el) {
+                var t = new bootstrap.Tab(el);
+                el.addEventListener('click', function (e) { e.preventDefault(); t.show(); });
+            });
+            var raw = <?php echo json_encode($user, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
+            var btn = document.getElementById('copyJsonBtn');
+            if (btn) btn.addEventListener('click', function () {
+                navigator.clipboard.writeText(JSON.stringify(raw, null, 2)).then(function () {
+                    btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy row as JSON'; }, 1500);
+                });
             });
         });
     </script>

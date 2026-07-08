@@ -1,0 +1,10 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["Z7KVPVQ369.com.suyoapp.app"],
+        "paths": ["/payment/*"]
+      }
+    ]
+  }
+}

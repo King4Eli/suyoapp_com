@@ -1,0 +1,362 @@
+import React, { useEffect, useState } from 'react';
+import {
+  NavigationContainer,
+  DefaultTheme,
+  DarkTheme,
+} from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import IIcon from 'react-native-vector-icons/Ionicons';
+import MIcon from 'react-native-vector-icons/MaterialCommunityIcons';
+
+import Peoples_Screen from './Peoples';
+import { Screen_likes } from './Likes';
+import { Screen_feed } from './Feed';
+import { Screen_chat } from './Chats';
+import { Screen_profile } from './Profile';
+import { Screen_conversation } from './Conversations';
+import { Auth_Login } from './Auth_Login';
+import { Loaderx } from '../funcs/functions_stateful';
+import { Screen_settings } from './Settings';
+import { Screen_editprofile } from './ProfileEdit';
+import { Screen_editProfilePrompts } from './ProfileEditPrompts';
+import { Screen_editProfileInterests } from './ProfileEditInterests';
+import { sessionManager, SessionTypes } from '../funcs/SessionContext';
+import { Screen_editpreference } from './PreferenceEdit';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Zz_nofilee } from './zz_nofilee';
+import { namer, resourceMap } from '../funcs/static';
+import { Screen_PurchaseSubscribe } from './Purchase_Subscribe';
+import {
+  __init__app,
+  handleDeepLink,
+  logReport,
+  navigationRef,
+} from '../funcs/functions';
+import { SocketClient } from '../funcs/socket_realtimeData';
+import { Linking, StatusBar, View } from 'react-native';
+import { ThemeProvider, useTheme } from '../funcs/theme';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Toastx } from '../funcs/customNotification';
+import LottieView from 'lottie-react-native';
+import { Zz_devv } from './zz_devv';
+import { Auth_Signup } from './Auth_Signup';
+import { Screen_PurchaseConsumable } from './Purchase_Consumable';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+
+// Type definitions for props if needed
+const Stack = createNativeStackNavigator<any>();
+const TabBottom = createBottomTabNavigator<any>();
+
+const MainApp: React.FC = () => {
+  const [currentSession, setCurrentSession] = useState<SessionTypes | null>(
+    sessionManager.getCurrentSession(),
+  );
+  const [getAllGood, setAllGood] = useState(false);
+  const { colors, resolvedScheme } = useTheme();
+
+  const navigationTheme = {
+    ...(resolvedScheme === 'dark' ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(resolvedScheme === 'dark' ? DarkTheme.colors : DefaultTheme.colors),
+      primary: colors.primary,
+      background: colors.background,
+      card: colors.surfaceElevated,
+      text: colors.text,
+      border: colors.border,
+      notification: colors.danger,
+    },
+  };
+
+  // Handle deep linking to Settings screen
+  useEffect(() => {
+    // cold start
+    Linking.getInitialURL().then(url => {
+      if (url) {
+        handleDeepLink(url);
+      }
+    });
+    // running app
+    const sub = Linking.addEventListener('url', e => {
+      handleDeepLink(e.url);
+    });
+    return () => sub.remove();
+  }, []);
+
+  // Handle session subscription
+  useEffect(() => {
+    const unsubscribe = sessionManager.subscribe(newSession => {
+      setCurrentSession(newSession);
+    });
+    return () => unsubscribe(); // Cleanup on unmount
+  }, []);
+
+  // Fetch initial data
+  useEffect(() => {
+    //let socketListen: Function = () => { };
+    const initializeApp = async () => {
+      try {
+        setAllGood(false);
+        // Reset session and fetch mapper data
+        const [_, sessIdStorage] = await Promise.all([
+          sessionManager.updateSession({ x_omi_payload: null }),
+          AsyncStorage.getItem(namer.storage.sessionId),
+        ]);
+
+        if (sessIdStorage !== null) {
+          await sessionManager.updateSession({ x_omi_payload: sessIdStorage });
+        }
+      } catch (error: any) {
+        logReport({
+          type: 'function',
+          extra: error?.message || String(error),
+          useraction: 'initializeApp',
+          logMessage: error?.message || String(error),
+        });
+        Toastx.show({
+          message: 'Error initializing app',
+          type: 'error',
+          duration: 9000,
+        });
+      }
+    };
+
+    initializeApp()
+      .then(async () => {
+        await __init__app();
+      })
+      .finally(() => {
+        setAllGood(true);
+      });
+    return () => {
+      SocketClient.disconnect();
+    };
+  }, []); // Runs only once on mount
+
+  const BottomTabNavigator = () => (
+    <TabBottom.Navigator
+      initialRouteName={namer.navigation.peoples}
+      screenOptions={{ tabBarShowLabel: true }}
+    >
+      <TabBottom.Screen
+        name={namer.navigation.likes}
+        component={Screen_likes}
+        options={{
+          tabBarLabel: 'Likes',
+          tabBarIcon: () => (
+            <IIcon name="heart-half-outline" size={32} color="#4F8EF7" />
+          ),
+        }}
+      />
+      <TabBottom.Screen
+        name={namer.navigation.chat}
+        component={Screen_chat}
+        options={{
+          tabBarLabel: 'Chat',
+          tabBarIcon: () => (
+            <IIcon
+              name="chatbubble-ellipses-outline"
+              size={30}
+              color="#4F8EF7"
+            />
+          ),
+          headerTitleAlign: 'center',
+        }}
+      />
+      <TabBottom.Screen
+        name={namer.navigation.peoples}
+        component={Peoples_Screen}
+        options={{
+          tabBarLabel: 'Peoples',
+          tabBarIcon: () => (
+            <MIcon name="cards-outline" size={30} color="#4F8EF7" />
+          ),
+        }}
+      />
+      {/*<TabBottom.Screen
+        name={namer.navigation.feed}
+        component={Screen_feed}
+        options={{
+          tabBarLabel: 'Feed',
+          tabBarIcon: () => (
+            <IIcon name="newspaper-outline" size={28} color="#4F8EF7" />
+          ),
+        }}
+      />*/}
+
+      <TabBottom.Screen
+        name={namer.navigation.profile}
+        component={Screen_profile}
+        options={{
+          tabBarLabel: 'Profile',
+          tabBarIcon: () => (
+            <IIcon name="person-outline" size={30} color="#4F8EF7" />
+          ),
+        }}
+      />
+    </TabBottom.Navigator>
+  );
+
+  if (getAllGood === false) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.background,
+        }}
+      >
+        <StatusBar
+          barStyle={colors.statusBarStyle}
+          backgroundColor={colors.background}
+        />
+        <LottieView
+          source={resourceMap.lottie.infinityLoading}
+          autoPlay
+          loop
+          style={{ width: 220, height: 220 }}
+        />
+      </View>
+    );
+  }
+
+  return (
+    <>
+      <StatusBar
+        barStyle={colors.statusBarStyle}
+        backgroundColor={colors.background}
+      />
+      <NavigationContainer ref={navigationRef} theme={navigationTheme}>
+        <Stack.Navigator
+          initialRouteName={
+            currentSession?.x_omi_payload ? 'Home' : namer.navigation.login
+          }
+        >
+          {!currentSession?.x_omi_payload ? (
+            <>
+              <Stack.Screen
+                name={namer.navigation.login}
+                component={Auth_Login}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name={namer.navigation.signup}
+                component={Auth_Signup}
+                options={{ headerShown: false }}
+              />
+            </>
+          ) : (
+            <>
+              <Stack.Screen
+                name="Home"
+                component={BottomTabNavigator}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name={namer.navigation.conversation}
+                component={Screen_conversation}
+                options={{ headerBackTitle: '' }}
+              />
+              <Stack.Screen
+                name={namer.navigation.editprofile}
+                component={Screen_editprofile}
+                options={{ headerBackTitle: '' }}
+              />
+              <Stack.Screen
+                name={namer.navigation.editProfilePrompts}
+                component={Screen_editProfilePrompts}
+                options={{ headerBackTitle: '' }}
+              />
+              <Stack.Screen
+                name={namer.navigation.editProfileInterests}
+                component={Screen_editProfileInterests}
+                options={{ headerBackTitle: '' }}
+              />
+              <Stack.Screen
+                name={namer.navigation.editpreference}
+                component={Screen_editpreference}
+              />
+              <Stack.Screen
+                name={namer.navigation.peoplesOnePerson}
+                component={Peoples_Screen}
+                options={{ headerBackTitle: '' }}
+              />
+              <Stack.Screen
+                name={namer.navigation.myTimeline}
+                component={Screen_feed}
+                options={{ headerBackTitle: '' }}
+              />
+              <Stack.Screen
+                name={namer.navigation.subscription}
+                component={Screen_PurchaseSubscribe}
+                options={{
+                  headerTintColor: '#6d6139ff',
+                  title: 'Upgrade Your Experience',
+                  headerBackTitle: '',
+                  headerTitleAlign: 'center',
+                  headerTitleStyle: {
+                    fontSize: 20,
+                    fontWeight: 'bold',
+                    color: '#fff',
+                    fontFamily: 'Helvetica',
+                  },
+                  headerStyle: { backgroundColor: '#1a1919ff' },
+                }}
+              />
+              <Stack.Screen
+                name={namer.navigation.consumables}
+                component={Screen_PurchaseConsumable}
+                options={{
+                  headerTintColor: '#6d6139ff',
+                  title: 'Upgrade Your Experience',
+                  headerBackTitle: '',
+                  headerTitleAlign: 'center',
+                  headerTitleStyle: {
+                    fontSize: 20,
+                    fontWeight: 'bold',
+                    color: '#fff',
+                    fontFamily: 'Helvetica',
+                  },
+                  headerStyle: { backgroundColor: '#1a1919ff' },
+                }}
+              />
+              <Stack.Screen
+                name={namer.navigation.settings}
+                component={Screen_settings}
+                options={{ headerBackTitle: '' }}
+              />
+            </>
+          )}
+          <Stack.Screen
+            name={namer.navigation.devpage}
+            component={Zz_devv}
+            options={{}}
+          />
+          <Stack.Screen
+            name={'zz_nofile'}
+            component={Zz_nofilee}
+            options={{}}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </>
+  );
+};
+
+const App = () => (
+  <ThemeProvider>
+    <SafeAreaProvider style={{ flex: 1, position: 'relative' }}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <BottomSheetModalProvider>
+          <Loaderx />
+          <MainApp />
+          <Toastx />
+        </BottomSheetModalProvider>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
+  </ThemeProvider>
+);
+
+export default App;

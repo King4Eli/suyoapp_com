@@ -104,16 +104,16 @@ function get_dashboard_stats(PDO $db): array
     $stats['matches_active'] = column_exists($db, 'matches', 'match_status')
         ? safe_count($db, 'matches', "match_status = '1'")
         : 0;
-    $stats['reports_total'] = safe_count($db, 'logreports');
-    $stats['reports_pending'] = column_exists($db, 'logreports', 'report_status')
-        ? safe_count($db, 'logreports', "report_status = '0'")
+    $stats['reports_total'] = safe_count($db, 'users_reported');
+    $stats['reports_pending'] = column_exists($db, 'users_reported', 'status')
+        ? safe_count($db, 'users_reported', "status = '0'")
         : 0;
     $stats['payments_total'] = safe_count($db, 'payments');
-    $stats['payments_completed'] = column_exists($db, 'payments', 'p_status')
-        ? safe_count($db, 'payments', "p_status = 'completed'")
+    $stats['payments_completed'] = column_exists($db, 'payments', 'status')
+        ? safe_count($db, 'payments', "status = '1'")
         : 0;
-    $stats['payments_refunded'] = column_exists($db, 'payments', 'p_status')
-        ? safe_count($db, 'payments', "p_status = 'refunded'")
+    $stats['payments_refunded'] = column_exists($db, 'payments', 'status')
+        ? safe_count($db, 'payments', "status = '2'")
         : 0;
     $stats['products_total'] = safe_count($db, 'product_lists');
     $stats['products_active'] = column_exists($db, 'product_lists', 'pl_is_active')
@@ -124,7 +124,7 @@ function get_dashboard_stats(PDO $db): array
 
     $stats['latest_conversation'] = safe_max_timestamp($db, 'conversations', 'convo_date_added');
     $stats['latest_match'] = safe_max_timestamp($db, 'matches', 'match_dateAdded');
-    $stats['latest_report'] = safe_max_timestamp($db, 'logreports', 'created_at');
+    $stats['latest_report'] = safe_max_timestamp($db, 'users_reported', 'date_created');
     $stats['latest_payment'] = safe_max_timestamp($db, 'payments', 'p_created_at');
 
     return $stats;

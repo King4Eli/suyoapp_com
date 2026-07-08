@@ -1,0 +1,111 @@
+# Dev stack with its own MySQL and Redis. Reuses .env/*.env but overrides
+# DB and Redis hosts, so it never reaches production.
+name: suyoapp_com_devcontainer
+
+x-api-env-files: &api-env-files
+  - ../.env/db.env
+  - ../.env/s3bender.env
+  - ../.env/session.env
+  - ../.env/stripe.env
+  - ../.env/smtp.env
+  - ../.env/redis.env
+  - ../.env/iap.env
+  - ../.env/ratelimit.env
+
+x-dev-services: &dev-services
+  DB_HOST: mysql
+  DB_PORT: "3306"
+  DB_USER: root
+  DB_PASSWORD: devpassword
+  DB_NAME: suyoapp_dev
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+
+services:
+  workspace:
+    image: mcr.microsoft.com/devcontainers/javascript-node:1-20-bookworm
+    volumes:
+      - ..:/workspaces/suyoapp_com:cached
+    command: sleep infinity
+    env_file: *api-env-files
+    environment:
+      <<: *dev-services
+    depends_on:
+      - mysql
+      - redis
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: devpassword
+      MYSQL_DATABASE: suyoapp_dev
+    ports:
+      - "13306:3306"
+    volumes:
+      - devcontainer-mysql-data:/var/lib/mysql
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ../api
+      dockerfile: Dockerfile
+    volumes:
+      - ../api:/app
+      # The npm scripts read ../.env/db.env relative to /app.
+      - ../.env:/.env:ro
+    command: npm run http-dev
+    ports:
+      - "19051:80"
+    env_file: *api-env-files
+    environment:
+      <<: *dev-services
+      NODE_TLS_REJECT_UNAUTHORIZED: "0"
+    depends_on:
+      - mysql
+      - redis
+
+  admin:
+    build:
+      context: ../admin
+      dockerfile: Dockerfile
+    volumes:
+      - ../admin:/var/www/html
+    ports:
+      - "19052:80"
+    env_file:
+      # Same files the real admin service uses (docker-compose.yml).
+      - ../.env/db.env
+      - ../.env/smtp.env
+      - ../.env/session.env
+      - ../.env/s3bender.env
+      - ../.env/redis.env
+    environment:
+      DB_HOST: mysql
+      DB_USER: root
+      DB_PASSWORD: devpassword
+      DB_NAME: suyoapp_dev
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      # This compose project's service name for the api container -- see
+      # admin/global/funcs.php's fetch_mapper_payload().
+      API_INTERNAL_URL: http://api
+    depends_on:
+      - mysql
+      - api
+
+  web:
+    build:
+      context: ../web
+      target: build
+    volumes:
+      - ../web:/app
+    command: npm run dev -- --host 0.0.0.0
+    ports:
+      - "19053:5173"
+
+volumes:
+  devcontainer-mysql-data:
