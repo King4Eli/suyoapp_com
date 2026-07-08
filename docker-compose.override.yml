@@ -1,6 +1,6 @@
 services:
   suyoapp_com_api:
-    build: ./api
+    build: ./api_v1
     volumes:
       - ./api_v1:/app
     command: npm run http-dev
@@ -9,7 +9,7 @@ services:
     extra_hosts:
       - "s3.global.local:host-gateway"
     ports:
-      - "2000:80"
+      - "2001:80"
 
   suyoapp_com_admin:
     build: ./admin

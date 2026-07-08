@@ -1,5 +1,4 @@
-# docker compose -p suyoapp_com up -d --build
-
+name: suyoapp_com
 services:
   suyoapp_com_api:
     image: kingeli/suyoapp_com_api:latest

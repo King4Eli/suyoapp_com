@@ -1,0 +1,33 @@
+services:
+  suyoapp_com_blog_ghost:
+    environment:
+      url: http://localhost:2000
+    ports:
+      - "2000:2368"
+  suyoapp_com_blog_qdrant:
+    ports:
+      - "6333:6333"
+  suyoapp_com_blog_worker:
+    build: ./worker
+    container_name: suyoapp_com_blog_worker
+    profiles:
+      - worker
+    restart: unless-stopped
+    environment:
+      OLLAMA_URL: http://host.docker.internal:11435
+      OLLAMA_MODEL: llama3.2
+      GHOST_URL: http://suyoapp_com_blog_ghost:2368
+      GHOST_ADMIN_API_KEY: ${GHOST_ADMIN_API_KEY:-}
+      PEXELS_API_KEY: ${PEXELS_API_KEY:-}
+      REDIS_URL: redis://suyoapp_com_blog_redis:6379
+      QDRANT_URL: http://suyoapp_com_blog_qdrant:6333
+      INTERVAL_SECONDS: "10"
+    volumes:
+      - ./worker/topics.txt:/app/topics.txt:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - suyoapp_com_blog_ghost
+      - suyoapp_com_blog_redis
+      - suyoapp_com_blog_qdrant
+
