@@ -1,5 +1,5 @@
 {
-  "name": "datingapp",
+  "name": "suyoapp",
   "version": "0.0.1",
   "private": true,
   "scripts": {
@@ -7,7 +7,7 @@
     "ios": "react-native run-ios",
     "build:android": "./android/gradlew -p android assembleDebug",
     "build:apk": "./android/gradlew -p android assembleRelease",
-    "build:ios": "xcodebuild -workspace ios/datingapp.xcworkspace -scheme datingapp -configuration Debug -sdk iphonesimulator build",
+    "build:ios": "xcodebuild -workspace ios/suyoapp.xcworkspace -scheme suyoapp -configuration Debug -sdk iphonesimulator build",
     "lint": "eslint .",
     "start": "react-native start",
     "test": "jest"

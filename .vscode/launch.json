@@ -10,28 +10,28 @@
             "type": "node-terminal",
             "request": "launch",
             "command": "npm start",
-            "cwd": "${workspaceFolder}/datingapp-rn-frontend"
+            "cwd": "${workspaceFolder}/mobile_frontend"
         },
         {
             "name": "build android",
             "type": "node-terminal",
             "request": "launch",
-            "command": "npm run build:android",
-            "cwd": "${workspaceFolder}/datingapp-rn-frontend"
+            "command": "npx react-native run-android",//"npm run build:android",
+            "cwd": "${workspaceFolder}/mobile_frontend"
         },
         {
             "name": "build ios",
             "type": "node-terminal",
             "request": "launch",
             "command": "npm run build:ios",
-            "cwd": "${workspaceFolder}/datingapp-rn-frontend"
+            "cwd": "${workspaceFolder}/mobile_frontend"
         },
         {
             "name": "apk - build",
             "type": "node-terminal",
             "request": "launch",
             "command": "npm run build:apk",
-            "cwd": "${workspaceFolder}/datingapp-rn-frontend"
+            "cwd": "${workspaceFolder}/mobile_frontend"
         }
     ]
 }

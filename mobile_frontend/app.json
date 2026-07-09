@@ -1,14 +1,3 @@
 {
-  "name": "datingapp",
-  "displayName": "datingapp",
-  "appversion": "2.5.1",
-  "bundlebuildnumber": "0",
-  "android": {
-    "applicationId": "com.datingapp",
-    "versionCode": 1
-  },
-  "ios": {
-    "BUNDLE_ID": "org.ios.datingapp",
-    "buildNumber": "1"
-  }
+  "name": "suyoapp"
 }

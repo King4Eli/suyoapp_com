@@ -78,9 +78,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.datingapp"
+    namespace "com.vintolab.suyoapp"
     defaultConfig {
-        applicationId "com.datingapp"
+        applicationId "com.vintolab.suyoapp"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

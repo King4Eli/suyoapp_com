@@ -18,7 +18,7 @@ export { xxa__http_requests as _http_request };
  
 // Define API URL
 export const hostServer = () => {
-  let h_0 = "https://api.q1-site.site"; //live server
+  let h_0 = "https://api.suyoapp.com"; //live server
 
   if (Platform.OS === "android" && DeviceInfo.isEmulatorSync()) {
     // if android emulator

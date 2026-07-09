@@ -16,7 +16,7 @@ $nav_items = [
         <nav class="col-12 col-lg-2 bg-dark text-white p-3 d-flex flex-column">
             <div class="mb-4">
                 <div class="h4 mb-1">Admin Console</div>
-                <div class="small text-secondary">Dating App</div>
+                <div class="small text-secondary">SoyuApp</div>
             </div>
             <div class="nav nav-pills flex-column gap-1">
                 <?php foreach ($nav_items as $key => $nav_item): ?>

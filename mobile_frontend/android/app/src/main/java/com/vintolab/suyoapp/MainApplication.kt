@@ -1,4 +1,4 @@
-package com.datingapp
+package com.vintolab.suyoapp
 
 import android.app.Application
 import com.facebook.react.PackageList

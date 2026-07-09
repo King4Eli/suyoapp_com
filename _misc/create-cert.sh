@@ -24,8 +24,8 @@ generate_cert() {
   fi
 }
 
-generate_cert "dating.local" \
-"DNS:*.dating.local,DNS:dating.local,DNS:*.in.dating.local"
+generate_cert "suyoapp.local" \
+"DNS:*.suyoapp.local,DNS:suyoapp.local,DNS:*.in.suyoapp.local"
 
 generate_cert "global.local" \
 "DNS:*.global.local,DNS:global.local,DNS:*.in.global.local"
