@@ -24,6 +24,12 @@ services:
       - .env/session.env
       - .env/minio.env
 
+  suyoapp_com_webui:
+    image: kingeli/suyoapp_com_webui:latest
+    container_name: suyoapp_com_webui
+    networks:
+      - shared-global-network
+
 networks:
   shared-global-network:
     external: true

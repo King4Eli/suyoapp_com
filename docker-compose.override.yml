@@ -17,3 +17,13 @@ services:
       - ./admin:/var/www/html
     extra_hosts:
       - "s3.global.local:host-gateway"
+
+  suyoapp_com_webui:
+    build:
+      context: ./web_ui
+      target: build
+    command: npm run dev -- --host 0.0.0.0
+    volumes:
+      - ./web_ui:/var/www/html
+    ports:
+      - "5173:5173"
