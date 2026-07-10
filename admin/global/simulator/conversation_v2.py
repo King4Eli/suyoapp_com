@@ -11,7 +11,7 @@ import mysql.connector
 import requests
 from dotenv import load_dotenv
 
-load_dotenv('../../../.env/dev/db.env')
+load_dotenv('../../../.env/db.env')
 
 DB_MATCHES_LIMIT = 51000
 LOOP_LIMIT = 5111

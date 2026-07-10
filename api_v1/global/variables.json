@@ -1,20 +1,15 @@
 {
     "site": {
-        "api_version": "1.0.5",
+        "xapi_version": "1.0.5",
 
-        "email_contact": "site_email_contact",
-        "assetUrl": "127.0.0.1:2005/",
-        "domain":"",
-        "logo": "/static_page/logo.png",
-        "tac": "/static_page/termsncondition.php",
-        "privacy": "/static_page/privacy.php",
+        "xemail_contact": "site_email_contact",
+        "xassetUrl": "127.0.0.1:2005/",
+        "xdomain":"",
+        "xlogo": "/static_page/logo.png",
+        "xtac": "/static_page/termsncondition.php",
+        "xprivacy": "/static_page/privacy.php",
 
-        "hotlink_payment_200":"yourapp://payment/success", 
-        "hotlink_payment_400":"yourapp://payment/cancelled"
-    },
-    "used":{
-        "api_version":true,
-        "hotlink_payment_200":true,
-        "hotlink_payment_400":true
+        "hotlink_payment_200":"https://suyoapp.local/payment/success", 
+        "hotlink_payment_400":"https://suyoapp.local/payment/cancelled"
     }
 }

@@ -8,10 +8,10 @@ import uuid
 import mysql.connector
 from dotenv import load_dotenv
 
-load_dotenv('../../../.env/dev/db.env')
+load_dotenv('../../../.env/db.env')
 
 DB_USERS_LIMIT = 90000
-LOOP_LIMIT = 90
+LOOP_LIMIT = 2000
 WHOLE_LOOP = 10
 ANY_GENDER = -99
 has_logged_table_structures = False
