@@ -322,10 +322,12 @@ async function processWebhookEvent(event) {
             const newCancelFlag = subscription.cancel_at_period_end ? 1 : 0;
             // Stripe statuses we track locally: trialing=4, active=1, past_due=2, canceled=3.
             // Others (unpaid/incomplete/paused) are left untouched rather than guessed at.
+           /** @type any */
             const STRIPE_TO_LOCAL_STATUS = { trialing: 4, active: 1, past_due: 2, canceled: 3 };
             const mappedStatus = STRIPE_TO_LOCAL_STATUS[subscription.status] ?? null;
 
             try {
+                /** @type any */
                 const [existingRows] = await db_pool.query(
                     `SELECT cancel_at_period_end FROM subscriptions WHERE external_id = ? LIMIT 1`,
                     [subscriptionId]
