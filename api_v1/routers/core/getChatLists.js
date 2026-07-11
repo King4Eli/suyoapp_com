@@ -4,7 +4,7 @@ import db_pool from '../../global/database.js';
 export default async function getChatsListings() {
     const response = {
         code: 200,
-        message: 'ok', 
+        message: 'ok',
         chatsListings: {
             withoutmessages: [],
             withmessages: [],
