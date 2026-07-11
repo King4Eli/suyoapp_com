@@ -156,7 +156,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
     return (
         <View style={[styles.container, {paddingTop: headerHeight,paddingLeft:0,paddingRight:0 }]}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.container,{gap:14, paddingBottom:10}]}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.conainerScrollView,{gap:14, paddingBottom:10}]}>
                 <View style={stylesx.profileCard}>
                     <View style={stylesx.profileRow}>
                         <Pressable onPress={() => navigation.navigate(namer.navigation.editprofile)}>
