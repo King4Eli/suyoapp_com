@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: global_mysql:3306
--- Generation Time: Jun 15, 2026 at 05:56 AM
+-- Generation Time: Jul 11, 2026 at 10:16 PM
 -- Server version: 8.0.46
 -- PHP Version: 8.3.26
 
@@ -18,7 +18,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `datingapp_kojo`
+-- Database: `api_suyoapp_com`
 --
 
 -- --------------------------------------------------------
@@ -294,7 +294,7 @@ INSERT INTO `mapping_lookup` (`map_id`, `map_type`, `map_code`, `map_label`, `da
 (254, 'bio_prompt', 65, 'My love language to give is', '2025-12-16 19:35:50'),
 (255, 'bio_prompt', 66, 'My love language to receive is', '2025-12-16 19:35:50'),
 (258, 'bundle_version', 0, '{\"build_number\":\"51\"}', '2025-12-18 17:16:27'),
-(259, 'img_domain', 0, 'https://s3.global.local', '2026-05-08 12:42:26'),
+(259, 'img_domain', 0, 'https://s3-g.vintolab.com', '2026-07-06 02:52:20'),
 (260, 'convo_status', 0, 'unread', '2025-12-26 04:53:28'),
 (261, 'convo_status', 1, 'read', '2025-12-26 04:53:28'),
 (262, 'convo_status', 99, 'deleted', '2025-12-26 04:53:51'),
