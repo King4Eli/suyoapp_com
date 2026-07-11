@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: global_mysql:3306
--- Generation Time: Jun 15, 2026 at 07:08 AM
+-- Generation Time: Jul 11, 2026 at 10:17 PM
 -- Server version: 8.0.46
 -- PHP Version: 8.3.26
 
@@ -18,7 +18,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `datingapp_kojo`
+-- Database: `api_suyoapp_com`
 --
 
 -- --------------------------------------------------------
@@ -32,7 +32,7 @@ CREATE TABLE `product_list_variant` (
   `name` varchar(100) NOT NULL,
   `description` json NOT NULL,
   `price` decimal(11,2) NOT NULL DEFAULT '0.00',
-  `billing_cycle` int NOT NULL DEFAULT '1' COMMENT '1''once'',2''weekly'',3''biweekly'',4''monthly'',5''yearly'',',
+  `billing_cycle` tinyint NOT NULL DEFAULT '1' COMMENT '1''once'',2''weekly'',3''biweekly'',4''monthly'',5''yearly'',',
   `product_lists_id_ref` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `active` enum('0','1') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT '0',
   `date_created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,

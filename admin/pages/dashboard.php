@@ -109,11 +109,11 @@ function get_dashboard_stats(PDO $db): array
         ? safe_count($db, 'logreports', "report_status = '0'")
         : 0;
     $stats['payments_total'] = safe_count($db, 'payments');
-    $stats['payments_completed'] = column_exists($db, 'payments', 'p_status')
-        ? safe_count($db, 'payments', "p_status = 'completed'")
+    $stats['payments_completed'] = column_exists($db, 'payments', 'status')
+        ? safe_count($db, 'payments', "status = '1'")
         : 0;
-    $stats['payments_refunded'] = column_exists($db, 'payments', 'p_status')
-        ? safe_count($db, 'payments', "p_status = 'refunded'")
+    $stats['payments_refunded'] = column_exists($db, 'payments', 'status')
+        ? safe_count($db, 'payments', "status = '2'")
         : 0;
     $stats['products_total'] = safe_count($db, 'product_lists');
     $stats['products_active'] = column_exists($db, 'product_lists', 'pl_is_active')

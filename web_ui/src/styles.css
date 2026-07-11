@@ -247,3 +247,54 @@
 .legal a {
   color: var(--accent);
 }
+
+.status-page {
+  max-width: 480px;
+  text-align: center;
+  padding-top: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.status-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 24px;
+}
+
+.status-icon-success {
+  background: color-mix(in srgb, #2fa365 18%, var(--surface));
+  color: #2fa365;
+}
+
+.status-icon-cancel {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  color: var(--text);
+}
+
+.status-page h1 {
+  font-size: 28px;
+}
+
+.status-page p {
+  font-size: 16px;
+  line-height: 1.6;
+  max-width: 40ch;
+}
+
+.status-cta {
+  margin: 28px 0 16px;
+}
+
+.status-hint {
+  font-size: 14px;
+  color: var(--text);
+}

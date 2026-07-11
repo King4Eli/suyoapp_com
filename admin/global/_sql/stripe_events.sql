@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: global_mysql:3306
--- Generation Time: Jun 15, 2026 at 05:57 AM
+-- Generation Time: Jul 11, 2026 at 04:21 PM
 -- Server version: 8.0.46
 -- PHP Version: 8.3.26
 
@@ -29,6 +29,7 @@ SET time_zone = "+00:00";
 
 CREATE TABLE `stripe_events` (
   `event_id` varchar(100) COLLATE utf8mb4_general_ci NOT NULL,
+  `event_type` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `processed_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 

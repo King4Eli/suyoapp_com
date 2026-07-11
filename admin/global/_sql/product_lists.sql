@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: global_mysql:3306
--- Generation Time: Jun 15, 2026 at 07:08 AM
+-- Generation Time: Jul 11, 2026 at 10:17 PM
 -- Server version: 8.0.46
 -- PHP Version: 8.3.26
 
@@ -18,7 +18,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `datingapp_kojo`
+-- Database: `api_suyoapp_com`
 --
 
 -- --------------------------------------------------------

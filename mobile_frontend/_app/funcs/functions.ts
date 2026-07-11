@@ -176,8 +176,10 @@ console.log(nowSeconds, unixSeconds, seconds)
 
 
 export const __init__app = async (): Promise<void> => {
-
+  // get mapper
   await llStorage.CONFIG.getMapper();
+
+  // get session and verify
   const getSession_omi = sessionManager.getCurrentSession()?.x_omi_payload;
   const getSession_hash = sessionManager.getCurrentSession()?.x_omi_payload_hash;
   const notSessionAndNavigation = (!getSession_omi || !getSession_hash || navigationRef === null)
@@ -270,45 +272,59 @@ export const __init__app = async (): Promise<void> => {
 }
 
 
+// Cold-start deep links (Linking.getInitialURL) can fire before <NavigationContainer>
+// has mounted, so navigationRef.isReady() is briefly false — poll instead of busy-looping
+// or checking once. Never call navigate/resetRoot while isReady() is false; it will throw.
+async function waitForNavigationReady(timeoutMs = 4000, intervalMs = 100): Promise<boolean> {
+  const start = Date.now();
+  while (!navigationRef.isReady()) {
+    if (Date.now() - start >= timeoutMs) return false;
+    await new Promise<void>((resolve) => setTimeout(() => resolve(), intervalMs));
+  }
+  return true;
+}
+
 export function handleDeepLink(url: string) {
   if (!url) return;
-
-  console.log("Handling deep link:", url);
 
   try {
     const match = url.match(/^(\w+):\/\/([^/]+)(\/.*)?$/);
     if (!match) return;
-
     const [, scheme, host, rawPath = '/'] = match;
-
     // clean path
     const path = rawPath.split('?')[0].replace(/\/$/, '') || '/';
 
-    const routes: Record<string, Record<string, () => void>> = {
-      payment: {
-        '/success': async () => {
-          await Promise.all([
-            __init__app(),
-            cacheStorage.getCurrentUserProfile(true),
-            cacheStorage.getProducts(),
-          ]);
-          if (navigationRef.isReady()) {
-            navigationRef.reset({
-              index: 0,
-              routes: [{ name: namer.navigation.home }],
-            });
+    const paymentRoutes: Record<string, () => void> = {
+      '/payment/success': async () => {
+        Toastx.show({ type: 'success', message: 'Payment successful — your plan is now active', duration: 8000 });
 
-            Toastx.show({ type: 'success', message: 'Payment success, your plan has been activated', duration: 10000 });
-            
-          }
-          console.log('Payment success')
-        },
-        '/failed': () => console.log('Payment failed'),
-        '/.com': () => console.log('Payment loacdomtion'),
+        await Promise.all([
+          cacheStorage.getCurrentUserProfile(true),
+          cacheStorage.getProducts(true),
+        ]);
+
+        if (await waitForNavigationReady()) {
+          navigationRef.resetRoot({
+            index: 0,
+            routes: [
+              {
+                name: namer.navigation.home,
+                state: {
+                  routes: [
+                    { name: namer.navigation.profile },
+                  ],
+                },
+              },
+            ],
+          });
+        }
+      },
+      '/payment/cancelled': () => {
+        Toastx.show({ type: 'info', message: 'Payment cancelled — no charge was made', duration: 9000 });
       },
     };
 
-    const handler = routes[host as string]?.[path];
+    const handler = paymentRoutes[path];
 
     if (handler) {
       handler();

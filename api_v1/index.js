@@ -8,12 +8,13 @@ import pay_router from "./routers/pay.js";
 import realtimedata_router, { setupRealtime } from "./routers/realtimedata.js";
 import webhook_router from './routers/payments/router_hook.js';
 import status_check from './routers/status.js';
+import { startExpirePendingPaymentsJob } from './global/expirePendingPayments.js';
 
 const http_port = 80;
 const app = express();
 
 
-app.use('/api/secure/gateway2/webhook', express.raw({ type: "application/json" }), webhook_router);
+app.use('/api/secure/stripe/webhook', express.raw({ type: "application/json" }), webhook_router);
 app.use(express.json());
 
 
@@ -49,6 +50,9 @@ const io = new Server(httpServer, {
 app.set('io', io);
 // Setup Socket.IO realtime handlers
 setupRealtime(io);
+
+// Periodically expire checkout attempts that were never completed
+startExpirePendingPaymentsJob();
 
 
 

@@ -16,12 +16,12 @@ webhook_router.post('/', async (req, res) => {
 
     try {
         if (!signature || !reqBody) {
-            console.error('Webhook validation failed: Missing signature or payload');
+            tools.serverLog('Webhook validation failed: Missing signature or payload', "hook_135");
             return res.status(400).json({ code: 400, message: "Missing webhook signature or payload" });
         }
 
         if (!STRIPE_WEBHOOK_SECRET) {
-            console.error('Webhook secret not configured');
+            tools.serverLog('Webhook secret not configured', "hook_136");
             return res.status(500).json({ code: 500, message: "Webhook configuration error" });
         }
 
@@ -33,7 +33,7 @@ webhook_router.post('/', async (req, res) => {
 
     } catch (err) {
         // @ts-ignore
-        console.error("Webhook signature verification failed:", err.message);
+        tools.serverLog(`Webhook signature verification failed: ${err.message}`, "hook_137");
         return res.status(400).json({ code: 400, message: "Webhook signature verification failed" });
     }
 
@@ -41,14 +41,20 @@ webhook_router.post('/', async (req, res) => {
         const result = await processWebhookEvent(event);
 
         if (result.success) {
-            return res.status(200).json({ code: 200, message: "Webhook processed successfully" });
+            if (result.handled === false) {
+                return res.status(200).json({ code: 200, message: "Webhook received but not handled", eventType: event.type });
+            }
+            if (result.duplicate) {
+                return res.status(200).json({ code: 200, message: "Webhook already processed", eventType: event.type });
+            }
+            return res.status(200).json({ code: 200, message: "Webhook processed successfully", eventType: event.type });
         } else {
-            console.error('Webhook processing failed:', result.error);
+            tools.serverLog(`Webhook processing failed: ${result.error}`, "hook_138");
             return res.status(500).json({ code: 500, message: "Webhook processing failed" });
         }
 
     } catch (error) {
-        console.error('Unexpected error processing webhook:', error);
+        tools.serverLog(`Unexpected error processing webhook: ${error}`, "hook_139");
         return res.status(500).json({ code: 500, message: "Internal server error" });
     }
 });
@@ -62,13 +68,13 @@ async function processWebhookEvent(event) {
     // Deduplicate: skip events already processed
     try {
         await db_pool.query(
-            `INSERT INTO stripe_events (event_id) VALUES (?)`,
-            [event.id]
+            `INSERT INTO stripe_events (event_id, event_type) VALUES (?, ?)`,
+            [event.id, event.type]
         );
     } catch (dupError) {
         // Duplicate key means this event was already handled
-        console.log(`Duplicate webhook event skipped: ${event.id}`);
-        return { success: true };
+        tools.serverLog(`Duplicate webhook event skipped: ${event.id}`, "hook_4857");
+        return { success: true, duplicate: true };
     }
 
     switch (event.type) {
@@ -82,7 +88,7 @@ async function processWebhookEvent(event) {
             const type = session.mode;
 
             if (!userId || !paymentId || !sku_variant) {
-                console.error('Missing required metadata in checkout.session.completed');
+                tools.serverLog('Missing required metadata in checkout.session.completed', "hook_140");
                 return { success: false, error: 'Missing required metadata' };
             }
 
@@ -94,7 +100,7 @@ async function processWebhookEvent(event) {
                         : sessionSubscription?.id;
 
                     if (!subscriptionId) {
-                        console.error('Missing subscription ID for subscription checkout');
+                        tools.serverLog('Missing subscription ID for subscription checkout', "hook_141");
                         return { success: false, error: 'Missing subscription ID' };
                     }
 
@@ -107,7 +113,7 @@ async function processWebhookEvent(event) {
                             subscription_details = await stripe_gateway.subscriptions.retrieve(subscriptionId);
                             break;
                         } catch (stripeError) {
-                            console.error(`Stripe subscription retrieve attempt ${attempt} failed:`, stripeError);
+                            tools.serverLog(`Stripe subscription retrieve attempt ${attempt} failed: ${stripeError}`, "hook_142");
                             if (attempt === maxRetries) {
                                 return { success: false, error: 'Failed to retrieve subscription details' };
                             }
@@ -115,8 +121,10 @@ async function processWebhookEvent(event) {
                         }
                     }
 
+                    // Stripe moved current_period_start/end from the Subscription object onto its
+                    // subscription items in recent API versions — read from there, not the top level.
                     // @ts-ignore
-                    const startsAt = subscription_details?.current_period_start ?? 0;
+                    const startsAt = subscription_details?.items?.data?.[0]?.current_period_start ?? 0;
                     // @ts-ignore
                     const expiresAt = subscription_details?.items?.data?.[0]?.current_period_end ?? 0;
                     const genId = tools.generateAlphanumeric(10, tools.randomInt(20, 50));
@@ -136,12 +144,12 @@ async function processWebhookEvent(event) {
                         );
 
                         await connection.commit();
-                        console.log(`Subscription created successfully: ${genId}`);
+                        tools.serverLog(`Subscription created successfully: ${genId}`, "hook_897");
                         return { success: true };
 
                     } catch (dbError) {
                         await connection.rollback();
-                        console.error('Database transaction failed for subscription:', dbError);
+                        tools.serverLog(`Database transaction failed for subscription: ${dbError}`, "hook_489");
                         return { success: false, error: 'Database error creating subscription' };
                     } finally {
                         connection.release();
@@ -149,12 +157,12 @@ async function processWebhookEvent(event) {
 
                 } else if (type === "payment") {
                     await updatePaymentStatus(paymentId, 'completed', session.id);
-                    console.log(`One-time payment completed: ${paymentId}`);
+                    tools.serverLog(`One-time payment completed: ${paymentId}`, "hook_8997");
                     return { success: true };
                 }
 
             } catch (error) {
-                console.error('Error processing checkout.session.completed:', error);
+                tools.serverLog(`Error processing checkout.session.completed: ${error}`, "hook_0857");
                 return { success: false, error: 'Processing error' };
             }
 
@@ -170,7 +178,7 @@ async function processWebhookEvent(event) {
                 : invoiceSubscription?.id;
 
             if (!subscriptionId) {
-                console.error('Missing subscription ID in invoice.payment_succeeded');
+                tools.serverLog('Missing subscription ID in invoice.payment_succeeded', "hook_121");
                 return { success: false, error: 'Missing subscription ID' };
             }
 
@@ -185,7 +193,7 @@ async function processWebhookEvent(event) {
                             subscription_details = await stripe_gateway.subscriptions.retrieve(subscriptionId);
                             break;
                         } catch (stripeError) {
-                            console.error(`Stripe subscription retrieve attempt ${attempt} failed:`, stripeError);
+                            tools.serverLog(`Stripe subscription retrieve attempt ${attempt} failed: ${stripeError}`, "hook_122");
                             if (attempt === maxRetries) {
                                 await connection.rollback();
                                 return { success: false, error: 'Failed to retrieve subscription details' };
@@ -195,7 +203,7 @@ async function processWebhookEvent(event) {
                     }
 
                     // @ts-ignore
-                    const newEndDate = subscription_details?.current_period_end ?? 0;
+                    const newEndDate = subscription_details?.items?.data?.[0]?.current_period_end ?? 0;
 
                     // Look up our subscription record to get user_id and variant for the renewal payment
                     const [subRows] = await connection.query(
@@ -228,19 +236,19 @@ async function processWebhookEvent(event) {
                     }
 
                     await connection.commit();
-                    console.log(`Subscription renewed successfully: ${subscriptionId}`);
+                    tools.serverLog(`Subscription renewed successfully: ${subscriptionId}`, "hook_123");
                     return { success: true };
 
                 } catch (dbError) {
                     await connection.rollback();
-                    console.error('Database transaction failed for invoice payment succeeded:', dbError);
+                    tools.serverLog(`Database transaction failed for invoice payment succeeded: ${dbError}`, "hook_124");
                     return { success: false, error: 'Database error updating subscription' };
                 } finally {
                     connection.release();
                 }
 
             } catch (error) {
-                console.error('Error processing invoice.payment_succeeded:', error);
+                tools.serverLog(`Error processing invoice.payment_succeeded: ${error}`, "hook_125");
                 return { success: false, error: 'Processing error' };
             }
         }
@@ -254,7 +262,7 @@ async function processWebhookEvent(event) {
                 : invoiceSubscription?.id;
 
             if (!subscriptionId) {
-                console.error('Missing subscription ID in invoice.payment_failed');
+                tools.serverLog('Missing subscription ID in invoice.payment_failed', "hook_126");
                 return { success: false, error: 'Missing subscription ID' };
             }
 
@@ -291,20 +299,59 @@ async function processWebhookEvent(event) {
                     );
 
                     await connection.commit();
-                    console.log(`Subscription payment failed: ${subscriptionId}, status: ${newStatus}`);
+                    tools.serverLog(`Subscription payment failed: ${subscriptionId}, status: ${newStatus}`, "hook_127");
                     return { success: true };
 
                 } catch (dbError) {
                     await connection.rollback();
-                    console.error('Database transaction failed for invoice payment failed:', dbError);
+                    tools.serverLog(`Database transaction failed for invoice payment failed: ${dbError}`, "hook_128");
                     return { success: false, error: 'Database error updating subscription status' };
                 } finally {
                     connection.release();
                 }
 
             } catch (error) {
-                console.error('Error processing invoice.payment_failed:', error);
+                tools.serverLog(`Error processing invoice.payment_failed: ${error}`, "hook_129");
                 return { success: false, error: 'Processing error' };
+            }
+        }
+
+        case "customer.subscription.updated": {
+            const subscription = event.data.object;
+            const subscriptionId = subscription.id;
+            const newCancelFlag = subscription.cancel_at_period_end ? 1 : 0;
+            // Stripe statuses we track locally: trialing=4, active=1, past_due=2, canceled=3.
+            // Others (unpaid/incomplete/paused) are left untouched rather than guessed at.
+           /** @type any */
+            const STRIPE_TO_LOCAL_STATUS = { trialing: 4, active: 1, past_due: 2, canceled: 3 };
+            const mappedStatus = STRIPE_TO_LOCAL_STATUS[subscription.status] ?? null;
+
+            try {
+                /** @type any */
+                const [existingRows] = await db_pool.query(
+                    `SELECT cancel_at_period_end FROM subscriptions WHERE external_id = ? LIMIT 1`,
+                    [subscriptionId]
+                );
+                const wasAlreadyFlagged = Boolean(existingRows?.[0]?.cancel_at_period_end);
+                const justTransitioned = newCancelFlag === 1 && !wasAlreadyFlagged;
+
+                await db_pool.query(
+                    `UPDATE subscriptions
+                     SET cancel_at_period_end = ?,
+                         canceled_at = ${justTransitioned ? 'NOW()' : 'canceled_at'}
+                         ${mappedStatus ? ', status = ?' : ''}
+                     WHERE external_id = ?`,
+                    mappedStatus
+                        ? [newCancelFlag, mappedStatus, subscriptionId]
+                        : [newCancelFlag, subscriptionId]
+                );
+
+                tools.serverLog(`Subscription updated: ${subscriptionId}, cancel_at_period_end=${Boolean(newCancelFlag)}`, "hook_130");
+                return { success: true };
+
+            } catch (error) {
+                tools.serverLog(`Error processing customer.subscription.updated: ${error}`, "hook_131");
+                return { success: false, error: 'Database error updating subscription' };
             }
         }
 
@@ -319,18 +366,18 @@ async function processWebhookEvent(event) {
                     [subscriptionId]
                 );
 
-                console.log(`Subscription cancelled: ${subscriptionId}`);
+                tools.serverLog(`Subscription cancelled: ${subscriptionId}`, "hook_132");
                 return { success: true };
 
             } catch (error) {
-                console.error('Error processing customer.subscription.deleted:', error);
+                tools.serverLog(`Error processing customer.subscription.deleted: ${error}`, "hook_133");
                 return { success: false, error: 'Database error cancelling subscription' };
             }
         }
 
         default:
-            console.log(`Unhandled webhook event: ${event.type}`);
-            return { success: true };
+            tools.serverLog(`Unhandled webhook event: ${event.type}`, "hook_134");
+            return { success: true, handled: false };
     }
 }
 
@@ -359,7 +406,7 @@ async function updatePaymentStatus(paymentId, statusKey, transactionReference) {
 
         await db_pool.query(query, params);
     } catch (error) {
-        console.error(`Failed to update payment status for ${paymentId}:`, error);
+        tools.serverLog(`Failed to update payment status for ${paymentId}:`, "hook_4257");
         throw error;
     }
 }

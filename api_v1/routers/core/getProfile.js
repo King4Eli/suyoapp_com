@@ -85,6 +85,7 @@ export default async function getProfile() {
       s.external_id,
       s.payment_id_ref,
       s.status,
+      s.cancel_at_period_end,
       pv.name AS plan_name,
       pv.description AS plan_description,
       pv.price AS plan_price,
@@ -133,6 +134,7 @@ export default async function getProfile() {
         start_date: subData.start_date,
         end_date: subData.end_date,
         status: 'active',
+        cancel_at_period_end: Boolean(subData.cancel_at_period_end),
         days_remaining: Math.max(0, Math.ceil((new Date(subData.end_date)?.getTime() - new Date()?.getTime()) / (1000 * 60 * 60 * 24)))
       };
     }

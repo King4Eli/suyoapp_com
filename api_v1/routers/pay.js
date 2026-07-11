@@ -1,5 +1,5 @@
 import express from 'express';
-import { sessions, tools } from '../global/functions.js';
+import { sessions, tools, stripe_gateway } from '../global/functions.js';
 import GatewayPay from './payments/gateway.js';
 import db_pool from '../global/database.js';
 
@@ -216,6 +216,62 @@ pay_router.post('/:division', async (req, res) => {
                 } finally {
                     onetimeConnection.release();
                 }
+
+            case 'cancel-subscription': {
+                const { subscriptionId } = req.body;
+
+                if (!subscriptionId) {
+                    return res.status(400).json({ code: 400, message: "Missing required parameter: subscriptionId." });
+                }
+
+                /** @type any */
+                let subRows = [];
+                try {
+                    const [rows] = await db_pool.query(
+                        `SELECT id, user_id, external_id, status, cancel_at_period_end
+                         FROM subscriptions
+                         WHERE id = ?
+                         LIMIT 1`,
+                        [subscriptionId]
+                    );
+                    subRows = rows;
+                } catch (dbError) {
+                    return res.status(500).json({ code: 500, message: "Database error occurred. Please try again later." });
+                }
+
+                const subscriptionRow = subRows?.[0];
+
+                if (!subscriptionRow || subscriptionRow.user_id !== sessions?.currentUserID) {
+                    return res.status(404).json({ code: 404, message: "Subscription not found." });
+                }
+
+                if (subscriptionRow.status !== 1) {
+                    return res.status(400).json({ code: 400, message: "Only active subscriptions can be cancelled." });
+                }
+
+                if (subscriptionRow.cancel_at_period_end) {
+                    return res.status(400).json({ code: 400, message: "This subscription is already scheduled to cancel." });
+                }
+
+                try {
+                    await stripe_gateway.subscriptions.update(subscriptionRow.external_id, { cancel_at_period_end: true });
+                } catch (stripeError) {
+                    tools.serverLog(`Stripe cancel-subscription failed for ${subscriptionId}: ${stripeError}`, "pay-cancel-0");
+                    return res.status(502).json({ code: 502, message: "Unable to reach the payment provider. Please try again." });
+                }
+
+                try {
+                    await db_pool.query(
+                        `UPDATE subscriptions SET cancel_at_period_end = 1, canceled_at = NOW() WHERE id = ?`,
+                        [subscriptionId]
+                    );
+                } catch (dbError) {
+                    tools.serverLog(`Local cancel-subscription update failed for ${subscriptionId}: ${dbError}`, "pay-cancel-1");
+                    return res.status(500).json({ code: 500, message: "Cancellation was recorded with the payment provider, but failed to save locally. Please contact support." });
+                }
+
+                return res.json({ code: 200, message: "Subscription will be cancelled at the end of the current billing period.", subscriptionId, cancel_at_period_end: true });
+            }
 
             default:
                 return res.status(400).json({ code: 400, message: "Invalid payment type. Supported: subscribe, onetime" });

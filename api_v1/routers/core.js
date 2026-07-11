@@ -16,6 +16,7 @@ import pushLogReport from './core/pushLogReports.js';
 import getVersioning from './core/getVersioning.js';
 import handleFileUpload from './core/handleFileUpload.js';
 import getProducts from './core/getProducts.js';
+import getPaymentHistory from './core/getPaymentHistory.js';
 import getInterests from './core/getInterests.js';
 import getPrompts from './core/getPrompts.js';
 import getMapper from './core/getMapper.js';
@@ -77,6 +78,9 @@ core_router.post('/:action', async (req, res) => {
         case 'getProducts':
             const products = await getProducts();
             return res.json(products);
+        case 'getPaymentHistory':
+            const paymentHistory = await getPaymentHistory();
+            return res.json(paymentHistory);
         case 'getInterests':
             const interests = await getInterests();
             return res.json(interests);

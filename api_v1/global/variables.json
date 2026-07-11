@@ -2,14 +2,15 @@
     "site": {
         "xapi_version": "1.0.5",
 
-        "xemail_contact": "site_email_contact",
+        "xemail_contact": "supportsuyoapp@vintolab.com",
         "xassetUrl": "127.0.0.1:2005/",
         "xdomain":"",
-        "xlogo": "/static_page/logo.png",
-        "xtac": "/static_page/termsncondition.php",
-        "xprivacy": "/static_page/privacy.php",
+        "xlogo": "/logo.png",
+        
+        "tac": "/terms.php",
+        "privacy": "/privacy.php",
 
-        "hotlink_payment_200":"https://suyoapp.local/payment/success", 
-        "hotlink_payment_400":"https://suyoapp.local/payment/cancelled"
+        "hotlink_payment_200":"https://suyoapp.com/payment/success", 
+        "hotlink_payment_400":"https://suyoapp.com/payment/cancelled"
     }
 }
