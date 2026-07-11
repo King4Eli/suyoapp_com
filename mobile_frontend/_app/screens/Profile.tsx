@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import FastImage from 'react-native-fast-image';
@@ -8,7 +8,8 @@ import LottieView from 'lottie-react-native';
 import Svg, { Circle } from 'react-native-svg';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import MIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { cacheStorage, help, llStorage, logReport, parseCategoryProducts, screenWidth } from '../funcs/functions';
+import { _http_request, cacheStorage, help, hostServer, llStorage, logReport, parseCategoryProducts, screenWidth } from '../funcs/functions';
+import { Loaderx } from '../funcs/functions_stateful';
 import { namer, resourceMap, styles } from '../funcs/static';
 
 const PLAN_UI: Record<string, { icon: string; color: string; cardColors: string[] }> = {
@@ -39,6 +40,51 @@ export function Screen_profile({ navigation }: { navigation: any }) {
     const subscriptionState = help.getSubscriptionState(profile);
     const activeSubscription = subscriptionState.hasActive;
     const subscriptionPlanUi = getPlanUi(subscriptionState.tier);
+    const subscriptionCancelPending = Boolean(profile?.subscription?.cancel_at_period_end);
+    const subscriptionRenewalDate = profile?.subscription?.end_date
+        ? new Date(profile.subscription.end_date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })
+        : null;
+
+    const refreshProfile = async () => {
+        try {
+            const freshProfile = await cacheStorage.getCurrentUserProfile(true);
+            setProfile(freshProfile);
+        } catch {
+            // keep showing the last known profile if the refresh itself fails
+        }
+    };
+
+    const confirmCancelSubscription = () => {
+        const subscriptionId = profile?.subscription?.id;
+        if (!subscriptionId) return;
+
+        Alert.alert(
+            'Cancel subscription',
+            `Your ${subscriptionState.plan ?? 'subscription'} plan will stay active until ${subscriptionRenewalDate ?? 'the end of the current billing period'}, then it will not renew.`,
+            [
+                { text: 'Keep subscription', style: 'cancel' },
+                {
+                    text: 'Cancel subscription',
+                    style: 'destructive',
+                    onPress: async () => {
+                        Loaderx.show();
+                        const response: any = await _http_request({
+                            customApiUrl: `${hostServer()}/api/secure/gateway/cancel-subscription`,
+                            reqType: 'POST',
+                            bodyArray: { subscriptionId },
+                        });
+                        await refreshProfile();
+                        Loaderx.hide();
+                        if (response?.code === 200) {
+                            Alert.alert('Subscription cancelled', 'You will keep access until the end of your current billing period.');
+                        } else {
+                            Alert.alert('Cancellation failed', response?.message ?? 'Please try again.');
+                        }
+                    },
+                },
+            ],
+        );
+    };
 
     const visibleMainSubProducts = useMemo(() => {
         if (subscriptionState.isVip) return [];
@@ -190,6 +236,35 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                         </Pressable>
                     )}
                 </View>
+
+                {activeSubscription && (
+                    <View style={stylesx.card}>
+                        <SectionHeader title="Manage subscription" icon="credit-card-outline" />
+                        <View style={stylesx.manageSubRow}>
+                            <Text style={stylesx.manageSubLabel}>Plan</Text>
+                            <Text style={stylesx.manageSubValue}>
+                                {`${subscriptionState.plan ?? ''} ${subscriptionState.variant ?? ''}`.trim() || 'Active'}
+                            </Text>
+                        </View>
+                        <View style={stylesx.manageSubRow}>
+                            <Text style={stylesx.manageSubLabel}>{subscriptionCancelPending ? 'Access ends' : 'Renews'}</Text>
+                            <Text style={stylesx.manageSubValue}>{subscriptionRenewalDate ?? '—'}</Text>
+                        </View>
+                        {subscriptionCancelPending ? (
+                            <View style={stylesx.manageSubNotice}>
+                                <MIcon name="information-outline" size={16} color="#64748b" />
+                                <Text style={stylesx.manageSubNoticeText}>
+                                    This subscription will not renew and ends on the date above.
+                                </Text>
+                            </View>
+                        ) : (
+                            <Pressable style={stylesx.cancelSubButton} onPress={confirmCancelSubscription}>
+                                <MIcon name="close-circle-outline" size={18} color="#dc2626" />
+                                <Text style={stylesx.cancelSubButtonText}>Cancel subscription</Text>
+                            </Pressable>
+                        )}
+                    </View>
+                )}
 
                 {visibleMainSubProducts.length > 0 && (
                     // show items
@@ -608,5 +683,50 @@ const stylesx = StyleSheet.create({
     streakDotActive: {
         backgroundColor: '#fffbeb',
         borderColor: '#fde68a',
+    },
+    manageSubRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 6,
+    },
+    manageSubLabel: {
+        color: '#64748b',
+        fontSize: 13,
+    },
+    manageSubValue: {
+        color: '#0f172a',
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    manageSubNotice: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginTop: 8,
+        paddingTop: 10,
+        borderTopWidth: 1,
+        borderTopColor: '#e2e8f0',
+    },
+    manageSubNoticeText: {
+        color: '#64748b',
+        fontSize: 12,
+        flex: 1,
+    },
+    cancelSubButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        marginTop: 8,
+        paddingTop: 12,
+        paddingVertical: 10,
+        borderTopWidth: 1,
+        borderTopColor: '#e2e8f0',
+    },
+    cancelSubButtonText: {
+        color: '#dc2626',
+        fontSize: 13,
+        fontWeight: '700',
     },
 });

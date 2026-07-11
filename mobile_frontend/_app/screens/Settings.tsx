@@ -994,7 +994,17 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 hr={false}
               />
             </ModernSection>
- 
+
+            {/* Billing Section */}
+            <ModernSection title="Billing" icon="card-outline">
+              <ModernOption
+                icon="receipt-outline"
+                title="Billing History"
+                subtitle="View your past payments"
+                onPress={() => navigation.navigate(namer.navigation.billingHistory)}
+                hr={false}
+              />
+            </ModernSection>
 
             {/* Privacy & Safety Section */}
             <ModernSection title="Privacy & Safety" icon="shield-outline">

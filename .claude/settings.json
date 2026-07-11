@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(echo \"=== docker-compose.yml ===\" && cat docker-compose.yml && echo \"=== docker-compose.override.yml ===\" && cat docker-compose.override.yml 2>/dev/null && echo \"=== deploy.sh ===\" && cat deploy.sh)",
+      "Read(//home/king/goodapps/projs/global_docker_default/**)",
+      "Skill(artifact-design)",
+      "Skill(artifact-design:*)",
+      "Bash(docker exec *)",
+      "Bash(docker exec global_mysql mysql -u api_suyoapp_com_name -papi_suyoapp_compassword api_suyoapp_com -e ' *)",
+      "Bash(xargs ls -la)",
+      "Bash(git restore *)",
+      "Bash(node --check routers/pay.js)",
+      "Bash(node --check routers/payments/router_hook.js)",
+      "Bash(node --check routers/core.js)",
+      "Bash(node --check routers/core/getPaymentHistory.js)",
+      "Bash(node --check index.js)",
+      "Bash(node --check global/expirePendingPayments.js)",
+      "Bash(php -l /home/king/goodapps/projs/suyoapp_com/admin/pages/dashboard.php)",
+      "Bash(node --check routers/core/getProfile.js)",
+      "Bash(npx tsc *)",
+      "Bash(timeout 100 npx tsc --noEmit -p tsconfig.json)",
+      "Bash(curl -s -X POST http://localhost:2001/api/core/v1/getPaymentHistory -H 'Content-Type: application/json' -d '{}')",
+      "Bash(curl -s -X POST http://localhost:2001/api/secure/gateway/cancel-subscription -H 'Content-Type: application/json' -d '{}')",
+      "Bash(curl -s -X POST http://localhost:2001/api/secure/gateway/cancel-subscription -H 'Content-Type: application/json' -d '{\"subscriptionId\":\"52ifcxelxzp8uhb2sgbngafb7s1pisr1smox5\"}')",
+      "Bash(node --check routers/payments/gateway.js)"
+    ]
+  }
+}

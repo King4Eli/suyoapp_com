@@ -41,7 +41,13 @@ webhook_router.post('/', async (req, res) => {
         const result = await processWebhookEvent(event);
 
         if (result.success) {
-            return res.status(200).json({ code: 200, message: "Webhook processed successfully" });
+            if (result.handled === false) {
+                return res.status(200).json({ code: 200, message: "Webhook received but not handled", eventType: event.type });
+            }
+            if (result.duplicate) {
+                return res.status(200).json({ code: 200, message: "Webhook already processed", eventType: event.type });
+            }
+            return res.status(200).json({ code: 200, message: "Webhook processed successfully", eventType: event.type });
         } else {
             console.error('Webhook processing failed:', result.error);
             return res.status(500).json({ code: 500, message: "Webhook processing failed" });
@@ -62,13 +68,13 @@ async function processWebhookEvent(event) {
     // Deduplicate: skip events already processed
     try {
         await db_pool.query(
-            `INSERT INTO stripe_events (event_id) VALUES (?)`,
-            [event.id]
+            `INSERT INTO stripe_events (event_id, event_type) VALUES (?, ?)`,
+            [event.id, event.type]
         );
     } catch (dupError) {
         // Duplicate key means this event was already handled
         console.log(`Duplicate webhook event skipped: ${event.id}`);
-        return { success: true };
+        return { success: true, duplicate: true };
     }
 
     switch (event.type) {
@@ -159,6 +165,29 @@ async function processWebhookEvent(event) {
             }
 
             return { success: true };
+        }
+
+        // Fallback for the one-time-payment flow in case checkout.session.completed is ever missed.
+        // Subscription-mode PaymentIntents never carry our metadata (Stripe doesn't allow
+        // payment_intent_data on subscription-mode Checkout Sessions), so those renewals are
+        // covered by invoice.payment_succeeded instead, not this case.
+        case "payment_intent.succeeded": {
+            const paymentIntent = event.data.object;
+            const paymentId = paymentIntent.metadata?.paymentId;
+
+            if (!paymentId) {
+                console.log(`payment_intent.succeeded with no app metadata, ignoring: ${paymentIntent.id}`);
+                return { success: true, handled: false };
+            }
+
+            try {
+                await updatePaymentStatus(paymentId, 'completed', paymentIntent.id);
+                console.log(`Payment marked completed via payment_intent.succeeded: ${paymentId}`);
+                return { success: true };
+            } catch (error) {
+                console.error('Error processing payment_intent.succeeded:', error);
+                return { success: false, error: 'Database error updating payment' };
+            }
         }
 
         case "invoice.payment_succeeded": {
@@ -308,6 +337,43 @@ async function processWebhookEvent(event) {
             }
         }
 
+        case "customer.subscription.updated": {
+            const subscription = event.data.object;
+            const subscriptionId = subscription.id;
+            const newCancelFlag = subscription.cancel_at_period_end ? 1 : 0;
+            // Stripe statuses we track locally: trialing=4, active=1, past_due=2, canceled=3.
+            // Others (unpaid/incomplete/paused) are left untouched rather than guessed at.
+            const STRIPE_TO_LOCAL_STATUS = { trialing: 4, active: 1, past_due: 2, canceled: 3 };
+            const mappedStatus = STRIPE_TO_LOCAL_STATUS[subscription.status] ?? null;
+
+            try {
+                const [existingRows] = await db_pool.query(
+                    `SELECT cancel_at_period_end FROM subscriptions WHERE external_id = ? LIMIT 1`,
+                    [subscriptionId]
+                );
+                const wasAlreadyFlagged = Boolean(existingRows?.[0]?.cancel_at_period_end);
+                const justTransitioned = newCancelFlag === 1 && !wasAlreadyFlagged;
+
+                await db_pool.query(
+                    `UPDATE subscriptions
+                     SET cancel_at_period_end = ?,
+                         canceled_at = ${justTransitioned ? 'NOW()' : 'canceled_at'}
+                         ${mappedStatus ? ', status = ?' : ''}
+                     WHERE external_id = ?`,
+                    mappedStatus
+                        ? [newCancelFlag, mappedStatus, subscriptionId]
+                        : [newCancelFlag, subscriptionId]
+                );
+
+                console.log(`Subscription updated: ${subscriptionId}, cancel_at_period_end=${Boolean(newCancelFlag)}`);
+                return { success: true };
+
+            } catch (error) {
+                console.error('Error processing customer.subscription.updated:', error);
+                return { success: false, error: 'Database error updating subscription' };
+            }
+        }
+
         case "customer.subscription.deleted": {
             const subscription = event.data.object;
             const subscriptionId = subscription.id;
@@ -330,7 +396,7 @@ async function processWebhookEvent(event) {
 
         default:
             console.log(`Unhandled webhook event: ${event.type}`);
-            return { success: true };
+            return { success: true, handled: false };
     }
 }
 
@@ -344,7 +410,7 @@ const PAYMENT_STATUS = { pending: 0, completed: 1, refunded: 2, failed: 3 };
  */
 async function updatePaymentStatus(paymentId, statusKey, transactionReference) {
     try {
-        const statusCode = PAYMENT_STATUS[statusKey] ?? 0;
+        const statusCode = 1; // Default to completed
         let query = `UPDATE payments SET status = ?`;
         /** @type {any[]} */
         let params = [statusCode];

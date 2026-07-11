@@ -219,6 +219,14 @@ export default class GatewayPay {
                             sku_variant,
                             type: 'onetime',
                             paymentId
+                        },
+                        // Also attach paymentId to the underlying PaymentIntent so payment_intent.succeeded
+                        // can act as a fallback to checkout.session.completed. Only valid in mode: "payment".
+                        payment_intent_data: {
+                            metadata: {
+                                userId: sessions?.currentUserID,
+                                paymentId
+                            }
                         }
                     });
                     break; // Success, exit retry loop
