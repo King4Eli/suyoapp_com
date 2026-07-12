@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { View, Text, Pressable, Dimensions, StyleSheet, Animated, Easing, FlatList, ScrollView, Image, ActivityIndicator } from 'react-native';
-import { _http_request, cacheStorage, help, hostServer, llStorage, logReport } from '../funcs/functions';
+import { _http_request, cacheStorage, help, hostServer, logReport } from '../funcs/functions';
 import { useFocusEffect } from '@react-navigation/native';
 import { styles, namer, resourceMap } from '../funcs/static';
 import IIcon from 'react-native-vector-icons/Ionicons';
@@ -31,7 +31,7 @@ const getAllLikesSortPriority = (item: any) => {
 };
 
 export function Screen_likes({ navigation }: { navigation: any }) {
-    const __MAPPER = llStorage.CONFIG.get()?.mapper;
+    const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
 
     const [getProfile, setProfile] = useState<any>(null);
     const subscriptionState = help.getSubscriptionState(getProfile);

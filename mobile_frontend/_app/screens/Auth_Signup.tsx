@@ -192,8 +192,8 @@ export const Auth_Signup = ({route}:{route: any}) => {
         if (!mounted || !mapper) return;
 
         setMapperOptions({
-          intent: mapperToOptions(mapper, ['intent'], fallbackOptions.intent),
-          gender: mapperToOptions(mapper, ['gender'], fallbackOptions.gender),
+          intent: mapperToOptions(mapper, ['bio_intent', 'intent'], fallbackOptions.intent),
+          gender: mapperToOptions(mapper, ['bio_gender', 'gender'], fallbackOptions.gender),
           interestedIn: mapperToOptions(mapper, ['interested_in', 'interestedIn'], fallbackOptions.interestedIn),
           // interests: mapperToOptions(mapper, ['interests', 'interest'], fallbackOptions.interests),
         });

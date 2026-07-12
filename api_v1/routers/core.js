@@ -13,7 +13,6 @@ import pushPeopleToMatch from './core/pushPeopleToMatch.js';
 import pushConversation from './core/pushConversation.js';
 import pushNewEmail from './core/pushNewEmail.js';
 import pushLogReport from './core/pushLogReports.js';
-import getVersioning from './core/getVersioning.js';
 import handleFileUpload from './core/handleFileUpload.js';
 import getProducts from './core/getProducts.js';
 import getPaymentHistory from './core/getPaymentHistory.js';
@@ -34,8 +33,7 @@ core_router.post('/:action', async (req, res) => {
 
     switch (action){
         case 'getMapper':
-            const wha2get = req.body?.wha2get;
-            const mapper = await getMapper(wha2get);
+            const mapper = await getMapper();
             return res.json(mapper);
         case 'handleFileUpload':
             if (req.body?.meta?.bucketType === 'signup-void') {
@@ -70,11 +68,6 @@ core_router.post('/:action', async (req, res) => {
             const person = req.body?.getOnePersons_id2;
             const people = await getPeopleToMatch(person);
             return res.json(people);
-        case 'getVersioning':
-            const _gm = req.body?._gm; //get mappers
-            const _bi = req.body?._bi; //init
-            const versioning = await getVersioning({ _gm, _bi });
-            return res.json(versioning);
         case 'getProducts':
             const products = await getProducts();
             return res.json(products);
@@ -85,7 +78,7 @@ core_router.post('/:action', async (req, res) => {
             const interests = await getInterests();
             return res.json(interests);
         case 'getPrompts':
-            const prompts = await getPrompts();
+            const prompts = await getPrompts(req.body);
             return res.json(prompts);
 
             

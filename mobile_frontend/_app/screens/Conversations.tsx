@@ -4,7 +4,7 @@ import { Loaderx, bottomsheet_renderBackdrop } from '../funcs/functions_stateful
 import IonIcon from 'react-native-vector-icons/Ionicons';
 import { namer, styles } from '../funcs/static';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { _http_request, help, llStorage, mediaHandler, screenWidth, hostServer, logReport, uploadHandler, navigationRef, cacheStorage } from '../funcs/functions';
+import { _http_request, help, mediaHandler, screenWidth, hostServer, logReport, uploadHandler, navigationRef, cacheStorage } from '../funcs/functions';
 import { Asset } from 'react-native-image-picker';
 import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -50,7 +50,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     const ajjj=useCallback(bottomsheet_renderBackdrop,[]);
 
     const headerHeight = useHeaderHeight();
-    const __MAPPER = llStorage.CONFIG.get()?.mapper;
+    const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
     const imageDomain = __MAPPER?.img_domain[0];
     const [getProfile, setProfile] = useState<any>(null);
 

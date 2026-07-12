@@ -27,7 +27,7 @@ export default async function pushProfile(input = {}) {
   }
   const profUpdates = [];
   // Parse JSON fields
-  for (const key of ["prof_prompts", "prof_images_meta", "prof_location", "pref_languages", "pref_language"]) {
+  for (const key of ["prof_prompts", "prof_interests", "prof_images_meta", "prof_location", "pref_languages", "pref_language"]) {
     if (input[key] && typeof input[key] === "string") {
       try {
         input[key] = JSON.parse(input[key]);
@@ -69,11 +69,6 @@ export default async function pushProfile(input = {}) {
       profUpdates.push({ field: dbField, value: formattedVal });
     }
   }
-  // Profile arrays
-  if (hasKey(input, "prof_prompts") && Array.isArray(input.prof_prompts)) {
-    profUpdates.push({ field: "user_bio_prompt", value: JSON.stringify(input.prof_prompts) });
-  }
-
   if (hasKey(input, "prof_images_meta")) {
     const incomingImages = Array.isArray(input.prof_images_meta) ? input.prof_images_meta : [];
     const normalizedImages = incomingImages
@@ -135,6 +130,8 @@ export default async function pushProfile(input = {}) {
     profUpdates.push({ field: "user_preference_language", value: normalizedPrefLanguage });
   }
 
+  let savedSomething = false;
+
   // Execute update
   if (profUpdates.length > 0) {
     const latestByField = new Map();
@@ -149,13 +146,41 @@ export default async function pushProfile(input = {}) {
     /** @type {[import('mysql2/promise').ResultSetHeader, any]} */
     const [result] = await db_pool.query(`UPDATE users SET ${setClauses} WHERE user_id = ?`, values);
     if (result.affectedRows > 0) {
-      response.code = 200;
-      response.message = "Profile updated successfully.";
+      savedSomething = true;
     }
-    else {
-      response.code = 203;
-      response.message = "No changes made to your profile.";
+  }
+
+  // Prompts: user_id + prompts_variant_ref_id + answer, keyed to the prompt catalog (prompts_variant)
+  if (hasKey(input, "prof_prompts") && Array.isArray(input.prof_prompts)) {
+    const promptRows = input.prof_prompts
+      .filter((/** @type {any} */ p) => p && onlyNumber(p.id_ai) && typeof p.answer === "string" && p.answer.trim())
+      .map((/** @type {any} */ p) => [sessions.currentUserID, Number(p.id_ai), p.answer.trim()]);
+
+    await db_pool.query("DELETE FROM users_prompt WHERE user_id = ?", [sessions.currentUserID]);
+    if (promptRows.length > 0) {
+      await db_pool.query("INSERT INTO users_prompt (user_id, prompts_variant_ref_id, answer) VALUES ?", [promptRows]);
     }
+    savedSomething = true;
+  }
+
+  // Interests: user_id + interests_variant_ref_id, keyed to the interest catalog (interests_variant)
+  if (hasKey(input, "prof_interests") && Array.isArray(input.prof_interests)) {
+    const interestIds = input.prof_interests.filter(onlyNumber).map(Number);
+
+    await db_pool.query("DELETE FROM users_interests WHERE user_id = ?", [sessions.currentUserID]);
+    if (interestIds.length > 0) {
+      const interestRows = interestIds.map((id) => [sessions.currentUserID, id]);
+      await db_pool.query("INSERT INTO users_interests (user_id, interests_variant_ref_id) VALUES ?", [interestRows]);
+    }
+    savedSomething = true;
+  }
+
+  if (savedSomething) {
+    response.code = 200;
+    response.message = "Profile updated successfully.";
+  } else {
+    response.code = 203;
+    response.message = "No changes made to your profile.";
   }
 }catch(e){
   // @ts-ignore

@@ -15,6 +15,8 @@ import { Auth_Login } from './Auth_Login';
 import { Loaderx } from '../funcs/functions_stateful';
 import { Screen_settings } from './Settings';
 import { Screen_editprofile } from './ProfileEdit';
+import { Screen_editProfilePrompts } from './ProfileEditPrompts';
+import { Screen_editProfileInterests } from './ProfileEditInterests';
 import { sessionManager, SessionTypes } from '../funcs/SessionContext';
 import { Screen_editpreference } from './PreferenceEdit';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -148,6 +150,8 @@ const MainApp: React.FC = () => {
                 <Stack.Screen name="Home" component={BottomTabNavigator} options={{ headerShown: false }} />
                 <Stack.Screen name={namer.navigation.conversation} component={Screen_conversation} options={{ headerBackTitle: '', headerTransparent: true }} />
                 <Stack.Screen name={namer.navigation.editprofile} component={Screen_editprofile} options={{ headerBackTitle: '', headerTransparent: true }} />
+                <Stack.Screen name={namer.navigation.editProfilePrompts} component={Screen_editProfilePrompts} options={{ headerBackTitle: '' }} />
+                <Stack.Screen name={namer.navigation.editProfileInterests} component={Screen_editProfileInterests} options={{ headerBackTitle: '' }} />
                 <Stack.Screen name={namer.navigation.editpreference} component={Screen_editpreference} />
                 <Stack.Screen name={namer.navigation.peoplesOnePerson} component={Peoples_Screen} options={{ headerBackTitle: '' }} />
                 <Stack.Screen name={namer.navigation.subscription} component={Screen_PurchaseSubscribe} options={{

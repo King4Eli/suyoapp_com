@@ -3,7 +3,7 @@ import { View, Text, Pressable, StyleSheet, Animated, Easing, Platform, ImageBac
 import { Loaderx } from '../funcs/functions_stateful';
 import { useFocusEffect } from '@react-navigation/native';
 import { namer, resourceMap, styles } from '../funcs/static';
-import { _http_request, cacheStorage, help, hostServer, llStorage, logReport } from '../funcs/functions';
+import { _http_request, cacheStorage, help, hostServer, logReport } from '../funcs/functions';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useHeaderHeight } from '@react-navigation/elements';
 import MIcon from "react-native-vector-icons/MaterialCommunityIcons";
@@ -14,7 +14,7 @@ import LottieView from 'lottie-react-native';
 
 export function Screen_chat({ navigation }: { navigation: any }) {
   const [getProfile, setProfile] = useState<any>(null);
-  const __MAPPER = llStorage.CONFIG.get()?.mapper;
+  const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
 
   const imageDomain = __MAPPER?.img_domain[0];
 

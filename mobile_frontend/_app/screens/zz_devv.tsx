@@ -1,14 +1,14 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { View, Text, Button, ScrollView, StyleSheet, Pressable, Linking, Clipboard } from 'react-native';
 import { Toastx } from '../funcs/customNotification';
-import { __init__app, cacheStorage, hostServer, llStorage, logReport } from '../funcs/functions';
+import { __init__app, cacheStorage, hostServer, logReport } from '../funcs/functions';
 import DeviceInfo from 'react-native-device-info';
 import RNRestart from 'react-native-restart';
 import { sessionManager } from '../funcs/SessionContext';
 
 
 export function Zz_devv({ route, navigation }: { route: any, navigation: any }) {
-    const __MAPPER = llStorage.CONFIG.get()?.mapper;
+    const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
     const [getProfile, setProfile] = useState<any>(null);
     const getSession = sessionManager.getCurrentSession();
 

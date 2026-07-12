@@ -5,7 +5,7 @@ import { View, Text, Pressable, ScrollView, Alert, TouchableOpacity, StyleSheet,
 import { Loaderx, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import { useFocusEffect } from '@react-navigation/native';
 import { styles, namer, colors, resourceMap } from '../funcs/static';
-import { _http_request, cacheStorage,    help, hostServer, llStorage, logReport, screenHeight, sleep } from '../funcs/functions';
+import { _http_request, cacheStorage,    help, hostServer, logReport, screenHeight, sleep } from '../funcs/functions';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { TextInput } from 'react-native-gesture-handler';
@@ -23,7 +23,7 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withSequ
 export default function Peoples_Screen({ route, navigation }: { route: any, navigation: any }) {
     const [getProfile, setProfile] = useState<any>(null);
 
-    const __MAPPER = llStorage.CONFIG.get()?.mapper;
+    const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
     const imageDomain = __MAPPER?.img_domain?.[0] ?? null;
  
     const [getPeopleToMatch, setPeopleToMatch] = useState<any[] | null>(null);

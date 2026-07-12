@@ -4,6 +4,7 @@ import { _http_request, hostServer, } from '../../funcs/functions';
 import { namer } from '../static';
 import DeviceInfo from 'react-native-device-info';
 import { Dimensions } from 'react-native';
+import { xxa_logggingReport } from './logging';
 
 export class cacheStorage {
     // Profile
@@ -166,7 +167,6 @@ export class cacheStorage {
 
 
 
-
     // Device
     // Products
     private static productsMemoryCache: any = null;
@@ -280,7 +280,7 @@ export class cacheStorage {
                     bodyArray: {}
                 });
 
-                const mapperData = response?.data?.map ?? response?.map ?? response?.map;
+                const mapperData = response?.data?.mapper_payload ?? response?.mapper_payload;
 
                 if (response?.code === 200 && mapperData && Object.keys(mapperData).length > 0) {
                     this.mapperMemoryCache = {
@@ -303,5 +303,36 @@ export class cacheStorage {
         })();
 
         return this.mapperLoadingPromise  ;
+    }
+
+
+
+    // Full mapper payload: every mapping_lookup row keyed by map_type, e.g. __MAPPER.bio_gender
+    private static tempMapper: any = null;
+    public static CONFIG = {
+        get: (): { mapper: any } => {
+            return { mapper: cacheStorage.tempMapper };
+        },
+        getMapper: async (): Promise<void> => {
+            const sessIdStorage = await AsyncStorage.getItem(namer.storage.sessionId);
+            if (!sessIdStorage) return;
+
+            const server = await _http_request({
+                customApiUrl: hostServer() + '/api/core/v1/getMapper',
+                reqType: "POST",
+                bodyArray: {
+                    _gpl: true,
+                    _bi: true,
+                    _gm: true
+                }
+            });
+
+            if (server?.code === 200) {
+                await AsyncStorage.setItem(namer.storage.mapper_payload, JSON.stringify(server?.mapper_payload));
+                cacheStorage.tempMapper = server?.mapper_payload;
+            } else {
+                xxa_logggingReport({ type: "function", extra: server, useraction: "CONFIG.generateFromServer", url: hostServer() + '/api/core/v1/getMapper', logMessage: "Failed to fetch versioning data" });
+            }
+        }
     }
 }

@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: global_mysql:3306
--- Generation Time: Jul 11, 2026 at 10:15 PM
+-- Generation Time: Jul 12, 2026 at 12:08 AM
 -- Server version: 8.0.46
 -- PHP Version: 8.3.26
 
@@ -35,6 +35,21 @@ CREATE TABLE `conversations` (
   `convo_status` enum('0','1','2') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '0' COMMENT '0=noread 1=read -99=deleted',
   `convo_date_added` bigint UNSIGNED DEFAULT (unix_timestamp()),
   `convo_date_updated` bigint UNSIGNED DEFAULT (unix_timestamp())
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `interests_variant`
+--
+
+CREATE TABLE `interests_variant` (
+  `id_ai` int NOT NULL,
+  `category` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `interested_in` varchar(50) NOT NULL,
+  `status` tinyint NOT NULL DEFAULT '1',
+  `date_created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `date_updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
@@ -140,6 +155,20 @@ CREATE TABLE `product_list_variant` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `prompts_variant`
+--
+
+CREATE TABLE `prompts_variant` (
+  `id_ai` bigint NOT NULL,
+  `question` varchar(255) NOT NULL,
+  `status` tinyint NOT NULL DEFAULT '1',
+  `date_created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `date_updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `stripe_events`
 --
 
@@ -205,12 +234,10 @@ CREATE TABLE `users` (
   `user_bio_company` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   `user_bio_ethnicity` tinyint DEFAULT NULL,
   `user_bio_smoking` enum('0','1','2') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
-  `user_bio_prompt` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin COMMENT '{}',
   `user_bio_drinking` enum('0','1','2') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `user_bio_children` enum('0','1') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `user_bio_religion` tinyint DEFAULT NULL,
   `user_bio_jobrole` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `user_bio_interests` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin,
   `user_bio_gender` int NOT NULL,
   `user_bio_haspet` enum('0','1') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `user_bio_about` varchar(400) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
@@ -238,6 +265,33 @@ CREATE TABLE `users` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `users_interests`
+--
+
+CREATE TABLE `users_interests` (
+  `id_ai` int NOT NULL,
+  `user_id` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `interests_variant_ref_id` int NOT NULL,
+  `date_created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `users_prompt`
+--
+
+CREATE TABLE `users_prompt` (
+  `id_ai` bigint NOT NULL,
+  `user_id` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `prompts_variant_ref_id` bigint NOT NULL,
+  `answer` varchar(100) NOT NULL,
+  `date_created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `users_reported`
 --
 
@@ -260,6 +314,12 @@ CREATE TABLE `users_reported` (
 ALTER TABLE `conversations`
   ADD PRIMARY KEY (`convo_id`),
   ADD KEY `fk_convo_match_id` (`convo_match_id`);
+
+--
+-- Indexes for table `interests_variant`
+--
+ALTER TABLE `interests_variant`
+  ADD PRIMARY KEY (`id_ai`);
 
 --
 -- Indexes for table `logreports`
@@ -308,6 +368,12 @@ ALTER TABLE `product_list_variant`
   ADD KEY `product_list_variant_fk` (`product_lists_id_ref`);
 
 --
+-- Indexes for table `prompts_variant`
+--
+ALTER TABLE `prompts_variant`
+  ADD PRIMARY KEY (`id_ai`);
+
+--
 -- Indexes for table `stripe_events`
 --
 ALTER TABLE `stripe_events`
@@ -336,6 +402,22 @@ ALTER TABLE `users`
   ADD KEY `user_geo_hash` (`geo_hash`);
 
 --
+-- Indexes for table `users_interests`
+--
+ALTER TABLE `users_interests`
+  ADD PRIMARY KEY (`id_ai`),
+  ADD KEY `fk_interests_user_id` (`user_id`),
+  ADD KEY `fk_interests_variant_id_ref` (`interests_variant_ref_id`);
+
+--
+-- Indexes for table `users_prompt`
+--
+ALTER TABLE `users_prompt`
+  ADD PRIMARY KEY (`id_ai`),
+  ADD KEY `fk_prompt_user_id` (`user_id`),
+  ADD KEY `fk_prompts_variant_id` (`prompts_variant_ref_id`);
+
+--
 -- Indexes for table `users_reported`
 --
 ALTER TABLE `users_reported`
@@ -345,6 +427,12 @@ ALTER TABLE `users_reported`
 --
 -- AUTO_INCREMENT for dumped tables
 --
+
+--
+-- AUTO_INCREMENT for table `interests_variant`
+--
+ALTER TABLE `interests_variant`
+  MODIFY `id_ai` int NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `mapping_lookup`
@@ -359,10 +447,28 @@ ALTER TABLE `product_list_variant`
   MODIFY `id_ai` int NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `prompts_variant`
+--
+ALTER TABLE `prompts_variant`
+  MODIFY `id_ai` bigint NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
   MODIFY `autoIncrement` int NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `users_interests`
+--
+ALTER TABLE `users_interests`
+  MODIFY `id_ai` int NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `users_prompt`
+--
+ALTER TABLE `users_prompt`
+  MODIFY `id_ai` bigint NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `users_reported`
@@ -414,6 +520,20 @@ ALTER TABLE `subscriptions`
   ADD CONSTRAINT `fk_payment_id_ref` FOREIGN KEY (`payment_id_ref`) REFERENCES `payments` (`payment_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
   ADD CONSTRAINT `fk_user_id_ref` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
   ADD CONSTRAINT `fk_variant_id_ref` FOREIGN KEY (`variant_id_ref`) REFERENCES `product_list_variant` (`id_ai`) ON DELETE RESTRICT ON UPDATE RESTRICT;
+
+--
+-- Constraints for table `users_interests`
+--
+ALTER TABLE `users_interests`
+  ADD CONSTRAINT `fk_interests_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  ADD CONSTRAINT `fk_interests_variant_id_ref` FOREIGN KEY (`interests_variant_ref_id`) REFERENCES `interests_variant` (`id_ai`) ON DELETE RESTRICT ON UPDATE RESTRICT;
+
+--
+-- Constraints for table `users_prompt`
+--
+ALTER TABLE `users_prompt`
+  ADD CONSTRAINT `fk_prompt_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  ADD CONSTRAINT `fk_prompts_variant_id` FOREIGN KEY (`prompts_variant_ref_id`) REFERENCES `prompts_variant` (`id_ai`) ON DELETE RESTRICT ON UPDATE RESTRICT;
 
 --
 -- Constraints for table `users_reported`

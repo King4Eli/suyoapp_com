@@ -8,7 +8,7 @@ import LottieView from 'lottie-react-native';
 import Svg, { Circle } from 'react-native-svg';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import MIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { _http_request, cacheStorage, help, hostServer, llStorage, logReport, parseCategoryProducts, screenWidth } from '../funcs/functions';
+import { _http_request, cacheStorage, help, hostServer, logReport, parseCategoryProducts, screenWidth } from '../funcs/functions';
 import { Loaderx } from '../funcs/functions_stateful';
 import { namer, resourceMap, styles } from '../funcs/static';
 
@@ -25,7 +25,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
     const [profile, setProfile] = useState<any>(null);
     const [mainSubProducts, setMainSubProducts] = useState<any[]>([]);
 
-    const mapper = llStorage.CONFIG.get()?.mapper;
+    const mapper = cacheStorage.CONFIG.get()?.mapper;
     const imageDomain = mapper?.img_domain?.[0] ?? mapper?.img_domain?.[2] ?? '';
     const consumableProducts: any[] = [];
 

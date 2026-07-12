@@ -22,7 +22,7 @@ import IIcon from 'react-native-vector-icons/Ionicons';
 import MIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { namer } from '../funcs/static';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { _http_request, cacheStorage, help, hostServer, llStorage, mediaHandler, sleep, uploadHandler } from '../funcs/functions';
+import { _http_request, cacheStorage, help, hostServer, mediaHandler, sleep, uploadHandler } from '../funcs/functions';
 import { useHeaderHeight } from '@react-navigation/elements';
 import BottomSheet, { BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
@@ -31,8 +31,8 @@ import LinearGradient from 'react-native-linear-gradient';
 // ─── Constants ───────────────────────────────────────────────────────────────
 const GAP = 5;
 const MAX_PHOTOS = 6;
-const MAX_PROMPTS = 3;
-const MAX_INTERESTS = 15;
+export const MAX_PROMPTS = 3;
+export const MAX_INTERESTS = 15;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface PhotoItem {
@@ -49,6 +49,9 @@ interface CellDim {
     x: number;
     y: number;
 }
+
+export type PromptEntry = { id_ai: number; question: string; answer: string };
+export type InterestEntry = { id_ai: number; interested_in: string };
 
 type PickerOption = {
     id: string;
@@ -398,7 +401,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
     const headerHeight = useHeaderHeight();
 
     const [getProfile, setProfile] = useState<any>(null);
-    const __MAPPER = llStorage.CONFIG.get()?.mapper;
+    const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
 
     const imageDomain = __MAPPER?.img_domain?.[0] ?? '';
 
@@ -431,13 +434,9 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
         languages: [] as string[],
     });
 
-    // ── Profile state ──────────────────────────────────────────────────────   
-    const [getPrompts, setPrompts] = useState<Array<{ q: string; a: string; d: string }>>(
-        Array.isArray(getProfile?.user_bio_prompt) ? getProfile.user_bio_prompt : []
-    );
-    const [getInterests, setInterests] = useState<string[]>(
-        Array.isArray(getProfile?.user_bio_interests) ? getProfile.user_bio_interests : []
-    );
+    // ── Profile state ──────────────────────────────────────────────────────
+    const [getPrompts, setPrompts] = useState<PromptEntry[]>([]);
+    const [getInterests, setInterests] = useState<InterestEntry[]>([]);
 
 
 
@@ -479,8 +478,12 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                         schoolattended: profile?.bio?.schoolattended ?? '',
                         languages: profile?.bio?.language ?? [],
                     });
-                    setPrompts(Array.isArray(profile?.user_bio_prompt) ? profile.user_bio_prompt : []);
-                    setInterests(Array.isArray(profile?.user_bio_interests) ? profile.user_bio_interests : []);
+                    setPrompts(Array.isArray(profile?.bio?.prompts) ? profile.bio.prompts : []);
+                    setInterests(
+                        Array.isArray(profile?.bio?.interests)
+                            ? profile.bio.interests.flatMap((group: any) => group?.items ?? [])
+                            : []
+                    );
                 }
             } catch (error) {
                 console.error("Error loading profile:", error);
@@ -511,14 +514,8 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
     const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
 
     // ── Bottom sheet refs ───────────────────────────────────────────────────
-    const addNewPrompt_ref = useRef<BottomSheet>(null);
-    const addInterests_ref = useRef<BottomSheet>(null);
     const pickerSheet_ref = useRef<BottomSheet>(null);
-    const [showAddNewPromptSheet, setShowAddNewPromptSheet] = useState(false);
-    const [showAddInterestsSheet, setShowAddInterestsSheet] = useState(false);
     const [pickerSheet, setPickerSheet] = useState<PickerSheetConfig | null>(null);
-    const addNewPromptSnapPoints = useMemo(() => ['72%', '88%'], []);
-    const addInterestsSnapPoints = useMemo(() => ['72%', '90%'], []);
     const pickerSnapPoints = useMemo(() => ['58%', '82%'], []);
 
     // ── Header ─────────────────────────────────────────────────────────────
@@ -598,8 +595,8 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                     prof_hometown: getProfileEdit?.hometown,
                     prof_schoolattended: getProfileEdit?.schoolattended,
                     prof_political: getProfileEdit?.politicalview,
-                    prof_prompts: JSON.stringify(getPrompts ?? []),
-                    prof_interests: JSON.stringify(getInterests ?? []),
+                    prof_prompts: JSON.stringify((getPrompts ?? []).map(p => ({ id_ai: p.id_ai, answer: p.answer }))),
+                    prof_interests: JSON.stringify((getInterests ?? []).map(i => i.id_ai)),
                     prof_images_meta: JSON.stringify(orderedImageMeta),
                 },
             });
@@ -733,19 +730,8 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
     }, []);
 
     // ── Interest helpers ───────────────────────────────────────────────────
-    const toggleInterest = useCallback((item: string) => {
-        setInterests(prev => {
-            if (prev.includes(item)) return prev.filter(v => v !== item);
-            if (prev.length >= MAX_INTERESTS) {
-                Toastx.show({ message: `Max ${MAX_INTERESTS} interests allowed.`, type: 'info' });
-                return prev;
-            }
-            return [...prev, item];
-        });
-    }, []);
-
-    const removeInterest = useCallback((item: string) => {
-        setInterests(prev => prev.filter(v => v !== item));
+    const removeInterest = useCallback((id_ai: number) => {
+        setInterests(prev => prev.filter(v => v.id_ai !== id_ai));
     }, []);
 
     // ── Radio builder ──────────────────────────────────────────────────────
@@ -907,7 +893,10 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                         <View style={pgStyles.formField}>
                             <Pressable
                                 style={{ gap: 8 }}
-                                onPress={() => setShowAddInterestsSheet(true)}
+                                onPress={() => navigation.navigate(namer.navigation.editProfileInterests, {
+                                    existingInterests: getInterests,
+                                    onSave: (updated: InterestEntry[]) => setInterests(updated),
+                                })}
                             >
                                 <View style={pgStyles.inputHeader}>
                                     <Text style={pgStyles.fieldLabel}>
@@ -921,12 +910,12 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                     <Text style={pgStyles.placeholder}>Tap to select your interests</Text>
                                 ) : (
                                     <View style={pgStyles.chipRow}>
-                                        {getInterests.map((interest, i) => (
-                                            <View key={i} style={pgStyles.chip}>
-                                                <Text style={pgStyles.chipText}>{interest}</Text>
+                                        {getInterests.map((interest) => (
+                                            <View key={interest.id_ai} style={pgStyles.chip}>
+                                                <Text style={pgStyles.chipText}>{interest.interested_in}</Text>
                                                 <Pressable
                                                     hitSlop={6}
-                                                    onPress={() => removeInterest(interest)}
+                                                    onPress={() => removeInterest(interest.id_ai)}
                                                     style={pgStyles.chipRemove}
                                                 >
                                                     <Text style={pgStyles.chipRemoveText}>×</Text>
@@ -993,7 +982,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                             </Text>
 
                             {getPrompts.map((item, index) => (
-                                <View key={index} style={pgStyles.promptCard}>
+                                <View key={item.id_ai} style={pgStyles.promptCard}>
                                     <Pressable
                                         style={pgStyles.promptRemove}
                                         onPress={() => removePrompt(index)}
@@ -1001,18 +990,18 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                     >
                                         <IIcon name="close-circle" size={20} color="#ff4444" />
                                     </Pressable>
-                                    <Text style={pgStyles.promptQuestion}>{item?.q}</Text>
+                                    <Text style={pgStyles.promptQuestion}>{item?.question}</Text>
                                     <TextInput
                                         style={[pgStyles.textInput, pgStyles.promptAnswer]}
-                                        value={item?.a}
-                                        placeholder={item?.q}
+                                        value={item?.answer}
+                                        placeholder={item?.question}
                                         placeholderTextColor="#94a3b8"
                                         multiline
                                         maxLength={140}
                                         onChangeText={text => {
                                             setPrompts(prev => {
                                                 const updated = [...prev];
-                                                updated[index] = { ...updated[index], a: text };
+                                                updated[index] = { ...updated[index], answer: text };
                                                 return updated;
                                             });
                                         }}
@@ -1023,7 +1012,10 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                             {getPrompts.length < MAX_PROMPTS && (
                                 <Pressable
                                     style={pgStyles.addPromptBtn}
-                                    onPress={() => setShowAddNewPromptSheet(true)}
+                                    onPress={() => navigation.navigate(namer.navigation.editProfilePrompts, {
+                                        existingPrompts: getPrompts,
+                                        onSave: (updated: PromptEntry[]) => setPrompts(updated),
+                                    })}
                                 >
                                     <MIcons name="plus-circle-outline" size={18} color="#e8546f" />
                                     <Text style={pgStyles.addPromptText}>Add a Prompt</Text>
@@ -1079,90 +1071,6 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                 </ScrollView>
             </KeyboardAvoidingView>
 
-
-            {/* ── Add New Prompt Bottom Sheet ───────────────────────────────── */}
-            {showAddNewPromptSheet && <BottomSheet
-                ref={addNewPrompt_ref}
-                index={0}
-                enablePanDownToClose
-                snapPoints={addNewPromptSnapPoints}
-                backdropComponent={bottomsheet_renderBackdrop}
-                onClose={() => setShowAddNewPromptSheet(false)}
-            >
-                <BottomSheetView style={pgStyles.sheetBody}>
-                    <Text style={pgStyles.sheetTitle}>Add a Prompt</Text>
-                    <BottomSheetScrollView showsVerticalScrollIndicator={false} contentContainerStyle={pgStyles.sheetScrollContent}>
-                        {Object.values(__MAPPER?.bio_prompt ?? {})
-                            .filter(prompt => !getPrompts.map(p => p.q).includes(prompt as string))
-                            .map((prompt: any, index: number) => (
-                                <View key={index} style={pgStyles.promptPickerCard}>
-                                    <Text style={pgStyles.promptQuestion}>{prompt}</Text>
-                                    <PromptDraft
-                                        prompt={prompt}
-                                        onSave={(answer) => {
-                                            if (!getPrompts.map(p => p.q).includes(prompt)) {
-                                                const now = new Date();
-                                                const d =
-                                                    `${now.getFullYear()}` +
-                                                    `${String(now.getMonth() + 1).padStart(2, '0')}` +
-                                                    `${String(now.getDate()).padStart(2, '0')}` +
-                                                    `${String(now.getHours()).padStart(2, '0')}` +
-                                                    `${String(now.getMinutes()).padStart(2, '0')}` +
-                                                    `${String(now.getSeconds()).padStart(2, '0')}`;
-                                                setPrompts(prev => [...prev, { q: prompt, a: answer.trim(), d }]);
-                                            }
-                                            addNewPrompt_ref.current?.close();
-                                        }}
-                                    />
-                                </View>
-                            ))}
-                    </BottomSheetScrollView>
-                </BottomSheetView>
-            </BottomSheet>}
-
-            {/* ── Interests Bottom Sheet ────────────────────────────────────── */}
-            {showAddInterestsSheet && <BottomSheet
-                ref={addInterests_ref}
-                index={0}
-                enablePanDownToClose
-                snapPoints={addInterestsSnapPoints}
-                backdropComponent={bottomsheet_renderBackdrop}
-                onClose={() => setShowAddInterestsSheet(false)}
-            >
-                <BottomSheetView style={pgStyles.sheetBody}>
-                    <View style={pgStyles.sheetHeader}>
-                        <Text style={pgStyles.sheetTitle}>Your Interests</Text>
-                        <Text style={pgStyles.countBadge}>{getInterests.length}/{MAX_INTERESTS} selected</Text>
-                    </View>
-                    <BottomSheetScrollView
-                        contentContainerStyle={pgStyles.sheetScrollContent}
-                        showsVerticalScrollIndicator={false}
-                    >
-                        {Object.entries((__MAPPER?.bio_interests as Record<string, string[]>) ?? {}).map(([category, items]) => (
-                            <View key={category} style={pgStyles.interestCategory}>
-                                <Text style={pgStyles.interestCategoryTitle}>{category}</Text>
-                                <View style={pgStyles.chipRow}>
-                                    {items.map((item: string, idx: number) => {
-                                        const selected = getInterests.includes(item);
-                                        return (
-                                            <TouchableOpacity
-                                                key={idx}
-                                                style={[pgStyles.chip, selected && pgStyles.chipSelected]}
-                                                onPress={() => toggleInterest(item)}
-                                                activeOpacity={0.75}
-                                            >
-                                                <Text style={[pgStyles.chipText, selected && pgStyles.chipTextSelected]}>
-                                                    {item}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        );
-                                    })}
-                                </View>
-                            </View>
-                        ))}
-                    </BottomSheetScrollView>
-                </BottomSheetView>
-            </BottomSheet>}
 
             {pickerSheet && <BottomSheet
                 ref={pickerSheet_ref}
@@ -1303,27 +1211,6 @@ const InlineTextField = ({
         </View>
     </View>
 );
-
-const PromptDraft = ({ prompt, onSave }: { prompt: string; onSave: (answer: string) => void }) => {
-    const [text, setText] = useState('');
-
-    return (
-        <View style={pgStyles.promptSheetCard}>
-            <TextInput
-                style={[pgStyles.textInput, pgStyles.promptSheetInput]}
-                value={text}
-                onChangeText={setText}
-                placeholder={prompt}
-                placeholderTextColor="#94a3b8"
-                maxLength={140}
-                multiline
-            />
-            <Pressable style={pgStyles.sheetSaveBtn} onPress={() => onSave(text)}>
-                <Text style={pgStyles.sheetSaveBtnText}>Save Prompt</Text>
-            </Pressable>
-        </View>
-    );
-};
 
 // ─── Page-level styles ────────────────────────────────────────────────────────
 const pgStyles = StyleSheet.create({

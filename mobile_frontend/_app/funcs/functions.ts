@@ -177,7 +177,7 @@ console.log(nowSeconds, unixSeconds, seconds)
 
 export const __init__app = async (): Promise<void> => {
   // get mapper
-  await llStorage.CONFIG.getMapper();
+  await cacheStorage.CONFIG.getMapper();
 
   // get session and verify
   const getSession_omi = sessionManager.getCurrentSession()?.x_omi_payload;
@@ -496,45 +496,6 @@ export async function getCurrentLocation() {
 
 
 
-
-// Local storage management
-export class llStorage {
-  private static tempMapper: any = null;
-
-
-
-  public static CONFIG = {
-    get: () => { return { mapper: this.tempMapper } },
-    getMapper: async (): Promise<void> => {
-      const sessIdStorage = await AsyncStorage.getItem(namer.storage.sessionId);
-      if (!sessIdStorage) return;
-
-      const server = await xxa__http_requests({
-        reqType: "POST",
-        customApiUrl: `${hostServer()}/api/core/v1/getVersioning`,
-        bodyArray: {
-          _gpl: true,
-          _bi: true,
-          _gm: true
-        }
-      });
-
-      if (server?.code === 200) {
-        await AsyncStorage.setItem(namer.storage.mapper_payload, JSON.stringify(server?.mapper_payload));
-        this.tempMapper = server?.mapper_payload;
-      } else {
-        xxa_logggingReport({ type: "function", extra: server, useraction: "CONFIG.generateFromServer", url: `${hostServer()}/api/core/v1/getVersioning`, logMessage: "Failed to fetch versioning data"  });
-      }
-
-    }
-
-  }
-
-
-
-
-
-}
 
 export const parseCategoryProducts = (productLists: any = false, categoryToGet: string) => {
   if (!productLists) return [];

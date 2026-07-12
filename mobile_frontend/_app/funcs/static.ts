@@ -249,6 +249,8 @@ export const namer = {
         profile: "Profile",
         settings: "Settings",
         editprofile: "Editprofile",
+        editProfilePrompts: "EditProfilePrompts",
+        editProfileInterests: "EditProfileInterests",
         editpreference: "Editpreference",
         signup: "signup",
         login: "login",

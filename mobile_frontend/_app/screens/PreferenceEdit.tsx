@@ -5,7 +5,7 @@ import { Loaderx } from '../funcs/functions_stateful';
 import RadioGroup from 'react-native-radio-buttons-group';
 import RangeSlider from 'rn-range-slider';
 import { namer, styles } from '../funcs/static';
-import { _http_request, cacheStorage, help, hostServer, llStorage } from '../funcs/functions';
+import { _http_request, cacheStorage, help, hostServer } from '../funcs/functions';
 import { AccordionItem } from '../funcs/customAccordion';
 import { Toastx } from '../funcs/customNotification';
 import { useHeaderHeight } from '@react-navigation/elements';
@@ -34,7 +34,7 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
     const headerHeight = useHeaderHeight();
     const [getProfile, setProfile] = useState<any>(null);
 
-    const __MAPPER = llStorage.CONFIG.get()?.mapper;
+    const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
 
 
 
