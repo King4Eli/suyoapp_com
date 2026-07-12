@@ -73,7 +73,17 @@
       "Read(//home/king/tr/goodapps/projs/suyoapp_com/**)",
       "Read(//home/king/goodapps/projs/suyoapp_com/**)",
       "Bash(grep -c \"^INSERT INTO \\\\`users\\\\`\" /home/king/tr/goodapps/projs/suyoapp_com/admin/global/_sql/users.sql)",
-      "Bash(timeout 20 docker exec suyoapp_com_api node -e ' *)"
+      "Bash(timeout 20 docker exec suyoapp_com_api node -e ' *)",
+      "Bash(set -e)",
+      "Bash(git mv *)",
+      "Bash(sed -i 's/PRODUCT_BUNDLE_IDENTIFIER = org\\\\.ios\\\\.datingapp;/PRODUCT_BUNDLE_IDENTIFIER = com.suyoapp.app;/g' suyoapp.xcodeproj/project.pbxproj)",
+      "Bash(sed -i 's/datingapp/suyoapp/g' suyoapp.xcodeproj/project.pbxproj)",
+      "Bash(sed -i 's/datingapp/suyoapp/g' suyoapp.xcworkspace/contents.xcworkspacedata)",
+      "Bash(sed -i 's/datingapp/suyoapp/g' suyoapp.xcodeproj/xcshareddata/xcschemes/suyoapp.xcscheme)",
+      "Bash(sed -i \"s/target 'datingapp' do/target 'suyoapp' do/\" Podfile)",
+      "Bash(cd /home/king/goodapps/projs/suyoapp_com/mobile_frontend *)",
+      "Read(//home/king/goodapps/projs/suyoapp_com/mobile_frontend/node_modules/react-native/**)",
+      "Bash(git check-ignore *)"
     ],
     "additionalDirectories": [
       "/home/king/tr/goodapps/projs/suyoapp_com/mobile_frontend/_app/screens",
