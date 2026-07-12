@@ -26,6 +26,37 @@ function getSearchHashes(lat, lng, distanceMiles) {
 }
 
 /**
+ * Batch-fetches each user's selected prompts (answered questions) and attaches
+ * them as `user_bio_prompt` on the matching row.
+ * @param {any[]} rows
+ */
+async function attachPrompts(rows) {
+  const userIds = rows.map((u) => u.user_id).filter(Boolean);
+  if (userIds.length === 0) return;
+
+  /** @type {[any[], any]} */
+  const [promptRows] = await db_pool.query(
+    `SELECT up.user_id, pv.id_ai, pv.question, up.answer
+     FROM users_prompt up
+     INNER JOIN prompts_variant pv ON up.prompts_variant_ref_id = pv.id_ai
+     WHERE up.user_id IN (${userIds.map(() => "?").join(",")}) AND pv.status = 1
+     ORDER BY up.date_created ASC`,
+    userIds
+  );
+
+  /** @type {Record<string, any[]>} */
+  const promptsByUser = {};
+  for (const r of promptRows) {
+    if (!promptsByUser[r.user_id]) promptsByUser[r.user_id] = [];
+    promptsByUser[r.user_id].push({ id_ai: r.id_ai, question: r.question, answer: r.answer });
+  }
+
+  rows.forEach((u) => {
+    u.user_bio_prompt = promptsByUser[u.user_id] ?? [];
+  });
+}
+
+/**
  * @param {string} [getOnePersons_id2]
  */
 export default async function getPeopleToMatch(getOnePersons_id2) {
@@ -46,8 +77,8 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
         rows.forEach((u) => {
           u.user_image      = JSON.parse(u.user_image      ?? "[]");
           u.geo_meta        = (u.geo_meta ??  {} );
-          u.user_bio_prompt = JSON.parse(u.user_bio_prompt ?? "{}");
         });
+        await attachPrompts(rows);
         response.code           = 200;
         response.message        = "ok";
         response.matchespeoples = rows;
@@ -147,9 +178,9 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
         u.user_verified   = Number(u.user_verified);
         u.user_image      = JSON.parse(u.user_image      ?? "[]");
         u.user_location   =  (u.geo_meta ??  {}) ;
-        u.user_bio_prompt = JSON.parse(u.user_bio_prompt ?? "{}");
         delete u.match_status;
       });
+      await attachPrompts(rows);
       response.code           = 200;
       response.message        = "ok";
       response.matchespeoples = rows;

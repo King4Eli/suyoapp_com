@@ -551,15 +551,15 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                         )}
 
                         {prompts.map((prompt: any, idx: number) => (
-                            prompt?.q && prompt?.a && (
+                            prompt?.question && prompt?.answer && (
                                 <LinearGradient key={idx} colors={PROMPT_GRADIENTS[idx % PROMPT_GRADIENTS.length]}
                                     start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                                     style={[deckStyles.promptCard, deckStyles.cardShadow]}>
                                     <MIcon name="format-quote-close" size={72} color="rgba(255,255,255,0.07)" style={deckStyles.promptQuoteDeco} />
                                     <View style={deckStyles.promptTag}>
-                                        <Text style={deckStyles.promptTagText}>{prompt?.q}</Text>
+                                        <Text style={deckStyles.promptTagText}>{prompt?.question}</Text>
                                     </View>
-                                    <Text style={deckStyles.promptAnswer}>{prompt?.a}</Text>
+                                    <Text style={deckStyles.promptAnswer}>{prompt?.answer}</Text>
                                     {!functs.isAlreadyLiked && (
                                         <Pressable style={deckStyles.promptLikeBtn} onPress={() => {
                                             setActionBurst({ kind: 'like', key: Date.now() });
