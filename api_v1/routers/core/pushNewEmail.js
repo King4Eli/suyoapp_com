@@ -1,6 +1,7 @@
 import db_pool from "../../global/database.js";
-import { sessions, tools } from "../../global/functions.js";
-import { setVerificationCode, verifyAndConsumeCode } from "../../global/verificationCode.js";
+import { namer, sessions, tools } from "../../global/functions.js";
+import { redisDo } from "../../global/redisClient.js";
+import {communicateWith} from "../../global/sendingCommunicate.js";
 /**
  * @param {any} oldEmail
  * @param {string | undefined} newEmail
@@ -29,16 +30,26 @@ export default async function pushNewEmail(oldEmail, newEmail, requestNewCode, v
                 response.message = "Email already exists.";
             }
             else {
-                const randVCode = Math.floor(Math.random() * 900000) + 100000;
-                await tools.sendVerificationEmail(newEmail, randVCode.toString());
-                await setVerificationCode(`emailchange:${sessions.currentUserID}`, randVCode);
+                const genPinCode = Math.floor(Math.random() * 900000) + 100000;
+                await communicateWith.sendEmail("1", newEmail, `<p>Your verification code is <strong>${genPinCode}</strong>. Do not share this code with anyone. It expires in 5 minutes.</p>`);
+                await redisDo(async (client) => {
+                    await client.set(`${namer.redis.verifyCode}${sessions.currentUserID}`, genPinCode);
+                    await client.expire(`${namer.redis.verifyCode}${sessions.currentUserID}`, 300); // 5 minutes
+                });
+
                 response.code = 200;
                 response.message = "Verification code sent to your new email.";
             }
         }
         else if (tools.validateIsNumber(verificationCode)) {
-            const codeIsValid = await verifyAndConsumeCode(`emailchange:${sessions.currentUserID}`, verificationCode);
-            if (!codeIsValid) {
+            const codeIsValid = await redisDo(async (client) => {
+                const code = await client.get(`${namer.redis.verifyCode}${sessions.currentUserID}`);
+                const isValid = code === verificationCode;
+                if (isValid) {
+                    await client.del(`${namer.redis.verifyCode}${sessions.currentUserID}`);
+                }
+                return isValid;
+            });            if (!codeIsValid) {
                 response.code = 400;
                 response.message = "Wrong or expired code.";
                 return response;

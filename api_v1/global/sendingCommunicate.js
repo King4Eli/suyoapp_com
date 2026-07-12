@@ -25,34 +25,37 @@ export class communicateWith {
         // **
         // remove on prod
         // **
-        const numberIsTesting=/^0*[1-9]/.test(phoneNumber);
+        const numberIsTesting=/^0*[0-9]/.test(phoneNumber);
         // countryCode here is a numeric calling code (e.g. "1"), not an ISO country
         // like "US" that parsePhoneNumberFromString's 2nd arg expects. Build a full
         // E.164-ish string instead so validation doesn't need an ISO country at all.
         const fullNumber = phoneNumber.startsWith('+') ? phoneNumber : `+${countryCode}${phoneNumber}`;
         const parsedNumber = parsePhoneNumberFromString(fullNumber);
-        if (!parsedNumber?.isValid()) {
-            tools.serverLog("Invalid phone number", "sms_error_3g4");
-            return {code: 400, message: "Invalid phone number"};
-        }
+        // remove numberIsTesting on prod
+        // // remove on prod
+        // // remove on prod
+        // 
+ 
+            if (!numberIsTesting && !parsedNumber?.isValid()) {
+                tools.serverLog("Invalid phone number","sms_error_3gy");
+                return {code: 400, message: "Invalid phone number"};
+            }
 
         const url = "https://sms.vintolab.com/api/core/v1/pushaddNewMessage";
-
         try {
             const response = await fetch(url, {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                    "Authorization": "Basic " + Buffer.from("1234:54322").toString("base64")
+                    "Content-Type": "application/json" 
                 },
-                body: new URLSearchParams({
+                body: JSON.stringify({
                     countryphonecode: numberIsTesting ? "+1" : countryCode,
                     phonenumber: numberIsTesting ? "8506317422" : phoneNumber,
                     message: message,
 
                     country: countryCode,
                     shortcountry: countryCode
-                }).toString()
+                })
             });
 
             const data = await response.text();
