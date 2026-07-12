@@ -41,10 +41,6 @@ CREATE TABLE `matches` (
 -- Dumping data for table `matches`
 --
 
-INSERT INTO `matches` (`match_id`, `match_user_id_from`, `match_user_id_to`, `match_status`, `last_message_id`, `match_dateAdded`, `match_dateUpdated`) VALUES
-('09kdscl0i7xehf7mtyeq328jo', '0000000000', '00000094a9986-bd1d-45e18527', '2', '1778640203436_x65uacx1t', 1782207797, 0),
-('0djgbyfrtoul18jilxinat8w76o', '0000000000', '0000004b10f94-11e3-4c34303', '0', NULL, 1782207797, 0);
-
 --
 -- Indexes for dumped tables
 --

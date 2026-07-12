@@ -65,7 +65,9 @@
       "Read(//home/king/tr/goodapps/projs/suyoapp_com/admin/pages/**)",
       "Read(//home/king/goodapps/projs/suyoapp_com/admin/pages/**)",
       "Bash(grep -n \"INSERT INTO \\\\`mapping_lookup\\\\`\\\\|INSERT INTO \\\\`users\\\\`\" /home/king/tr/goodapps/projs/suyoapp_com/admin/global/_sql/api_suyoapp_com.sql)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Read(//home/king/tr/goodapps/projs/suyoapp_com/api_v1/global/**)",
+      "Read(//home/king/goodapps/projs/suyoapp_com/api_v1/global/**)"
     ],
     "additionalDirectories": [
       "/home/king/tr/goodapps/projs/suyoapp_com/mobile_frontend/_app/screens",
@@ -81,7 +83,9 @@
       "/home/king/tr/goodapps/projs/suyoapp_com/admin/global/_sql",
       "/home/king/goodapps/projs/suyoapp_com/admin/global/_sql",
       "/home/king/tr/goodapps/projs/suyoapp_com/admin/pages",
-      "/home/king/goodapps/projs/suyoapp_com/admin/pages"
+      "/home/king/goodapps/projs/suyoapp_com/admin/pages",
+      "/home/king/tr/goodapps/projs/suyoapp_com/api_v1/global",
+      "/home/king/goodapps/projs/suyoapp_com/api_v1/global"
     ]
   }
 }

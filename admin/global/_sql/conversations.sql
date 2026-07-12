@@ -40,11 +40,7 @@ CREATE TABLE `conversations` (
 --
 -- Dumping data for table `conversations`
 --
-
-INSERT INTO `conversations` (`convo_id`, `convo_match_id`, `convo_message`, `convo_by_initiator`, `convo_status`, `convo_date_added`, `convo_date_updated`) VALUES
-('1778640109233_ggl87joxo', '1778639847423_qq4p268ii', '{\"t\":\"text\",\"str\":\"Hey Charles, Booneville to Arkansas is a world away from my usual scene, but I have to respect your love for festivals - there\'s something about live music that just gets me moving\"}', '1', '0', 1782202410, 1782202350),
-('1778640121212_fjraoebys', '1778640003300_ghp0whinc', '{\"t\":\"text\",\"str\":\"So Renaissance Fairs are still alive and well?\"}', '1', '0', 1782202410, 1782202350);
-
+ 
 --
 -- Indexes for dumped tables
 --

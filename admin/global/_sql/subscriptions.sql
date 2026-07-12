@@ -47,10 +47,6 @@ CREATE TABLE `subscriptions` (
 -- Dumping data for table `subscriptions`
 --
 
-INSERT INTO `subscriptions` (`id`, `user_id`, `variant_id_ref`, `start_date`, `end_date`, `external_platform`, `external_id`, `payment_id_ref`, `status`, `cancel_at_period_end`, `canceled_at`, `date_created`, `date_modified`) VALUES
-('52ifcxelxzp8uhb2sgbngafb7s1pisr1smox5', '00000b38e106853404025821449', 3, '2026-06-15 04:43:20', '2026-07-15 04:43:20', 0, 'sub_1TAaFoLWQbqqSt59CaElRuRj', 'pay9civ8sjbfz84hvkm08ejbmhd', 1, 0, NULL, '2026-03-13 18:16:18', '2026-07-11 16:21:24'),
-('fxfp5101gpfgzdzckb6g7ttx', '000000af6f492-eba8-4a35-996721', 3, '2026-06-15 04:43:20', '2026-07-15 04:43:20', 0, 'sub_1TA2WzLWQbqqSt59eVyY0nKl', NULL, 0, 0, NULL, '2026-03-13 11:53:11', '2026-07-11 16:21:24'),
-('z5aj98umjn6sx', '00000b38e106853404025821449', 3, '2026-06-15 04:43:20', '2026-07-15 04:43:20', 0, 'sub_1TAi0oLWQbqqSt596TNFvzF1', 'payzbwm48prjmi6ykf2', 1, 0, NULL, '2026-03-14 02:37:57', '2026-07-11 16:21:24');
 
 --
 -- Indexes for dumped tables
