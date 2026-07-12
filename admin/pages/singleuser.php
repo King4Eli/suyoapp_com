@@ -596,12 +596,6 @@ $images = $user['user_image'] ? json_decode($user['user_image'], true) : [];
                                                 <dd><?php echo htmlspecialchars($active_subscription['end_date'] ?? ''); ?></dd>
                                             <?php endif; ?>
 
-                                            <dt>Verification Code</dt>
-                                            <dd>
-                                                <?php echo $user['user_auth_verificationcode']; ?>
-                                            </dd>
-
-
                                             <dt>Height Range</dt>
                                             <dd>
                                                 <?php echo ($user['user_preference_height_minimum'] ?? 153) . ' - ' .
@@ -629,13 +623,6 @@ $images = $user['user_image'] ? json_decode($user['user_image'], true) : [];
                                                     <?php endif; ?>
                                                 </dd>
                                             <?php endif; ?>
-
-                                            <dt>Verification Code</dt>
-                                            <dd>
-                                                <?php echo $user['user_auth_verificationcode'];
-
-                                                ?>
-                                            </dd>
 
                                             <dt>Smoking Preference</dt>
                                             <dd>

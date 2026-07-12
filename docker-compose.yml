@@ -12,6 +12,7 @@ services:
       - .env/session.env
       - .env/stripe.env
       - .env/smtp.env
+      - .env/redis.env
 
   suyoapp_com_admin:
     image: kingeli/suyoapp_com_admin:latest

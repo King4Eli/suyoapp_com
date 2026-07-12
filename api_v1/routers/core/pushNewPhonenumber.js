@@ -1,5 +1,7 @@
 import db_pool from "../../global/database.js";
 import { sessions, tools } from "../../global/functions.js";
+import { setVerificationCode, verifyAndConsumeCode } from "../../global/verificationCode.js";
+import sendSms_v1 from "../../global/sendingCommunicate.js";
 /**
  * @param {any} oldPhoneNumber
  * @param {string | undefined} newPhoneNumber
@@ -26,22 +28,22 @@ export default async function pushNewPhoneNumber(oldPhoneNumber, newPhoneNumber,
             }
             else {
                 const randVCode = Math.floor(Math.random() * 900000) + 100000;
-                /** @type {[import('mysql2/promise').ResultSetHeader, any]} */
-                const [result] = await db_pool.query("UPDATE users SET user_auth_verificationcode = ? WHERE user_id = ? AND user_phonenumber = ?", [randVCode, sessions.currentUserID, oldPhoneNumber]);
-
-                if (result.affectedRows > 0) {
-                    response.code = 200;
-                    response.message = "Verification code sent to your new number.";
-                }
-                else {
-                    response.code = 400;
-                    response.message = "Error sending verification code.";
-                }
+                await sendSms_v1("1", newPhoneNumber, `Your verification code is ${randVCode}.`);
+                await setVerificationCode(`phonechange:${sessions.currentUserID}`, randVCode);
+                response.code = 200;
+                response.message = "Verification code sent to your new number.";
             }
         }
         else if (tools.validateIsNumber(verificationCode)) {
+            const codeIsValid = await verifyAndConsumeCode(`phonechange:${sessions.currentUserID}`, verificationCode);
+            if (!codeIsValid) {
+                response.code = 400;
+                response.message = "Wrong or expired code.";
+                return response;
+            }
+
             /** @type {[import('mysql2/promise').ResultSetHeader, any]} */
-            const [result] = await db_pool.query("UPDATE users SET user_phonenumber = ?, user_auth_verificationcode = NULL WHERE user_id = ? AND user_phonenumber = ? AND user_auth_verificationcode = ?", [newPhoneNumber, sessions.currentUserID, oldPhoneNumber, verificationCode]);
+            const [result] = await db_pool.query("UPDATE users SET user_phonenumber = ? WHERE user_id = ? AND user_phonenumber = ?", [newPhoneNumber, sessions.currentUserID, oldPhoneNumber]);
 
             if (result.affectedRows > 0) {
                 response.code = 200;
@@ -57,7 +59,7 @@ export default async function pushNewPhoneNumber(oldPhoneNumber, newPhoneNumber,
             response.message = "Invalid request.";
         }
     }
-    catch (err) { 
+    catch (err) {
         tools.serverLog(`Error in pushNewPhoneNumber: ${err}`,'pushNewPhoneNumber-0');
         response.code = 500;
         response.message = "Database error.";

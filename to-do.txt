@@ -2,7 +2,7 @@ Last updated: 2026-05-19
 Last updated: 2026-06-22
 
 
-remove condition sending verification code
+remove condition sending communications code
 
 Priority legend:
 [P0] Required before launch

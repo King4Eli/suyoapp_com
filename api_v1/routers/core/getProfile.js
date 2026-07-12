@@ -25,7 +25,6 @@ export default async function getProfile() {
       user_last_accessed,
       user_signedup_device_stats,
       user_bio_highesteducation,
-      user_auth_verificationcode,
       user_bio_relationshipgoal,
       user_bio_schoolattended,
       user_bio_politicalview,

@@ -1,5 +1,6 @@
 import db_pool from "../../global/database.js";
 import { sessions, tools } from "../../global/functions.js";
+import { setVerificationCode, verifyAndConsumeCode } from "../../global/verificationCode.js";
 /**
  * @param {any} oldEmail
  * @param {string | undefined} newEmail
@@ -29,22 +30,22 @@ export default async function pushNewEmail(oldEmail, newEmail, requestNewCode, v
             }
             else {
                 const randVCode = Math.floor(Math.random() * 900000) + 100000;
-                /** @type {[import('mysql2/promise').ResultSetHeader, any]} */
-                const [result] = await db_pool.query("UPDATE users SET user_auth_verificationcode = ? WHERE user_id = ? AND user_email = ?", [randVCode, sessions.currentUserID, oldEmail]);
-
-                if (result.affectedRows > 0) {
-                    response.code = 200;
-                    response.message = "Verification code sent to your new email.";
-                }
-                else {
-                    response.code = 400;
-                    response.message = "Error sending verification code.";
-                }
+                await tools.sendVerificationEmail(newEmail, randVCode.toString());
+                await setVerificationCode(`emailchange:${sessions.currentUserID}`, randVCode);
+                response.code = 200;
+                response.message = "Verification code sent to your new email.";
             }
         }
         else if (tools.validateIsNumber(verificationCode)) {
+            const codeIsValid = await verifyAndConsumeCode(`emailchange:${sessions.currentUserID}`, verificationCode);
+            if (!codeIsValid) {
+                response.code = 400;
+                response.message = "Wrong or expired code.";
+                return response;
+            }
+
             /** @type {[import('mysql2/promise').ResultSetHeader, any]} */
-            const [result] = await db_pool.query("UPDATE users SET user_email = ?, user_auth_verificationcode = NULL WHERE user_id = ? AND user_email = ? AND user_auth_verificationcode = ?", [newEmail, sessions.currentUserID, oldEmail, verificationCode]);
+            const [result] = await db_pool.query("UPDATE users SET user_email = ? WHERE user_id = ? AND user_email = ?", [newEmail, sessions.currentUserID, oldEmail]);
 
             if (result.affectedRows > 0) {
                 response.code = 200;
@@ -60,7 +61,7 @@ export default async function pushNewEmail(oldEmail, newEmail, requestNewCode, v
             response.message = "Invalid request.";
         }
     }
-    catch (err) { 
+    catch (err) {
         tools.serverLog(`Error in pushNewEmail: ${err}`,'pushNewEmail-0');
         response.code = 500;
         response.message = "Database error.";

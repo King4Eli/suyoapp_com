@@ -224,7 +224,6 @@ CREATE TABLE `users` (
   `user_last_accessed` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `user_signedup_device_stats` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `user_bio_highesteducation` tinyint DEFAULT NULL,
-  `user_auth_verificationcode` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   `user_bio_relationshipgoal` tinyint DEFAULT NULL,
   `user_bio_schoolattended` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   `user_bio_politicalview` tinyint DEFAULT NULL,

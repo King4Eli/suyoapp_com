@@ -45,10 +45,10 @@ export const Auth_Login = () => {
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null;
  
-   (async()=>{
-         const jsy=await cacheStorage.getMapper(true);
-          console.log(jsy.gender);
-       })();
+  //  (async()=>{
+  //        const jsy=await cacheStorage.getMapper(true);
+  //         console.log(jsy.gender);
+  //      })();
 
     if (isResendDisabled) {
       interval = setInterval(() => {

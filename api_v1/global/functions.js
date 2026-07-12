@@ -1,5 +1,4 @@
 import crypto from 'crypto';
-import nodemailer from 'nodemailer';
 import Stripe from 'stripe';
 import db_pool from "../global/database.js";
 
@@ -55,44 +54,7 @@ export class tools {
             return false;
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     }
-
-    static async sendVerificationEmail($email = '', verificationcode = '') {
-        if (!this.validateIsEmail($email) || !this.validateIsNumber(verificationcode)) {
-            return false;
-        }
-
-        // remove on prod
-        if (!$email.includes("@tmomail.net")) return true;
-
-        try {
-            const smtphost = process.env.SMTP_MAIL_DOMAIN;
-            const smtpusername = process.env.SMTP_MAIL_USERNAME;
-            const smtppassword = process.env.SMTP_MAIL_PASSWORD;
-            const smtpport = Number(process.env.SMTP_MAIL_PORT);
-            if (!smtphost || !smtpusername || !smtppassword || !Number.isInteger(smtpport) || smtpport <= 0) return false;
-
-            const transporter = nodemailer.createTransport({
-                host: smtphost,
-                port: smtpport,
-                secure: smtpport === 465,
-                auth: {
-                    user: smtpusername,
-                    pass: smtppassword
-                }
-            });
-            const info = await transporter.sendMail({
-                from: smtpusername,
-                to: $email,
-                subject: 'Verification Code',
-                text: `Your verification code is ${verificationcode}.`,
-                html: `<p>Your verification code is <strong>${verificationcode}</strong>.</p>`
-            });
-            return Boolean(info?.messageId);
-        }
-        catch {
-            return false;
-        }
-    }
+ 
      
     static serverLog(message="", title="log_") {
         // Implementation for server logging
@@ -177,7 +139,12 @@ export class sessions {
         return { status: true, code: 200, message: "Authorized" };
     }
 }
- 
+
+export const namer = {
+    redis: {
+        verifyCode: "verify:code:",
+    }
+}
 
 export const stripe_gateway = new Stripe(process.env.STRIPE_SECRET_KEY ?? "");
 

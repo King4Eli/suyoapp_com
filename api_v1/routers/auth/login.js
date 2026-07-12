@@ -1,16 +1,20 @@
 import express from 'express';
 import crypto from 'crypto';
-import { sessions, tools } from '../../global/functions.js';
+import { namer, sessions  } from '../../global/functions.js';
 import db_pool from '../../global/database.js';
+import {communicateWith   }  from '../../global/sendingCommunicate.js';
+import {redisDo} from '../../global/redisClient.js';
+
 const login_router = express.Router();
 login_router.post('/', async (req, res) => {
     const phonenumber = String(req.body.user_phone ?? '').trim();
+    const countryCode = String(req.body.cc ?? '1').trim();
     const vpincode = String(req.body.vcode ?? '').trim();
 
     if (!process.env.SESSION_ENCRYPT_HASH) {
         return res.json({
             code: 500,
-            message: 'Error creating session#', 
+            message: 'Error creating session#',
         });
     }
 
@@ -30,26 +34,40 @@ login_router.post('/', async (req, res) => {
                 logincode: user.user_active
             });
         }
-        const pin = Math.floor(100000 + Math.random() * 900000);
-        // send email if real email
-        if (!user.user_email.endsWith('@example.com')) {
-            await tools.sendVerificationEmail(user.user_email, pin.toString());
-        }
-        const [update] = await db_pool.execute('UPDATE users SET user_auth_verificationcode = ? WHERE user_phonenumber = ?', [pin, phonenumber]);
-        // @ts-ignore
-        if (update.affectedRows > 0) {
-            return res.json({
-                code: 200,
-                message: 'Your code has been sent to your email.'
-            });
-        }
+        const genPin = Math.floor(100000 + Math.random() * 999999).toString().slice(0, 6);
+        
+        const smsMessage=`Your verification code is ${genPin}. Do not share this code with anyone. It expires in 10 minutes.`;
+        await communicateWith.sendSms(countryCode, phonenumber, smsMessage);
+        await communicateWith.sendEmail(null,user?.user_email, "Your Verification Code",`<p>Your verification code is <strong>${genPin}</strong>. Do not share this code with anyone. It expires in 10 minutes.</p>`,smsMessage);
+        
+        // set the verification code in Redis with a 10-minute expiration
+        const ttlSeconds = 10 * 60; // 10 minutes
+        const key = `${namer.redis.verifyCode}${phonenumber}`;
+        await redisDo(async (client) => {
+            await client.set(key, String(genPin), { EX: ttlSeconds })
+        });
+
+
         return res.json({
-            code: 400,
-            message: 'Failed to send verification code.'
+            code: 200,
+            message: 'Your code has been sent to your email.'
         });
     }
     // STEP 2: Verify submitted code
-    const [rows] = await db_pool.execute('SELECT user_id FROM users WHERE user_phonenumber = ? AND user_auth_verificationcode = ?', [phonenumber, vpincode]);
+    const verificationCode_key = `${namer.redis.verifyCode}${phonenumber}`;
+    const codeIsValid = await redisDo(async (client) => {
+        const stored = await client.get(verificationCode_key);
+        if (!stored || !vpincode || stored !== String(vpincode)) {
+            return false;
+        }
+        await client.del(verificationCode_key);
+        return true;
+    });
+
+    if (!codeIsValid) {
+        return res.json({ code: 404, message: 'Wrong code.' });
+    }
+    const [rows] = await db_pool.execute('SELECT user_id FROM users WHERE user_phonenumber = ?', [phonenumber]);
     // @ts-ignore
     if (rows.length !== 1) {
         return res.json({ code: 404, message: 'Wrong code.' });
@@ -58,7 +76,6 @@ login_router.post('/', async (req, res) => {
     const userId = rows[0].user_id;
     const sessionToken = sessions.createSession(userId);
     const sessionHash = crypto.createHash('sha256').update(process.env.SESSION_ENCRYPT_HASH + sessionToken + process.env.SESSION_ENCRYPT_HASH).digest('hex');
-    await db_pool.execute('UPDATE users SET user_auth_verificationcode = NULL WHERE user_phonenumber = ? AND user_auth_verificationcode = ?', [phonenumber, vpincode]);
     res.set('x-omi-auth', sessionToken);
     res.set('x-omi-hash', sessionHash);
     return res.json({
