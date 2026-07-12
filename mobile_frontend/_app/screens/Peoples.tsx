@@ -407,12 +407,11 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
         { icon: <IIcon name="ribbon-outline" size={22} color="#0ea5e9" />, value: __MAPPER?.bio_education?.[currentPerson?.user_bio_highesteducation] },
         { icon: <IIcon name="language-outline" size={22} color="#0ea5e9" />, value: languagesSpoken.length > 0 ? languagesSpoken.join(', ') : null },
         { icon: <MIcon name="candle" size={22} color="#0ea5e9" />, value: __MAPPER?.bio_religion?.[currentPerson?.user_bio_religion] },
-        { icon: <IIcon name="barbell-outline" size={22} color="#0ea5e9" />, value: __MAPPER?.bio_bodytype?.[currentPerson?.user_bio_bodytype] },
         { icon: <MIcon name="baby-carriage" size={22} color="#0ea5e9" />, value: __MAPPER?.bio_children?.[currentPerson?.user_bio_children] },
         { icon: <IIcon name="wine-outline" size={22} color="#0ea5e9" />, value: __MAPPER?.bio_drinking?.[currentPerson?.user_bio_drinking] },
         { icon: <MIcon name="smoking" size={22} color="#0ea5e9" />, value: __MAPPER?.bio_smoking?.[currentPerson?.user_bio_smoking] },
         { icon: <IIcon name="transgender-outline" size={22} color="#fe6fa6" />, value: __MAPPER?.bio_gender?.[currentPerson?.user_bio_gender] },
-        { icon: <MIcon name="gavel" size={22} color="#0ea5e9" />, value: __MAPPER?.bio_politics?.[currentPerson?.user_bio_politicalview] },
+        { icon: <MIcon name="gavel" size={22} color="#0ea5e9" />, value: __MAPPER?.bio_politicalview?.[currentPerson?.user_bio_politicalview] },
         { icon: <MIcon name="dog-side" size={18} color="#0ea5e9" />, value: __MAPPER?.bio_pets?.[currentPerson?.user_bio_haspet] },
     ].filter((item) => item.value);
 

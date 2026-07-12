@@ -29,7 +29,7 @@ SET time_zone = "+00:00";
 
 CREATE TABLE `mapping_lookup` (
   `map_id` int NOT NULL,
-  `map_type` enum('bio_gender','account_status','account_verified','bio_intent','bio_children','bio_smoking','bio_drinking','bio_education','bio_pets','bio_bodytype','bio_ethnicity','bio_interests','bio_premium','bio_language','bio_religion','bio_politicalview','bio_prompt','bundle_version','img_domain','convo_status') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `map_type` enum('bio_gender','account_status','account_verified','bio_intent','bio_children','bio_smoking','bio_drinking','bio_education','bio_pets','bio_ethnicity','bio_interests','bio_premium','bio_language','bio_religion','bio_politicalview','bio_prompt','bundle_version','img_domain','convo_status') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `map_code` tinyint(1) NOT NULL,
   `map_label` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `date_updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -82,12 +82,6 @@ INSERT INTO `mapping_lookup` (`map_id`, `map_type`, `map_code`, `map_label`, `da
 (42, 'bio_ethnicity', 5, 'Native American', '2025-12-11 07:01:36'),
 (43, 'bio_ethnicity', 6, 'mixed', '2025-12-11 07:02:05'),
 (44, 'bio_ethnicity', 99, 'other', '2025-12-11 07:02:05'),
-(45, 'bio_bodytype', 0, 'slim', '2025-12-11 07:02:44'),
-(46, 'bio_bodytype', 1, 'average', '2025-12-11 07:02:44'),
-(47, 'bio_bodytype', 2, 'athletic', '2025-12-11 07:03:13'),
-(48, 'bio_bodytype', 3, 'curvy', '2025-12-11 07:03:13'),
-(49, 'bio_bodytype', 4, 'big and beautiful', '2025-12-11 07:03:52'),
-(50, 'bio_bodytype', 5, 'muscular', '2025-12-11 07:03:52'),
 (51, 'bio_premium', 0, 'free', '2025-12-11 07:05:28'),
 (52, 'bio_premium', 1, 'premium', '2025-12-11 07:05:28'),
 (53, 'bio_premium', 2, 'vip', '2025-12-11 07:05:38'),

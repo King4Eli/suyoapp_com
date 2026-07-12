@@ -405,6 +405,28 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
 
     const imageDomain = __MAPPER?.img_domain?.[0] ?? '';
 
+    // ── Religion options (religion_variant) ──────────────────────────────────
+    const [religionOptions, setReligionOptions] = useState<Record<string, string>>({});
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            try {
+                const response = await _http_request({
+                    customApiUrl: hostServer() + '/api/core/v1/getReligions',
+                    reqType: 'POST',
+                });
+                if (mounted && Array.isArray(response?.religions)) {
+                    const options: Record<string, string> = {};
+                    for (const r of response.religions) options[String(r.id_ai)] = r.label;
+                    setReligionOptions(options);
+                }
+            } catch (error) {
+                console.error("Error loading religions:", error);
+            }
+        })();
+        return () => { mounted = false; };
+    }, []);
+
     const [getProfileEdit, setProfileEdit] = useState({
         images: [] as PhotoItem[],
 
@@ -424,7 +446,6 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
         pets: null as string | null,
         highEducation: null as string | null,
         ethnicity: null as string | null,
-        bodytype: null as string | null,
         religion: null as string | null,
         politicalview: null as string | null,
 
@@ -466,10 +487,9 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                         children: profile?.bio?.children ?? null,
                         smoking: profile?.bio?.smoking ?? null,
                         drinking: profile?.bio?.drinking ?? null,
-                        pets: profile?.bio?.haspet ?? null,
+                        pets: typeof profile?.bio?.haspet === 'boolean' ? (profile.bio.haspet ? '1' : '0') : null,
                         highEducation: profile?.bio?.highesteducation ?? null,
                         ethnicity: profile?.bio?.ethnicity ?? null,
-                        bodytype: profile?.bio?.bodytype ?? null,
                         religion: profile?.bio?.religion ?? null,
                         politicalview: profile?.bio?.politicalview ?? null,
 
@@ -585,9 +605,8 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                     prof_drinking: getProfileEdit?.drinking,
                     prof_children: getProfileEdit?.children,
                     prof_ethnicity: getProfileEdit?.ethnicity,
-                    //prof_pet: getProfileEdit?.pets,
+                    prof_pet: getProfileEdit?.pets,
                     prof_religion: getProfileEdit?.religion,
-                    prof_bodytype: getProfileEdit?.bodytype,
                     prof_highesteducation: getProfileEdit?.highEducation,
                     prof_relationshipgoal: getProfileEdit?.relationshipgoal,
                     prof_languages: JSON.stringify(getProfileEdit?.languages ?? []),
@@ -1047,9 +1066,8 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
 
                         <FormGroup title="Identity" hint="Share as much or as little as feels right.">
                             {[
-                                { label: 'Religion', title: 'What is your religion?', icon: 'hands-pray', map: __MAPPER?.bio_religion, state: getProfileEdit.religion, set: (id: string) => updateProfileEdit({ religion: id }) },
+                                { label: 'Religion', title: 'What is your religion?', icon: 'hands-pray', map: religionOptions, state: getProfileEdit.religion, set: (id: string) => updateProfileEdit({ religion: id }) },
                                 { label: 'Ethnicity', title: 'What is your ethnicity?', icon: 'account-group-outline', map: __MAPPER?.bio_ethnicity, state: getProfileEdit.ethnicity, set: (id: string) => updateProfileEdit({ ethnicity: id }) },
-                                { label: 'Body Type', title: 'Describe your body type', icon: 'human', map: __MAPPER?.bio_bodytype, state: getProfileEdit.bodytype, set: (id: string) => updateProfileEdit({ bodytype: id }) },
                                 { label: 'Political Views', title: 'Political views?', icon: 'scale-balance', map: __MAPPER?.bio_politicalview, state: getProfileEdit.politicalview, set: (id: string) => updateProfileEdit({ politicalview: id }) },
                             ].map(({ label, title, icon, map, state, set }) => (
                                 <PickerField

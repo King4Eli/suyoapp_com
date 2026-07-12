@@ -61,7 +61,11 @@
       "Bash(curl -s -X POST http://localhost:2001/api/core/v1/getMapper -H \"Content-Type: application/json\" -d '{}')",
       "Bash(curl -s -X POST http://localhost:2001/api/core/v1/getMapper -H 'Content-Type: application/json' -d '{}')",
       "Bash(node -e ' *)",
-      "Bash(timeout 120 node_modules/.bin/tsc --noEmit -p .)"
+      "Bash(timeout 120 node_modules/.bin/tsc --noEmit -p .)",
+      "Read(//home/king/tr/goodapps/projs/suyoapp_com/admin/pages/**)",
+      "Read(//home/king/goodapps/projs/suyoapp_com/admin/pages/**)",
+      "Bash(grep -n \"INSERT INTO \\\\`mapping_lookup\\\\`\\\\|INSERT INTO \\\\`users\\\\`\" /home/king/tr/goodapps/projs/suyoapp_com/admin/global/_sql/api_suyoapp_com.sql)",
+      "Read(//tmp/**)"
     ],
     "additionalDirectories": [
       "/home/king/tr/goodapps/projs/suyoapp_com/mobile_frontend/_app/screens",
@@ -73,7 +77,11 @@
       "/home/king/tr/goodapps/projs/suyoapp_com/mobile_frontend/_app/funcs",
       "/home/king/goodapps/projs/suyoapp_com/mobile_frontend/_app/funcs",
       "/home/king/tr/goodapps/projs/suyoapp_com/mobile_frontend/_app/funcs/functions",
-      "/home/king/goodapps/projs/suyoapp_com/mobile_frontend/_app/funcs/functions"
+      "/home/king/goodapps/projs/suyoapp_com/mobile_frontend/_app/funcs/functions",
+      "/home/king/tr/goodapps/projs/suyoapp_com/admin/global/_sql",
+      "/home/king/goodapps/projs/suyoapp_com/admin/global/_sql",
+      "/home/king/tr/goodapps/projs/suyoapp_com/admin/pages",
+      "/home/king/goodapps/projs/suyoapp_com/admin/pages"
     ]
   }
 }

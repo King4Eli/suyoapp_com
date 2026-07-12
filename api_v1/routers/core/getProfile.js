@@ -31,7 +31,6 @@ export default async function getProfile() {
       user_bio_politicalview,
       user_bio_hometown,
       user_bio_language,
-      user_bio_bodytype,
       user_bio_company,
       user_bio_ethnicity,
       user_bio_smoking,
@@ -50,7 +49,6 @@ export default async function getProfile() {
       user_preference_height_minimum,
       user_preference_height_maximum,
       user_preference_relationshipgoal,
-      user_preference_bodytype,
       user_preference_ethnicity,
       user_preference_smoking,
       user_preference_distance,
@@ -59,6 +57,7 @@ export default async function getProfile() {
       user_preference_gender,
       user_preference_pet,
       user_preference_religion,
+      user_preference_politicalview,
       user_preference_language,
       user_settings
     FROM users 
@@ -245,11 +244,10 @@ export default async function getProfile() {
         height: userProfile.user_bio_height,
         gender: userProfile.user_bio_gender,
         ethnicity: userProfile.user_bio_ethnicity,
-        bodytype: userProfile.user_bio_bodytype,
         education: userProfile.user_bio_highesteducation,
         relationshipgoal: userProfile.user_bio_relationshipgoal,
         school: userProfile.user_bio_schoolattended,
-        political_view: userProfile.user_bio_politicalview,
+        politicalview: userProfile.user_bio_politicalview,
         hometown: userProfile.user_bio_hometown,
         language: userProfile.user_bio_language ? (typeof userProfile.user_bio_language === 'string' ? JSON.parse(userProfile.user_bio_language) : userProfile.user_bio_language) : [],
         company: userProfile.user_bio_company,
@@ -270,7 +268,6 @@ export default async function getProfile() {
         height_minimum: userProfile.user_preference_height_minimum,
         height_maximum: userProfile.user_preference_height_maximum,
         relationshipgoal: userProfile.user_preference_relationshipgoal,
-        bodytype: userProfile.user_preference_bodytype,
         ethnicity: userProfile.user_preference_ethnicity,
         smoking: userProfile.user_preference_smoking,
         distance: userProfile.user_preference_distance,
@@ -279,6 +276,7 @@ export default async function getProfile() {
         gender: userProfile.user_preference_gender,
         pet: userProfile.user_preference_pet,
         religion: userProfile.user_preference_religion,
+        politicalview: userProfile.user_preference_politicalview,
         language: userProfile.user_preference_language ? (typeof userProfile.user_preference_language === 'string' ? JSON.parse(userProfile.user_preference_language) : userProfile.user_preference_language) : []
       },
 

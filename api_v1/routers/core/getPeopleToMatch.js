@@ -149,11 +149,11 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
        AND (currentUser.user_preference_smoking          = '-99' OR users.user_bio_smoking          = currentUser.user_preference_smoking)
         AND (currentUser.user_preference_pet              = '-99' OR users.user_bio_haspet            = currentUser.user_preference_pet)
         AND (currentUser.user_preference_ethnicity        = -99  OR users.user_bio_ethnicity         = currentUser.user_preference_ethnicity)
-         AND (currentUser.user_preference_bodytype         = -99  OR users.user_bio_bodytype          = currentUser.user_preference_bodytype)
         AND (currentUser.user_preference_children         = '-99' OR users.user_bio_children         = currentUser.user_preference_children)
         AND (currentUser.user_preference_relationshipgoal = -99  OR users.user_bio_relationshipgoal  = currentUser.user_preference_relationshipgoal)
         AND (currentUser.user_preference_drinking         = '-99' OR users.user_bio_drinking         = currentUser.user_preference_drinking)
         AND (currentUser.user_preference_religion         = -99  OR users.user_bio_religion          = currentUser.user_preference_religion)
+        AND (currentUser.user_preference_politicalview    = -99  OR users.user_bio_politicalview     = currentUser.user_preference_politicalview)
         AND (currentUser.user_preference_highesteducation = -99  OR users.user_bio_highesteducation  = currentUser.user_preference_highesteducation)
         ${distanceFilter}
       LIMIT 9

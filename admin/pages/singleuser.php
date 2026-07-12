@@ -303,10 +303,6 @@ $images = $user['user_image'] ? json_decode($user['user_image'], true) : [];
                                             <dt>Ethnicity</dt>
                                             <dd><?php echo get_lookup_label($db, 'bio_ethnicity', $user['user_bio_ethnicity'] ?? null); ?>
                                             </dd>
-
-                                            <dt>Body Type</dt>
-                                            <dd><?php echo get_lookup_label($db, 'bio_bodytype', $user['user_bio_bodytype'] ?? null); ?>
-                                            </dd>
                                         </dl>
                                     </div>
                                     <div class="col-md-6">

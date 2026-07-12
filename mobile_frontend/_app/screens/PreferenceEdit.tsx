@@ -25,8 +25,8 @@ const defaultPreferences = {
     ethnicity: '-99',
     languages: '-99',
     pets: '-99',
-    bodyType: '-99',
     religion: '-99',
+    politicalview: '-99',
     distance: { miles: 25, km: '40' }
 };
 
@@ -83,8 +83,8 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
                             ? (profilePreferences.language[0]?.toString() ?? defaultPreferences.languages)
                             : (profilePreferences?.language?.toString() ?? defaultPreferences.languages),
                         pets: profilePreferences?.pet?.toString() ?? defaultPreferences.pets,
-                        bodyType: profilePreferences?.bodytype?.toString() ?? defaultPreferences.bodyType,
                         religion: profilePreferences?.religion?.toString() ?? defaultPreferences.religion,
+                        politicalview: profilePreferences?.politicalview?.toString() ?? defaultPreferences.politicalview,
                         distance: {
                             miles: distanceMiles,
                             km: help.milesToKM(distanceMiles)?.toString() ?? defaultPreferences.distance.km,
@@ -123,8 +123,8 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
         getHighEducation: [...Object.entries(__MAPPER?.bio_education ?? {}), ['-99', "Don't matter"]] as [string, string][],
         getEthnicity: [...Object.entries(__MAPPER?.bio_ethnicity ?? {}), ['-99', "Don't matter"]] as [string, string][],
         getPets: [...Object.entries(__MAPPER?.bio_pets ?? {}), ['-99', "Don't matter"]] as [string, string][],
-        getBodyType: [...Object.entries(__MAPPER?.bio_bodytype ?? {}), ['-99', "Don't matter"]] as [string, string][],
         getReligion: [...Object.entries(__MAPPER?.bio_religion ?? {}), ['-99', "Don't matter"]] as [string, string][],
+        getPoliticalView: [...Object.entries(__MAPPER?.bio_politicalview ?? {}), ['-99', "Don't matter"]] as [string, string][],
         getLanguages: [...Object.entries(__MAPPER?.bio_language ?? {}), ['-99', "Don't matter"]] as [string, string][],
     };
 
@@ -143,7 +143,7 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
                     pref_ethnicity: preferences.ethnicity,
                     pref_pet: preferences.pets,
                     pref_religion: preferences.religion,
-                    pref_bodytype: preferences.bodyType,
+                    pref_politicalview: preferences.politicalview,
                     pref_highesteducation: preferences.highEducation,
                     pref_relationshipgoal: preferences.relationshipGoal,
                     pref_languages: preferences.languages,
@@ -294,8 +294,8 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
                             {renderRadioAccordion('Preferred ethnicity?', preferences.ethnicity, radioButtons.getEthnicity, (id) => setPreferences(prev => ({ ...prev, ethnicity: id })))}
                             {renderRadioAccordion('Should they have pet(s)?', preferences.pets, radioButtons.getPets, (id) => setPreferences(prev => ({ ...prev, pets: id })))}
                             {renderRadioAccordion('Preferred religion?', preferences.religion, radioButtons.getReligion, (id) => setPreferences(prev => ({ ...prev, religion: id })))}
+                            {renderRadioAccordion('Preferred political views?', preferences.politicalview, radioButtons.getPoliticalView, (id) => setPreferences(prev => ({ ...prev, politicalview: id })))}
                             {renderRadioAccordion('Preferred highest education?', preferences.highEducation, radioButtons.getHighEducation, (id) => setPreferences(prev => ({ ...prev, highEducation: id })))}
-                            {renderRadioAccordion('Preferred body type?', preferences.bodyType, radioButtons.getBodyType, (id) => setPreferences(prev => ({ ...prev, bodyType: id })))}
                             {renderRadioAccordion('Preferred language?', preferences.languages, radioButtons.getLanguages, (id) => setPreferences(prev => ({ ...prev, languages: id })))}
                         </View>
                     </View>

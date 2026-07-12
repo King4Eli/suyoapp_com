@@ -18,6 +18,7 @@ import getProducts from './core/getProducts.js';
 import getPaymentHistory from './core/getPaymentHistory.js';
 import getInterests from './core/getInterests.js';
 import getPrompts from './core/getPrompts.js';
+import getReligions from './core/getReligions.js';
 import getMapper from './core/getMapper.js';
 
 const core_router = express.Router();
@@ -80,6 +81,9 @@ core_router.post('/:action', async (req, res) => {
         case 'getPrompts':
             const prompts = await getPrompts(req.body);
             return res.json(prompts);
+        case 'getReligions':
+            const religions = await getReligions();
+            return res.json(religions);
 
             
         case 'pushConversation':

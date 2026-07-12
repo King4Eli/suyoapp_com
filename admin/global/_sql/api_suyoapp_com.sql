@@ -76,7 +76,7 @@ CREATE TABLE `logreports` (
 
 CREATE TABLE `mapping_lookup` (
   `map_id` int NOT NULL,
-  `map_type` enum('bio_gender','account_status','account_verified','bio_intent','bio_children','bio_smoking','bio_drinking','bio_education','bio_pets','bio_bodytype','bio_ethnicity','bio_interests','bio_premium','bio_language','bio_religion','bio_politicalview','bio_prompt','bundle_version','img_domain','convo_status') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `map_type` enum('bio_gender','account_status','account_verified','bio_intent','bio_children','bio_smoking','bio_drinking','bio_education','bio_pets','bio_ethnicity','bio_interests','bio_premium','bio_language','bio_religion','bio_politicalview','bio_prompt','bundle_version','img_domain','convo_status') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `map_code` tinyint(1) NOT NULL,
   `map_label` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `date_updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -230,7 +230,6 @@ CREATE TABLE `users` (
   `user_bio_politicalview` tinyint DEFAULT NULL,
   `user_bio_hometown` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   `user_bio_language` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin,
-  `user_bio_bodytype` tinyint DEFAULT NULL,
   `user_bio_company` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   `user_bio_ethnicity` tinyint DEFAULT NULL,
   `user_bio_smoking` enum('0','1','2') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
@@ -249,7 +248,6 @@ CREATE TABLE `users` (
   `user_preference_height_minimum` int NOT NULL DEFAULT '153' COMMENT 'in cm, 100-220',
   `user_preference_height_maximum` int NOT NULL DEFAULT '180' COMMENT 'in cm, 100-220',
   `user_preference_relationshipgoal` tinyint NOT NULL DEFAULT '-99',
-  `user_preference_bodytype` tinyint NOT NULL DEFAULT '-99',
   `user_preference_ethnicity` tinyint NOT NULL DEFAULT '-99',
   `user_preference_smoking` enum('0','1','2','-99') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '-99' COMMENT '-99=any',
   `user_preference_distance` int NOT NULL DEFAULT '55' COMMENT '>100 global',
@@ -258,6 +256,7 @@ CREATE TABLE `users` (
   `user_preference_gender` tinyint NOT NULL DEFAULT '-99',
   `user_preference_pet` enum('0','1','-99') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '-99',
   `user_preference_religion` tinyint NOT NULL DEFAULT '-99',
+  `user_preference_politicalview` tinyint NOT NULL DEFAULT '-99',
   `user_preference_language` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin,
   `user_settings` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
