@@ -40,14 +40,17 @@ export type ThemeColors = {
 };
 
 export const lightColors: ThemeColors = {
-  background: '#FFFFFF',
-  backgroundSecondary: '#F7F7FA',
+  // background sits a shade below surface/card/surfaceElevated so elevated
+  // elements (message bubbles, nav bars, rows) read as distinct layers instead
+  // of blending into the screen behind them.
+  background: '#F2F3F8',
+  backgroundSecondary: '#E8E9F1',
   surface: '#FFFFFF',
   surfaceElevated: '#FFFFFF',
   card: '#FFFFFF',
-  border: '#E8E9FF',
-  borderLight: '#ECECEC',
-  divider: '#EFEFEF',
+  border: '#DBDDE8',
+  borderLight: '#E3E4EC',
+  divider: '#E5E6EE',
 
   text: '#1F1F1F',
   textSecondary: '#666666',
@@ -70,8 +73,8 @@ export const lightColors: ThemeColors = {
   overlay: 'rgba(0,0,0,0.5)',
   shadow: '#000000',
   disabled: '#C4C4C4',
-  skeleton: '#E2E2E2',
-  inputBackground: '#F5F5F7',
+  skeleton: '#E4E5EC',
+  inputBackground: '#ECEDF4',
 
   statusBarStyle: 'dark-content',
 };
@@ -79,12 +82,15 @@ export const lightColors: ThemeColors = {
 export const darkColors: ThemeColors = {
   background: '#0B0B0F',
   backgroundSecondary: '#151518',
-  surface: '#1C1C22',
-  surfaceElevated: '#232329',
-  card: '#1C1C22',
-  border: '#2E2E36',
-  borderLight: '#2A2A30',
-  divider: '#2A2A30',
+  surface: '#1E1E24',
+  // Elevated further above `surface` than before so bubbles/modals/nav bars
+  // stay visibly separated from the near-black background (the old value was
+  // too close in luminance and effectively blended in).
+  surfaceElevated: '#2A2A31',
+  card: '#1E1E24',
+  border: '#3A3A42',
+  borderLight: '#33333B',
+  divider: '#33333B',
 
   text: '#F2F2F3',
   textSecondary: '#B5B5BD',
@@ -108,7 +114,7 @@ export const darkColors: ThemeColors = {
   shadow: '#000000',
   disabled: '#4A4A52',
   skeleton: '#2A2A30',
-  inputBackground: '#232329',
+  inputBackground: '#26262D',
 
   statusBarStyle: 'light-content',
 };

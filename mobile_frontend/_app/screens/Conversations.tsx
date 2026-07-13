@@ -855,8 +855,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         navigation.setOptions({
             headerTitleAlign: 'left',
             headerTitle: () => <View style={{ alignItems: "center", flexDirection: "row", gap: 5 }}>
-                <Text style={{ fontSize: 18, fontWeight: 'bold', textTransform: "capitalize" }}>{getUser2Deets?.fullname}</Text>
-                <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: presenceColor }} />
+                <Text style={{ fontSize: 18, fontWeight: 'bold', textTransform: "capitalize" }}>{getUser2Deets?.fullname}</Text> 
                 {getUser2Deets?.verified ? <IonIcon name="checkmark-done-circle-sharp" size={20} color={colors.accent} /> : <></>}
             </View>,
 
@@ -1288,12 +1287,8 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                             </View>
                             <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
                                 {getUser2Deets?.city && <Text style={{ color: colors.textSecondary }}><IonIcon name="location-outline" size={14} color={colors.accent} /> {getUser2Deets?.city}</Text>}
-                                {getUser2Deets?.verified && <View style={{ backgroundColor: colors.backgroundSecondary, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, flexDirection: "row", alignItems: "center", gap: 4 }}>
-                                    <IonIcon name="shield-checkmark" size={14} color={colors.accent} />
-                                    <Text style={{ fontSize: 12, color: colors.accent }}>Verified</Text>
-                                </View>}
                             </View>
-                            <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Tap to view profile or read bio for conversation idea.</Text>
+                            <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Read bio for conversation idea.</Text>
                         </View>
                         <IonIcon name="chevron-forward" size={20} color={colors.accent} />
                     </Pressable>
