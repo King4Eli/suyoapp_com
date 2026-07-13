@@ -30,6 +30,17 @@ Last updated: 2026-07-12
     -> follow-up bug found via real 2-device testing (2026-07-13): after the fix above, the pushUser HTTP relay worked (200, correctly authorized) but the recipient's socket never received anything -- server logs showed liveSocketsInRoom=0 on every relay, and zero socket handshake attempts EVER from either real device. Root cause: mobile_frontend/_app/funcs/functions.ts read `getProfile?.user_id` to get the current user's id before calling SocketClient.connect(), but cacheStorage.getCurrentUserProfile() resolves to getProfile.js's `currentUser` shape, where the id actually lives at `.profile.id` (confirmed against the same pattern used correctly in ProfileEdit.tsx/zz_devv.tsx). So userId was always undefined and SocketClient.connect() silently never ran on either device -- a pre-existing bug, not caused by the auth work above, but it's the reason realtime never worked even before that. Fixed to `getProfile?.profile?.id`.
     -> also added verbose socket lifecycle/event logging on both sides (api_v1/routers/realtimedata.js and mobile_frontend/_app/funcs/socket_realtimeData.ts) to make the next issue (if any) visible immediately instead of needing another debugging round -- logs cover handshake attempts/rejections, connect/disconnect, every event in, and the pushUser HTTP relay's authorization result + live-socket count in the target room.
 
+=========== Mobile UI / Realtime
+
+[1] Remove socket message/session payloads from production frontend logs; keep only redacted lifecycle diagnostics behind a development flag.
+[1] Show a small reconnecting/offline state in conversation UI when the socket disconnects, and clear it after reconnection.
+[1] Handle socket authentication failure in the UI: stop automatic reconnect loops, clear an expired session, and route the user to login with an understandable message.
+[1] Add message delivery states to optimistic chat bubbles (sending, sent, failed) with a retry action for failed sends.
+[1] Refresh the active conversation/chat list after socket reconnection so notifications missed while offline do not leave the UI stale.
+[1] Prevent duplicate socket listeners/callbacks when the app resumes, the user changes, or SocketClient.connect() is called repeatedly.
+[1] Treat realtime payloads as hints only: refetch authoritative conversation data instead of rendering unverified notification text as a trusted message.
+[1] Add a user-facing cooldown message for HTTP 429 responses, using Retry-After where available, on login/signup and verification-code screens.
+
 
 [3] Verify Stripe webhook signature validation and failure logging.
     -> confirmed in api_v1/routers/payments/router_hook.js: stripe_gateway.webhooks.constructEvent validates the signature before any processing, bad/missing signature returns 400, all failure paths call tools.serverLog. Already correct, no change needed.

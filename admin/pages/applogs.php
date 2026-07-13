@@ -72,10 +72,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $query = trim((string) ($_GET['q'] ?? ''));
 $status = trim((string) ($_GET['status'] ?? ''));
+$report_type_filter = trim((string) ($_GET['report_type'] ?? ''));
 $view = trim((string) ($_GET['view'] ?? 'list'));
 $view = in_array($view, ['list', 'group'], true) ? $view : 'list';
 $limit = (int) ($_GET['limit'] ?? 100);
 $limit = max(25, min(200, $limit));
+
+$report_types = [];
+try {
+    $type_stmt = $db->query('SELECT DISTINCT report_type FROM logs_application WHERE report_type IS NOT NULL AND TRIM(report_type) <> "" ORDER BY report_type ASC');
+    $report_types = array_values(array_filter(array_map(static function ($row): string {
+        return trim((string) ($row['report_type'] ?? ''));
+    }, $type_stmt->fetchAll()), static function (string $value): bool {
+        return $value !== '';
+    }));
+} catch (PDOException $e) {
+    $report_types = [];
+}
 
 $reports = [];
 $params = [];
@@ -90,6 +103,10 @@ if ($query !== '') {
 if ($status !== '' && ctype_digit($status)) {
     $where[] = 'r.report_status = :status';
     $params[':status'] = (int) $status;
+}
+if ($report_type_filter !== '') {
+    $where[] = 'r.report_type = :report_type';
+    $params[':report_type'] = $report_type_filter;
 }
 if ($where) {
     $sql .= ' WHERE ' . implode(' AND ', $where);
@@ -138,6 +155,17 @@ try {
                         <option value="0" <?php echo $status === '0' ? ' selected' : ''; ?>>Open</option>
                         <option value="1" <?php echo $status === '1' ? ' selected' : ''; ?>>Resolved</option>
                         <option value="2" <?php echo $status === '2' ? ' selected' : ''; ?>>Escalated</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label" for="report-type">Report type</label>
+                    <select class="form-select" id="report-type" name="report_type">
+                        <option value="" <?php echo $report_type_filter === '' ? ' selected' : ''; ?>>All</option>
+                        <?php foreach ($report_types as $type): ?>
+                            <option value="<?php echo htmlspecialchars($type, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $report_type_filter === $type ? ' selected' : ''; ?>>
+                                <?php echo htmlspecialchars($type); ?>
+                            </option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
                 <div class="col-6 col-md-2">

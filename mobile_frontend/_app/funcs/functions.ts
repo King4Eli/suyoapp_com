@@ -224,7 +224,7 @@ export const __init__app = async (): Promise<void> => {
 
     const getProfile = await cacheStorage.getCurrentUserProfile();
     //console.log("For socket", getProfile)
-    const userId = getProfile?.profile?.id;
+    const userId = getProfile?.user_id;
     if (!userId) return;
     SocketClient.connect(userId, (data) => {
       const retrivedData = data?.message;
