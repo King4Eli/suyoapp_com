@@ -1,0 +1,64 @@
+{
+  "brand": {
+    "name": "SuyoApp",
+    "nameParts": { "base": "suyo", "accent": "app" },
+    "tagline": "Find your next favorite person.",
+    "shortDescription": "Find your next favorite person with better matching and safer conversations.",
+    "logo": {
+      "type": "text",
+      "imagePath": null
+    },
+    "favicon": "/favicon.svg",
+    "socialShareImage": "/social-share.svg"
+  },
+  "urls": {
+    "site": "https://suyoapp.com",
+    "sitemap": "https://suyoapp.com/sitemap.xml"
+  },
+  "contact": {
+    "supportEmail": "support@suyoapp.com",
+    "safetyEmail": "safety@suyoapp.com"
+  },
+  "app": {
+    "ios": {
+      "appId": "Z7KVPVQ369.com.suyoapp.app",
+      "storeUrl": "https://example.com/TODO-app-store-url"
+    },
+    "android": {
+      "packageName": "com.vintolab.suyoapp",
+      "storeUrl": "https://example.com/TODO-google-play-url"
+    }
+  },
+  "social": {
+    "instagram": "https://example.com/TODO-instagram",
+    "tiktok": "https://example.com/TODO-tiktok",
+    "x": "https://example.com/TODO-x"
+  },
+  "theme": {
+    "light": {
+      "background": "#fff8fa",
+      "text": "#74636b",
+      "textHeading": "#2d2430",
+      "accent": "#e8546f",
+      "accentDark": "#c53f58"
+    },
+    "dark": {
+      "background": "#1c1418",
+      "text": "#b9adb2",
+      "textHeading": "#f7f0f2",
+      "accent": "#e8546f",
+      "accentDark": "#f27b90"
+    }
+  },
+  "nav": {
+    "footerLinks": [
+      { "label": "Privacy", "to": "/privacy" },
+      { "label": "Terms", "to": "/terms" },
+      { "label": "Contact", "to": "/contact" }
+    ]
+  },
+  "seo": {
+    "title": "SuyoApp — Find your next favorite person",
+    "description": "SuyoApp — find your next favorite person. Real conversations, real matches."
+  }
+}

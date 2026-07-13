@@ -1,3 +1,5 @@
+import site from '../config/site.json'
+
 const FEATURES = [
   {
     title: 'Smart matches',
@@ -28,10 +30,13 @@ function Home() {
             meeting people who are actually worth your time.
           </p>
           <div className="hero-actions" id="download">
-            <a className="store-button" href="#">
+            <a className="store-button" href={site.app.ios.storeUrl}>
               Download on the App Store
             </a>
-            <a className="store-button store-button-outline" href="#">
+            <a
+              className="store-button store-button-outline"
+              href={site.app.android.storeUrl}
+            >
               Get it on Google Play
             </a>
           </div>

@@ -1,0 +1,17 @@
+{
+  "name": "SuyoApp",
+  "short_name": "SuyoApp",
+  "description": "Find your next favorite person with better matching and safer conversations.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fff8fa",
+  "theme_color": "#e8546f",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

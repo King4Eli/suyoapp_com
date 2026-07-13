@@ -1,4 +1,5 @@
 import { Link, Outlet } from 'react-router-dom'
+import site from './config/site.json'
 import './styles.css'
 
 function Layout() {
@@ -7,7 +8,8 @@ function Layout() {
       <header className="nav">
         <div className="nav-inner">
           <Link className="logo" to="/">
-            suyo<span className="logo-accent">app</span>
+            {site.brand.nameParts.base}
+            <span className="logo-accent">{site.brand.nameParts.accent}</span>
           </Link>
           <a className="nav-cta" href="/#download">
             Get the app
@@ -20,11 +22,15 @@ function Layout() {
       </main>
 
       <footer className="footer">
-        <span>&copy; {new Date().getFullYear()} SuyoApp</span>
+        <span>
+          &copy; {new Date().getFullYear()} {site.brand.name}
+        </span>
         <div className="footer-links">
-          <Link to="/privacy">Privacy</Link>
-          <Link to="/terms">Terms</Link>
-          <Link to="/contact">Contact</Link>
+          {site.nav.footerLinks.map((link) => (
+            <Link key={link.to} to={link.to}>
+              {link.label}
+            </Link>
+          ))}
         </div>
       </footer>
     </>
