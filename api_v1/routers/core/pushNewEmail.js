@@ -2,6 +2,7 @@ import db_pool from "../../global/database.js";
 import { namer, sessions, tools } from "../../global/functions.js";
 import { redisDo } from "../../global/redisClient.js";
 import {communicateWith} from "../../global/sendingCommunicate.js";
+import { checkRateLimit } from "../../global/rateLimit.js";
 /**
  * @param {any} oldEmail
  * @param {string | undefined} newEmail
@@ -23,6 +24,13 @@ export default async function pushNewEmail(oldEmail, newEmail, requestNewCode, v
     }
     try {
         if (requestNewCode) {
+            const otpRequestLimit = await checkRateLimit(`ratelimit:emailchange:otp-request:${sessions.currentUserID}`, 5, 600);
+            if (!otpRequestLimit.allowed) {
+                response.code = 429;
+                response.message = "Too many codes requested. Please try again later.";
+                return response;
+            }
+
             const [rows] = await db_pool.query("SELECT user_id FROM users WHERE user_email = ? LIMIT 1", [newEmail]);
 
             if (Array.isArray(rows) && rows.length > 0) {
@@ -42,6 +50,13 @@ export default async function pushNewEmail(oldEmail, newEmail, requestNewCode, v
             }
         }
         else if (tools.validateIsNumber(verificationCode)) {
+            const otpVerifyLimit = await checkRateLimit(`ratelimit:emailchange:otp-verify:${sessions.currentUserID}`, 10, 600);
+            if (!otpVerifyLimit.allowed) {
+                response.code = 429;
+                response.message = "Too many attempts. Please try again later.";
+                return response;
+            }
+
             const codeIsValid = await redisDo(async (client) => {
                 const code = await client.get(`${namer.redis.verifyCode}${sessions.currentUserID}`);
                 const isValid = code === verificationCode;
@@ -49,7 +64,8 @@ export default async function pushNewEmail(oldEmail, newEmail, requestNewCode, v
                     await client.del(`${namer.redis.verifyCode}${sessions.currentUserID}`);
                 }
                 return isValid;
-            });            if (!codeIsValid) {
+            });
+            if (!codeIsValid) {
                 response.code = 400;
                 response.message = "Wrong or expired code.";
                 return response;

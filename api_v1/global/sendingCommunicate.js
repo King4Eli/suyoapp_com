@@ -109,14 +109,12 @@ export class communicateWith {
                 // **
                 // remove on prod
                 // **
-                // remove on prod
-                // **
                 to: toEmail.includes("@example.com")?"toballz@yahoo.com":toEmail,
                 subject: subject,
                 text: messageText,
                 html: messageHtml
             });
-            tools.serverLog(`Email sent: ${info.messageId} to ${toEmail}`, "email_sent_301");
+
             return {code: 200, message: "Email sent successfully", data: { messageId: info?.messageId }};
         }
         catch {

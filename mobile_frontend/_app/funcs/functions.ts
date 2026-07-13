@@ -284,6 +284,28 @@ async function waitForNavigationReady(timeoutMs = 4000, intervalMs = 100): Promi
   return true;
 }
 
+// Stripe's webhook can land a moment after the success redirect, so poll the
+// lightweight entitlement endpoint briefly instead of trusting a single profile refetch.
+async function waitForEntitlementRefresh(maxAttempts = 5, delayMs = 2000): Promise<boolean> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const entitlement = await xxa__http_requests({
+        customApiUrl: hostServer() + '/api/core/v1/getEntitlement',
+        reqType: 'POST',
+      });
+      if (entitlement?.hasActiveSubscription) {
+        return true;
+      }
+    } catch (error) {
+      console.error('Entitlement refresh check failed:', error);
+    }
+    if (attempt < maxAttempts) {
+      await new Promise<void>((resolve) => setTimeout(() => resolve(), delayMs));
+    }
+  }
+  return false;
+}
+
 export function handleDeepLink(url: string) {
   if (!url) return;
 
@@ -297,6 +319,10 @@ export function handleDeepLink(url: string) {
     const paymentRoutes: Record<string, () => void> = {
       '/payment/success': async () => {
         Toastx.show({ type: 'success', message: 'Payment successful — your plan is now active', duration: 8000 });
+
+        // Give the Stripe webhook a chance to land before pulling the fresh profile,
+        // since the checkout redirect can beat the webhook to our server.
+        await waitForEntitlementRefresh();
 
         await Promise.all([
           cacheStorage.getCurrentUserProfile(true),

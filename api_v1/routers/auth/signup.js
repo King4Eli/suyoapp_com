@@ -6,6 +6,7 @@ import { namer, sessions, tools } from '../../global/functions.js';
 import pushLocation from '../core/pushLocation.js';
 import {redisDo} from '../../global/redisClient.js';
 import {communicateWith} from '../../global/sendingCommunicate.js';
+import { checkRateLimit } from '../../global/rateLimit.js';
 
 const signup_router = express.Router();
 
@@ -49,7 +50,19 @@ signup_router.post('/', async (req, res) => {
         return res.json({ code: 400, message: 'Invalid phone number.' });
     }
 
+    const ipLimit = await checkRateLimit(`ratelimit:signup:ip:${req.ip}`, 30, 600);
+    if (!ipLimit.allowed) {
+        res.set('Retry-After', String(ipLimit.retryAfterSeconds));
+        return res.status(429).json({ code: 429, message: 'Too many requests. Please try again later.' });
+    }
+
     if (!verificationCode || verificationCode.length < 6) {
+        const otpRequestLimit = await checkRateLimit(`ratelimit:signup:otp-request:${phonenumber}`, 5, 600);
+        if (!otpRequestLimit.allowed) {
+            res.set('Retry-After', String(otpRequestLimit.retryAfterSeconds));
+            return res.status(429).json({ code: 429, message: 'Too many codes requested. Please try again later.' });
+        }
+
         const [existingRows] = await db_pool.execute('SELECT user_id FROM users WHERE user_phonenumber = ?', [phonenumber]);
         // @ts-ignore
         if (existingRows?.length > 0) {
@@ -60,15 +73,21 @@ signup_router.post('/', async (req, res) => {
         await communicateWith.sendSms(callingCode, phonenumber, `Your verification code is ${pin}.`);
         await redisDo(async (client) => {
             const ttlSeconds = 10 * 60; // 10 minutes
-            await client.set(`signup:${phonenumber}`, String(pin), { EX: ttlSeconds });
+            await client.set(`${namer.redis.verifyCode}${phonenumber}`, String(pin), { EX: ttlSeconds });
         });
-        
+
         return res.json({
             code: 200,
             message: 'Your signup code has been sent.',
         });
     }
-    
+
+    const otpVerifyLimit = await checkRateLimit(`ratelimit:signup:otp-verify:${phonenumber}`, 10, 600);
+    if (!otpVerifyLimit.allowed) {
+        res.set('Retry-After', String(otpVerifyLimit.retryAfterSeconds));
+        return res.status(429).json({ code: 429, message: 'Too many attempts. Please try again later.' });
+    }
+
     const verificationCode_key = `${namer.redis.verifyCode}${phonenumber}`;
     const codeIsValid = await redisDo(async (client) => {
         const stored = await client.get(verificationCode_key);

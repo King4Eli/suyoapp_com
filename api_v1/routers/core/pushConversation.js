@@ -13,6 +13,27 @@ export default async function pushConversation({ match_id, messagee, file_meta }
     if (!matchId || !sessions.currentUserID) {
         return response;
     }
+
+    // Only participants of an active (not blocked/reported/declined) match may send messages.
+    // match_status: 0=waiting,1=match,2=notinterested,3=block,4=reported,5=superlike
+    const [matchRows] = await db_pool.execute(
+        "SELECT match_status FROM matches WHERE match_id = ? AND (match_user_id_from = ? OR match_user_id_to = ?)",
+        [matchId, sessions.currentUserID, sessions.currentUserID]
+    );
+    // @ts-ignore
+    if (matchRows.length === 0) {
+        response.code = 404;
+        response.message = "Match not found or no access.";
+        return response;
+    }
+    const blockedStatuses = ["2", "3", "4"];
+    // @ts-ignore
+    if (blockedStatuses.includes(String(matchRows[0].match_status))) {
+        response.code = 403;
+        response.message = "This match can no longer receive messages.";
+        return response;
+    }
+
     /** @type { any } */
     const groupedMedia = {
         image: [],

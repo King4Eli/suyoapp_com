@@ -43,6 +43,19 @@ function safe_dom_id(string $value, int $fallback): string
     return $sanitized . '-' . $fallback;
 }
 
+function extract_reported_user_id(?string $raw): ?string
+{
+    if ($raw === null || $raw === '') {
+        return null;
+    }
+    $decoded = json_decode($raw, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        return null;
+    }
+    $userId = $decoded['user']['reporteduserId'] ?? null;
+    return is_string($userId) && $userId !== '' ? $userId : null;
+}
+
 $status_actions = [
     'open' => 0,
     'resolved' => 1,
@@ -52,7 +65,28 @@ $status_actions = [
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $report_id = trim((string) ($_POST['report_id'] ?? ''));
     $action = trim((string) ($_POST['action'] ?? ''));
-    if ($report_id !== '' && isset($status_actions[$action])) {
+
+    if ($action === 'ban_user') {
+        $target_user_id = trim((string) ($_POST['target_user_id'] ?? ''));
+        if ($report_id !== '' && $target_user_id !== '') {
+            try {
+                $db->beginTransaction();
+                $stmt = $db->prepare('UPDATE users SET user_active = ? WHERE user_id = ?');
+                $stmt->execute(['3', $target_user_id]);
+                $stmt = $db->prepare('UPDATE logreports SET report_status = 1, updated_at = NOW() WHERE report_id = ?');
+                $stmt->execute([$report_id]);
+                $db->commit();
+                $redirect = $_SERVER['HTTP_REFERER'] ?? 'reports.php';
+                header('Location: ' . $redirect);
+                exit;
+            } catch (PDOException $e) {
+                $db->rollBack();
+                $action_error = 'Unable to ban the reported user.';
+            }
+        } else {
+            $action_error = 'Invalid action.';
+        }
+    } elseif ($report_id !== '' && isset($status_actions[$action])) {
         try {
             $stmt = $db->prepare('UPDATE logreports SET report_status = :status, updated_at = NOW() WHERE report_id = :id');
             $stmt->execute([
@@ -210,6 +244,9 @@ try {
                             <?php $collapse_id = 'report-' . safe_dom_id((string) ($report['report_id'] ?? ''), $index); ?>
                             <?php $last_updated = $report['updated_at'] ?? $report['created_at'] ?? ''; ?>
                             <?php $created_at = $report['created_at'] ?? $report['created_at'] ?? ''; ?>
+                            <?php $reported_user_id = ($report['report_type'] ?? '') === 'reportuser'
+                                ? extract_reported_user_id($report['report_data'] ?? null)
+                                : null; ?>
                             <tr>
                                 <td>
                                     <div class="fw-semibold"><?php echo htmlspecialchars($report['report_type'] ?? ''); ?></div>
@@ -255,16 +292,32 @@ try {
                                                     Mark as escalated
                                                 </button>
                                             </li>
+                                            <?php if ($reported_user_id !== null): ?>
+                                                <li>
+                                                    <hr class="dropdown-divider">
+                                                </li>
+                                                <li>
+                                                    <button type="button" class="dropdown-item text-danger js-report-action"
+                                                        data-action="ban_user" data-target-user="<?php echo htmlspecialchars($reported_user_id); ?>">
+                                                        Ban reported user
+                                                    </button>
+                                                </li>
+                                            <?php endif; ?>
                                         </ul>
                                     </div>
                                     <form method="post" class="d-inline">
                                         <input type="hidden" name="report_id"
                                             value="<?php echo htmlspecialchars($report['report_id'] ?? ''); ?>">
                                         <input type="hidden" name="action" value="">
+                                        <input type="hidden" name="target_user_id" value="">
                                     </form>
                                     <?php if (!empty($report['report_currentuser'])): ?>
                                         <a class="btn btn-sm btn-outline-primary"
-                                            href="singleuser.php?id=<?php echo urlencode($report['report_currentuser']); ?>">User</a>
+                                            href="singleuser.php?id=<?php echo urlencode($report['report_currentuser']); ?>">Reporter</a>
+                                    <?php endif; ?>
+                                    <?php if ($reported_user_id !== null): ?>
+                                        <a class="btn btn-sm btn-outline-danger"
+                                            href="singleuser.php?id=<?php echo urlencode($reported_user_id); ?>">Reported</a>
                                     <?php endif; ?>
                                 </td>
                             </tr>
@@ -295,7 +348,11 @@ try {
 
             $('.js-report-action').on('click', function () {
                 var action = $(this).data('action');
-                var first = confirm('Are you sure you want to do this?');
+                var targetUser = $(this).data('target-user');
+                var confirmMessage = action === 'ban_user'
+                    ? 'Ban this user? They will be marked inactive and hidden from discovery.'
+                    : 'Are you sure you want to do this?';
+                var first = confirm(confirmMessage);
                 if (!first) {
                     return;
                 }
@@ -305,6 +362,9 @@ try {
                 }
                 var $form = $(this).closest('td').find('form');
                 $form.find('input[name="action"]').val(action);
+                if (targetUser) {
+                    $form.find('input[name="target_user_id"]').val(targetUser);
+                }
                 $form.trigger('submit');
             });
         });

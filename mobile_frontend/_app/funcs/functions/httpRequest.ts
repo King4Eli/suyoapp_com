@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert } from 'react-native';
 import { sessionManager } from '../SessionContext';
 import axios from 'axios';
 import NetInfo from '@react-native-community/netinfo';
@@ -33,8 +32,8 @@ export const xxa__http_requests = async ({ reqType, bodyArray, headerArray, cust
     try {
         const networkState = await NetInfo.fetch();
         if (!networkState.isConnected) {
-            Alert.alert("Info", "You are not connected to the internet. Check your wifi connection");
-            return false;
+            Toastx.show({ type: 'error', message: "You're offline. Check your connection and try again.", duration: 5000 });
+            return null;
         }
         //
         //
@@ -79,7 +78,7 @@ export const xxa__http_requests = async ({ reqType, bodyArray, headerArray, cust
             return null;
         } else {
 
-            Toastx.show({ type: 'error', message: 'Client: Network timeout' });
+            Toastx.show({ type: 'error', message: "Network error. Check your connection and try again.", duration: 5000 });
         }
 
         logReport({ type: 'http -' + status, extra: JSON.stringify(axiosResponse ?? config), useraction: 'HTTP request error', url: apiUrlToUse, logMessage: err.message, stackTrace: err });

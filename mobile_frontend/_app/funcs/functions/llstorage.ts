@@ -47,6 +47,23 @@ export class cacheStorage {
                     reqType: 'POST',
                 });
 
+                // A null/false response means the request itself failed (offline, timeout, server error) --
+                // keep whatever profile we already have rather than wiping it out on a transient blip.
+                if (profile === null || profile === false || profile === undefined) {
+                    console.log("Profile refresh failed, keeping existing cache");
+                    if (!this.profileMemoryCache) {
+                        try {
+                            const cachedProfile = await AsyncStorage.getItem(namer.storage.currentUserProfile);
+                            if (cachedProfile) {
+                                this.profileMemoryCache = JSON.parse(cachedProfile);
+                            }
+                        } catch (error) {
+                            console.error("Error reading fallback profile from AsyncStorage:", error);
+                        }
+                    }
+                    return this.profileMemoryCache;
+                }
+
                 if (profile?.currentUser !== undefined && profile?.currentUser !== null && profile?.currentUser !== "") {
                     // Cache in memory and AsyncStorage
                     this.profileMemoryCache = profile?.currentUser;
@@ -209,6 +226,23 @@ export class cacheStorage {
                 });
 
                 //console.log("API response:", response);
+
+                // A null/false response means the request itself failed (offline, timeout, server error) --
+                // keep whatever products we already have rather than wiping it out on a transient blip.
+                if (response === null || response === false || response === undefined) {
+                    console.log("getProducts refresh failed, keeping existing cache");
+                    if (!this.productsMemoryCache) {
+                        try {
+                            const cachedProducts = await AsyncStorage.getItem(namer.storage.products);
+                            if (cachedProducts) {
+                                this.productsMemoryCache = JSON.parse(cachedProducts);
+                            }
+                        } catch (error) {
+                            console.error("Error reading fallback products from AsyncStorage:", error);
+                        }
+                    }
+                    return this.productsMemoryCache;
+                }
 
                 // Extract products from response
                 const productsData = response?.products;

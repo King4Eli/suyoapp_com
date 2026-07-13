@@ -4,6 +4,7 @@ import { namer, sessions  } from '../../global/functions.js';
 import db_pool from '../../global/database.js';
 import {communicateWith   }  from '../../global/sendingCommunicate.js';
 import {redisDo} from '../../global/redisClient.js';
+import { checkRateLimit } from '../../global/rateLimit.js';
 
 const login_router = express.Router();
 login_router.post('/', async (req, res) => {
@@ -18,8 +19,20 @@ login_router.post('/', async (req, res) => {
         });
     }
 
+    const ipLimit = await checkRateLimit(`ratelimit:login:ip:${req.ip}`, 30, 600);
+    if (!ipLimit.allowed) {
+        res.set('Retry-After', String(ipLimit.retryAfterSeconds));
+        return res.status(429).json({ code: 429, message: 'Too many requests. Please try again later.' });
+    }
+
     // STEP 1: Request verification code
     if (!vpincode || vpincode.length < 6) {
+        const otpRequestLimit = await checkRateLimit(`ratelimit:login:otp-request:${phonenumber}`, 5, 600);
+        if (!otpRequestLimit.allowed) {
+            res.set('Retry-After', String(otpRequestLimit.retryAfterSeconds));
+            return res.status(429).json({ code: 429, message: 'Too many codes requested. Please try again later.' });
+        }
+
         const [rows] = await db_pool.execute('SELECT user_email, user_active FROM users WHERE user_phonenumber = ?', [phonenumber]);
         // @ts-ignore
         if (rows.length === 0) {
@@ -54,6 +67,11 @@ login_router.post('/', async (req, res) => {
         });
     }
     // STEP 2: Verify submitted code
+    const otpVerifyLimit = await checkRateLimit(`ratelimit:login:otp-verify:${phonenumber}`, 10, 600);
+    if (!otpVerifyLimit.allowed) {
+        res.set('Retry-After', String(otpVerifyLimit.retryAfterSeconds));
+        return res.status(429).json({ code: 429, message: 'Too many attempts. Please try again later.' });
+    }
     const verificationCode_key = `${namer.redis.verifyCode}${phonenumber}`;
     const codeIsValid = await redisDo(async (client) => {
         const stored = await client.get(verificationCode_key);

@@ -2,6 +2,7 @@ import db_pool from "../../global/database.js";
 import { namer, sessions, tools } from "../../global/functions.js";
 import { redisDo } from "../../global/redisClient.js";
 import {communicateWith} from "../../global/sendingCommunicate.js";
+import { checkRateLimit } from "../../global/rateLimit.js";
 /**
  * @param {any} oldPhoneNumber
  * @param {string | undefined} newPhoneNumber
@@ -20,6 +21,13 @@ export default async function pushNewPhoneNumber(oldPhoneNumber, newPhoneNumber,
     }
     try {
         if (requestNewCode) {
+            const otpRequestLimit = await checkRateLimit(`ratelimit:phonechange:otp-request:${sessions.currentUserID}`, 5, 600);
+            if (!otpRequestLimit.allowed) {
+                response.code = 429;
+                response.message = "Too many codes requested. Please try again later.";
+                return response;
+            }
+
             const [rows] = await db_pool.query("SELECT user_id FROM users WHERE user_phonenumber = ? LIMIT 1", [newPhoneNumber]);
 
             if (Array.isArray(rows) && rows.length > 0) {
@@ -38,6 +46,13 @@ export default async function pushNewPhoneNumber(oldPhoneNumber, newPhoneNumber,
             }
         }
         else if (tools.validateIsNumber(verificationCode)) {
+            const otpVerifyLimit = await checkRateLimit(`ratelimit:phonechange:otp-verify:${sessions.currentUserID}`, 10, 600);
+            if (!otpVerifyLimit.allowed) {
+                response.code = 429;
+                response.message = "Too many attempts. Please try again later.";
+                return response;
+            }
+
             const codeIsValid = await redisDo(async (client) => {
                 const code = await client.get(`${namer.redis.verifyCode}${sessions.currentUserID}`);
                 const isValid = code === verificationCode;

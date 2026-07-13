@@ -20,6 +20,7 @@ import getInterests from './core/getInterests.js';
 import getPrompts from './core/getPrompts.js';
 import getReligions from './core/getReligions.js';
 import getMapper from './core/getMapper.js';
+import getEntitlement from './core/getEntitlement.js';
 
 const core_router = express.Router();
 core_router.post('/:action', async (req, res) => {
@@ -75,6 +76,9 @@ core_router.post('/:action', async (req, res) => {
         case 'getPaymentHistory':
             const paymentHistory = await getPaymentHistory();
             return res.json(paymentHistory);
+        case 'getEntitlement':
+            const entitlement = await getEntitlement();
+            return res.json(entitlement);
         case 'getInterests':
             const interests = await getInterests();
             return res.json(interests);

@@ -37,8 +37,14 @@ export default async function pushPeopleToMatch(data) {
         else {
             // Update existing match
             const ku = (matchStatus === "0" || matchStatus === "5") ? "1" : matchStatus;
-            const sql = `UPDATE matches SET match_status = ? WHERE match_id = ?;`;
-            const [result] = await db_pool.query(sql, [ku, matchId]);
+            const sql = `UPDATE matches SET match_status = ? WHERE match_id = ? AND (match_user_id_from = ? OR match_user_id_to = ?);`;
+            /** @type {[import('mysql2/promise').ResultSetHeader, any]} */
+            const [result] = await db_pool.query(sql, [ku, matchId, sessions.currentUserID, sessions.currentUserID]);
+            if (result.affectedRows === 0) {
+                response.code = 404;
+                response.message = "Match not found or no access.";
+                return response;
+            }
             const ifUsersMatched = matchStatus === "1" || matchStatus === "0";
             response.code = 200;
             response.itisamatch = ifUsersMatched;

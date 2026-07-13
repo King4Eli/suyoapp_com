@@ -83,7 +83,8 @@
       "Bash(sed -i \"s/target 'datingapp' do/target 'suyoapp' do/\" Podfile)",
       "Bash(cd /home/king/goodapps/projs/suyoapp_com/mobile_frontend *)",
       "Read(//home/king/goodapps/projs/suyoapp_com/mobile_frontend/node_modules/react-native/**)",
-      "Bash(git check-ignore *)"
+      "Bash(git check-ignore *)",
+      "Bash(node --check api_v1/routers/core/pushConversation.js)"
     ],
     "additionalDirectories": [
       "/home/king/tr/goodapps/projs/suyoapp_com/mobile_frontend/_app/screens",

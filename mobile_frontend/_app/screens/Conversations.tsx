@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo, useCallback } from 'react';
-import { View, Text, Pressable, TextInput, Alert, FlatList, Platform, TouchableOpacity, KeyboardAvoidingView, PermissionsAndroid, Linking, ImageBackground } from 'react-native';
+import { View, Text, Pressable, TextInput, Alert, FlatList, Platform, TouchableOpacity, KeyboardAvoidingView, PermissionsAndroid, Linking, ImageBackground, Animated } from 'react-native';
 import { Loaderx, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import IonIcon from 'react-native-vector-icons/Ionicons';
 import { namer, styles } from '../funcs/static';
@@ -37,6 +37,25 @@ const normalizeMetering = (metering?: number | null) => {
     // Nitro sound metering is commonly in negative dB (-160..0); clamp at -60 for useful motion.
     return clamp01((metering + 60) / 60);
 };
+
+// Mimics iOS's system recording indicator: a soft breathing red dot.
+const RecordingDot = () => {
+    const pulse = useRef(new Animated.Value(1)).current;
+    useEffect(() => {
+        const loop = Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulse, { toValue: 0.25, duration: 650, useNativeDriver: true }),
+                Animated.timing(pulse, { toValue: 1, duration: 650, useNativeDriver: true }),
+            ])
+        );
+        loop.start();
+        return () => loop.stop();
+    }, [pulse]);
+    return (
+        <Animated.View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: '#ff3b30', opacity: pulse }} />
+    );
+};
+
 interface convoInterface {
     messageId: string;
     fromMe: boolean;
@@ -1074,7 +1093,6 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             : (durationFormatted ?? formatDurationLabel(durationMs));
 
         const fileSizeLabel = formatBytes(firstSrcSize);
-        const audioMetaLabel = [audioDisplayLabel, fileSizeLabel].filter(Boolean).join(' | ');
         const fileOriginalName = firstSrc?.original;
 
 
@@ -1118,51 +1136,32 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                     )}
 
                     {isAudio && (
-                        <View style={{ paddingVertical: 5, maxWidth: '100%', minWidth: Math.min(screenWidth * 0.72, 320) }}>
-                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
+                        <View style={{ paddingVertical: 4, maxWidth: '100%', minWidth: Math.min(screenWidth * 0.65, 280) }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                                 <TouchableOpacity disabled={item.isUploading} onPress={() => { handleAudioPress(item.messageId, audioUri) }}
-                                    style={{ backgroundColor: item.fromMe ? '#fff' : '#1b5ec766', width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" }}>
-                                    <IonIcon name={(isCurrentAudio && audioPlayback.isPlaying) ? "pause" : "play"} size={20} color={item.fromMe ? "#000" : "#fff"} />
-                                </TouchableOpacity>
-                                <View style={{ flex: 1, gap: 5 }}>
-                                    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                                        <Text style={{ color: (item.fromMe) ? "#000" : "#fff", fontWeight: "600" }}>
-                                            {item.isUploading ? 'Uploading Voice note...' : 'Voice note'}
-                                        </Text>
-                                        {isCurrentAudio && audioPlayback.isPlaying && (
-                                            <Text style={{ color: item.fromMe ? "#333" : "#dbe7ff", fontSize: 11 }}>playing</Text>
-                                        )}
-                                    </View>
-                                    <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 2, height: 20 }}>
-                                        {audioWaveBars.map((bar) => (
-                                            <View key={bar.key} style={{
-                                                flex: 1,
-                                                maxWidth: 4, // Limit maximum width
-                                                width: 3,
-                                                borderRadius: 3,
-                                                height: bar.height,
-                                                backgroundColor: bar.active
-                                                    ? (item.fromMe ? '#0f172a' : '#e0f2fe')
-                                                    : (item.fromMe ? '#94a3b8' : '#93c5fd99')
-                                            }} />
-                                        ))}
-                                    </View>
-                                    <View style={{
-                                        height: 3,
-                                        borderRadius: 3,
-                                        backgroundColor: item.fromMe ? '#cbd5e1' : '#93c5fd66',
-                                        overflow: 'hidden'
+                                    style={{
+                                        backgroundColor: item.fromMe ? '#fff' : 'rgba(255,255,255,0.22)',
+                                        width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center",
                                     }}>
-                                        <View style={{
-                                            height: '100%',
-                                            width: `${Math.max(4, Math.round(audioProgressRatio * 100))}%`,
-                                            backgroundColor: item.fromMe ? '#0f172a' : '#e0f2fe'
+                                    <IonIcon name={item.isUploading ? "hourglass" : ((isCurrentAudio && audioPlayback.isPlaying) ? "pause" : "play")}
+                                        size={16} color={item.fromMe ? "#0078fe" : "#fff"} style={{ marginLeft: (isCurrentAudio && audioPlayback.isPlaying) ? 0 : 1 }} />
+                                </TouchableOpacity>
+                                <View style={{ flexDirection: "row", alignItems: "center", gap: 1.5, height: 24, flex: 1 }}>
+                                    {audioWaveBars.map((bar) => (
+                                        <View key={bar.key} style={{
+                                            flex: 1,
+                                            maxWidth: 3,
+                                            borderRadius: 2,
+                                            height: bar.height,
+                                            backgroundColor: bar.active
+                                                ? (item.fromMe ? '#0078fe' : '#fff')
+                                                : (item.fromMe ? '#c7ccd1' : 'rgba(255,255,255,0.4)')
                                         }} />
-                                    </View>
-                                    <Text style={{ color: (item.fromMe) ? "#333" : "#dbe7ff", fontSize: 12 }}>
-                                        {audioMetaLabel}
-                                    </Text>
+                                    ))}
                                 </View>
+                                <Text style={{ color: (item.fromMe) ? "#5b5b5e" : "#e7f0ff", fontSize: 12, fontVariant: ['tabular-nums'], minWidth: 32, textAlign: 'right' }}>
+                                    {item.isUploading ? '...' : audioDisplayLabel}
+                                </Text>
                             </View>
                         </View>
                     )}
@@ -1370,55 +1369,52 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                     </View>)}
 
                 {(isRecording || getInputAudio) &&
-                    <View style={{ marginHorizontal: 6, marginBottom: 8, padding: 12, borderRadius: 16, backgroundColor: isRecording ? '#fff1f1' : '#eef4ff', borderWidth: 1, borderColor: isRecording ? '#fbb4b4' : '#c9dcff', gap: 10 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                            <View style={{ width: 42, height: 42, borderRadius: 30, backgroundColor: isRecording ? '#ffd6d6' : '#dfe8ff', alignItems: 'center', justifyContent: 'center' }}>
-                                <MaterialCommunityIcons name={isRecording ? "record-circle" : "microphone-outline"} size={22} color={isRecording ? "#d00" : "#3b65ff"} />
-                            </View>
-                            <View style={{ flex: 1, gap: 2 }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                                    <Text style={{ fontWeight: '700', color: '#111827' }}>{isRecording ? "Recording voice note" : "Voice note ready"}</Text>
-                                    {isRecording && <Text style={{ color: '#b91c1c', fontWeight: '700', fontSize: 11 }}>LIVE</Text>}
-                                </View>
-                                <Text style={{ color: '#334155', fontSize: 12 }}>{pendingTimeLabel} {isRecording ? "| max 3:00" : ""}</Text>
-                            </View>
-                        </View>
+                    <View style={{
+                        marginHorizontal: 6, marginBottom: 8, paddingHorizontal: 10, paddingVertical: 8,
+                        borderRadius: 22, backgroundColor: isRecording ? '#fff' : '#f2f4f7',
+                        borderWidth: isRecording ? 1 : 0, borderColor: '#ffd6d6',
+                        flexDirection: 'row', alignItems: 'center', gap: 10,
+                        shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1,
+                    }}>
+                        <TouchableOpacity onPress={clearVoiceNote} style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: '#e5e7eb', alignItems: 'center', justifyContent: 'center' }}>
+                            <Icon name="close" size={16} color="#4b5563" />
+                        </TouchableOpacity>
 
-                        <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 2, height: 22 }}>
+                        {isRecording ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <RecordingDot />
+                                <Text style={{ color: '#ff3b30', fontSize: 14, fontVariant: ['tabular-nums'], fontWeight: '600', minWidth: 38 }}>
+                                    {pendingTimeLabel}
+                                </Text>
+                            </View>
+                        ) : (
+                            <TouchableOpacity onPress={() => handleAudioPress('pending-audio', getInputAudio)} style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: '#0078fe', alignItems: 'center', justifyContent: 'center' }}>
+                                <IonIcon name={(audioPlayback.id === 'pending-audio' && audioPlayback.isPlaying) ? "pause" : "play"} size={14} color="#fff"
+                                    style={{ marginLeft: (audioPlayback.id === 'pending-audio' && audioPlayback.isPlaying) ? 0 : 1 }} />
+                            </TouchableOpacity>
+                        )}
+
+                        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 1.5, height: 22 }}>
                             {pendingWaveBars.map((bar) => (
                                 <View key={bar.key} style={{
-                                    width: 3,
-                                    borderRadius: 3,
+                                    flex: 1,
+                                    maxWidth: 3,
+                                    borderRadius: 2,
                                     height: bar.height,
-                                    backgroundColor: bar.active ? '#2563eb' : '#94a3b8'
+                                    backgroundColor: isRecording ? '#ff3b30' : (bar.active ? '#0078fe' : '#c7ccd1')
                                 }} />
                             ))}
                         </View>
-                        <View style={{ height: 3, borderRadius: 3, backgroundColor: '#bfdbfe', overflow: 'hidden' }}>
-                            <View style={{ height: '100%', width: `${Math.max(4, Math.round(pendingProgressRatio * 100))}%`, backgroundColor: '#2563eb' }} />
-                        </View>
 
-                        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8 }}>
-                            {getInputAudio &&
-                                <TouchableOpacity onPress={() => handleAudioPress('pending-audio', getInputAudio)} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: '#dbeafe' }}>
-                                    <MaterialCommunityIcons name={(audioPlayback.id === 'pending-audio' && audioPlayback.isPlaying) ? "pause-circle" : "play-circle"} size={22} color="#1d4ed8" />
-                                </TouchableOpacity>
-                            }
+                        {!isRecording &&
+                            <Text style={{ color: '#6b7280', fontSize: 12, fontVariant: ['tabular-nums'] }}>{pendingTimeLabel}</Text>
+                        }
 
-                            {!getInputAudio && <TouchableOpacity onPress={() => { stopVoiceNote(true) }} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: '#fee2e2' }}>
-                                <MaterialCommunityIcons name="stop-circle" size={24} color={"#dc2626"} />
-                            </TouchableOpacity>}
-
-                            {isRecording && <TouchableOpacity onPress={() => { clearVoiceNote(); }} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: '#f1f5f9' }}>
-                                <Icon name="close" size={18} color="#334155" />
-                            </TouchableOpacity>}
-
-                            {getInputAudio &&
-                                <TouchableOpacity onPress={clearVoiceNote} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: '#f1f5f9' }}>
-                                    <Icon name="trash-outline" size={18} color="#334155" />
-                                </TouchableOpacity>
-                            }
-                        </View>
+                        {isRecording &&
+                            <TouchableOpacity onPress={() => { stopVoiceNote(true) }} style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#ff3b30', alignItems: 'center', justifyContent: 'center' }}>
+                                <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: '#fff' }} />
+                            </TouchableOpacity>
+                        }
                     </View>
                 }
 

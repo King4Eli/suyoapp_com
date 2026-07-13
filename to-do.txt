@@ -1,51 +1,51 @@
 Last updated: 2026-05-19
 Last updated: 2026-06-22
+Last updated: 2026-07-12
 
+[0] = Ignore
+[1] = do task
+[3] = completed
 
-remove condition sending communications code
-
-Priority legend:
-[P0] Required before launch
-[P1] Important for beta quality
-[P2] Nice to have / post-beta
-- [P0] Decide which unfinished features are hidden for launch: voice call, video call, blocked users screen, communities, and developer/debug screens.
-- [P1] Document supported countries, age rules, moderation rules, and refund/support policy.
-
-- [P0] Add rate limits for login, signup, verification, profile updates, matches, messages, uploads, and log reports.
+[0] remove condition sending communications code
+ 
+[3] Add rate limits for login, signup, verification, profile updates, matches, messages, uploads, and log reports. maybe with redis
+    -> done for login, signup, phone/email change verification (Redis fixed-window, api_v1/global/rateLimit.js). profile updates/matches/messages/uploads/log reports deferred to a follow-up pass.
+    -> also fixed a bug found along the way: signup.js stored the OTP under key "signup:<phone>" but verified against "verify:code:<phone>", so signup verification could never succeed.
 
 
 =========== Matching And Discovery
 
-- [P0] Verify match uniqueness constraints and prevent reverse duplicate matches.
-- [P0] Ensure deleted/blocked matches cannot continue receiving messages.
-- [P0] Verify socket room join/leave authorization.
-- [P0] Confirm uploaded media paths cannot escape allowed buckets.
-- [P1] Add media deletion when a user deletes account or message history.
-- [P0] Add/verify indexes for users, matches, conversations, payments, subscriptions, reports, and lookup tables.
+[0] Verify match uniqueness constraints and prevent reverse duplicate matches.
+[3]  Ensure deleted/blocked matches cannot continue receiving messages.
+    -> pushConversation.js now checks match_status (blocks status 2/3/4: notinterested/block/reported) and participant membership before inserting a message.
+    -> also fixed: pushPeopleToMatch.js's update path had no ownership check at all (any authenticated user could flip any match_id's status by guessing the id) -- added a match_user_id_from/to = currentUser guard, since without it the new block-enforcement above could be bypassed by just un-blocking someone else's match.
+[0] Verify socket room join/leave authorization.
 
-- [P0] Verify Stripe webhook signature validation and failure logging.
-- [P0] Make webhook handlers idempotent for duplicate Stripe events.
-- [P0] Confirm subscription created, renewed, cancelled, failed, and expired states update DB correctly.
-- [P0] Confirm consumable purchase credits are granted exactly once.
-- [P0] Add entitlement refresh endpoint used by frontend after purchase/deep link.
-- [P0] Store enough Stripe metadata to reconcile user, product, subscription, and payment rows.
-- [P1] Add admin view for subscriptions, payments, failed webhook events, and manual entitlement correction.
-- [P1] Add tests using Stripe webhook fixtures.
 
-- [P0] Review CORS, network security config, API host selection, and production domains.
+[3] Verify Stripe webhook signature validation and failure logging.
+    -> confirmed in api_v1/routers/payments/router_hook.js: stripe_gateway.webhooks.constructEvent validates the signature before any processing, bad/missing signature returns 400, all failure paths call tools.serverLog. Already correct, no change needed.
+[3] Make webhook handlers idempotent for duplicate Stripe events.
+    -> confirmed: every event first INSERTs into stripe_events(event_id PK); a duplicate key error short-circuits processing and returns {duplicate:true}. Already correct, no change needed.
 
-========== Release QA Checklist
-- [P0] Fresh install -> signup -> complete profile -> view people.
-- [P0] User A likes User B -> User B likes User A -> match created.
-- [P0] Match opens chat -> send text -> receive real-time update.
-- [P0] Send photo -> upload succeeds -> other user can view it.
-- [P0] Send voice note -> upload succeeds -> playback works.
-- [P0] Block user -> user disappears from discovery/chat where expected.
-- [P0] Report user -> admin can view and action report.
-- [P0] Purchase subscription/consumable -> entitlement updates.
-- [P0] Payment cancel/fail -> entitlement does not update.
-- [P0] Network offline -> app shows understandable failure and recovers.
-- [P0] Logout/login -> app restores correct state.
-- [P0] App restart -> session, profile cache, chat list, and socket reconnect behave correctly.
-- [P0] Android release build installs and runs.
-- [P0] iOS release/archive build compiles and runs.
+[0] Confirm consumable purchase credits are granted exactly once.
+    -> N/A: no consumable/coin/boost purchase feature exists in the backend at all (only subscriptions + generic one-time payments). Nothing to verify yet; revisit once that feature is built.
+[3] Add entitlement refresh endpoint used by frontend after purchase/deep link.
+    -> new action getEntitlement (api_v1/routers/core/getEntitlement.js), backed by a shared api_v1/global/entitlements.js (also used to de-duplicate the same query out of getProfile.js).
+    -> wired into mobile_frontend/_app/funcs/functions.ts: the /payment/success deep-link handler now polls getEntitlement (up to 5x/2s) before refreshing the cached profile, to cover the case where the app returns from Stripe checkout before the webhook has landed.
+[3] Store enough Stripe metadata to reconcile user, product, subscription, and payment rows.
+    -> confirmed sufficient for all currently-handled webhook types: checkout.session.completed carries userId/sku_variant/paymentId in metadata; invoice.* and customer.subscription.* are keyed by Stripe subscription id which subscriptions.external_id maps back to user_id/variant_id_ref/payment_id_ref. Every handled event can already be traced to user+product+subscription+payment rows.
+    -> gap noted for later, not fixed now (needs a DB migration, didn't want to alter the payments/subscriptions schema without sign-off): no stripe_customer_id column exists anywhere, so an event that only carries a Customer id (no handler currently needs this) can't be traced back without an extra Stripe API call.
+
+[3] Report user -> admin can view and action report.
+    -> fixed a real blocker found along the way: mobile_frontend's xxa_logggingReport() (logging.ts) accepted a reporteduserId param but never put it in the payload sent to the backend ("user": {} was hardcoded empty) -- so admin had no way to know who was reported, ever. Now included as user.reporteduserId.
+    -> admin/pages/reports.php: reports of type "reportuser" now surface a "Reported" user link and a "Ban reported user" action (sets users.user_active='3', the existing "Banned" status already defined in users.php's legend but never actually settable anywhere) and marks the report resolved.
+[3] Payment cancel/fail -> entitlement does not update.
+    -> confirmed: getProfile.js grants the "subscription"/entitlement block only WHERE status = 1 AND end_date > NOW(). invoice.payment_failed sets status to 2 (past_due) or 3 (cancelled) depending on attempt count, customer.subscription.deleted sets status=3 -- both fall outside that WHERE clause, so entitlement is correctly cut off. No change needed.
+[3] Network offline -> app shows understandable failure and recovers.
+    -> found and fixed a real bug: cacheStorage.getCurrentUserProfile() and .getProducts() (llstorage.ts) unconditionally wiped their memory + AsyncStorage cache to null whenever the request came back empty -- which is exactly what happened on a network failure/offline blip too (xxa__http_requests returns null/false for that case). So a momentary offline dip during a force-refresh (e.g. the payment-success deep link handler added above) was silently deleting the user's cached profile/products. Now a failed request leaves the existing cache alone instead of nuking it.
+    -> also: the offline check in httpRequest.ts used a blocking native Alert.alert instead of the app's own Toastx notification used everywhere else; switched it to Toastx for consistency, and reworded the generic network-error toast ("Client: Network timeout") to something a user would actually understand.
+
+[3] update voice record  playback ui
+    -> mobile_frontend/_app/screens/Conversations.tsx: redesigned to match iOS/iMessage voice-message conventions.
+    -> chat bubble player: waveform now doubles as the scrubber (bar fill = playback progress) instead of a separate progress bar underneath it; dropped the "Voice note"/"playing" text labels; bigger solid circular play button; duration shown inline next to the waveform instead of below it.
+    -> composer recording/preview bar: replaced the bordered card (icon avatar + title + "LIVE" badge + separate progress bar + row of buttons) with a slim pill: cancel (X) on the left, a pulsing red dot + live timer while recording (mimicking iOS's system recording indicator) or a play button once a note is recorded, the waveform in the middle acting as the scrubber, and a red stop button on the right while recording.

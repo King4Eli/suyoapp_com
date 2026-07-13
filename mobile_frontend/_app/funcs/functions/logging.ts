@@ -34,7 +34,7 @@ export const xxa_logggingReport = ({ type, extra, useraction, url, logMessage, r
                     "description": logMessage,
                     "extras": extra,
                 },
-                "user": {},
+                "user": { "reporteduserId": reporteduserId },
                 "device": await cacheStorage.getDeviceData(),
                 "app": await getAppMeta(),
             }
