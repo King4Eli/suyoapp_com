@@ -3,6 +3,7 @@
 import { io } from "socket.io-client";
 import { hostServer } from "./functions";
 import { _http_request } from "./functions";
+import { sessionManager } from "./SessionContext";
 export class SocketClient {
     private static socket: any;
     private static callbacks: Map<string, Function> = new Map();
@@ -21,15 +22,18 @@ export class SocketClient {
             this.socket.disconnect();
         }
 
-        // Connect with the provided userID
+        // The server derives identity from the session, not from the client-supplied
+        // userID -- that's only kept here for local callback bookkeeping/logging.
+        const currentSession = sessionManager.getCurrentSession();
         this.socket = io(hostServer(), {
             transports: ['websocket', 'polling'],
             reconnection: true,
             reconnectionAttempts: 5,
             reconnectionDelay: 1000,
             timeout: 20000,
-            query: {
-                userID: userID,
+            auth: {
+                auth_token: currentSession?.x_omi_payload,
+                auth_hash: currentSession?.x_omi_payload_hash,
             },
             path: '/socket.io/', // Use default path
         });
@@ -197,7 +201,7 @@ export class SocketClient {
 }
 
 
- 
+
 // Usage examples:
 // 1. Basic connection with callback
 // SocketClient.connect("user-123", (data) => {
@@ -207,20 +211,8 @@ export class SocketClient {
 //   }
 // });
 
-// 2. Send message to room
-// const socket = SocketClient.getSocket();
-// socket.emit('send-to-room', {
-//   room: 'room-name',
-//   event: 'custom-event',
-//   data: { text: 'Hello room!' }
-// });
+// 2. Notify a match partner of a new message (relayed server-side via /api/realtime/pushUser/:userID)
+// SocketClient.emit("/pushUser/" + otherUserId, { matchId, type: "single-convo", payload: { ... } });
 
-// 3. Send message to user
-// socket.emit('send-to-user', {
-//   userID: 'target-user-id',
-//   event: 'private-message',
-//   data: { text: 'Hello!' }
-// });
-
-// 4. Disconnect
+// 3. Disconnect
 // SocketClient.disconnect();

@@ -1,47 +1,66 @@
 import express from 'express';
+import { sessions, tools } from '../global/functions.js';
+import db_pool from '../global/database.js';
+
 const realtimedata_router = express.Router();
 
-// HTTP endpoint for user-specific socket info
-realtimedata_router.get('/pull/:userID', async (req, res) => {
-    const { userID } = req.params;
-    const io = req.app.get('io');
-    try {
-        // Get sockets in this user's room
-        const sockets = await io.in(`user-${userID}`).fetchSockets();
-        const activeConnections = sockets.map((/** @type {{ id: any; handshake: { time: any; }; rooms: Iterable<any> | ArrayLike<any>; }} */ 
-            socket) => ({
-            id: socket.id,
-            connectedAt: socket.handshake.time,
-            rooms: Array.from(socket.rooms)
-        }));
-        res.json({
-            code: 200,
-            userID,
-            activeConnections: activeConnections.length,
-            connections: activeConnections,
-            socketUrl: `/api/socket/socket.io`
-        });
-    }
-    catch (error) {
-        res.status(500).json({
-            code: 500,
-            // @ts-ignore
-            error: error.message
-        });
-    }
-});
+const blockedMatchStatuses = ["2", "3", "4"];
 
-// Send message to specific user via HTTP
+/**
+ * Verifies the caller's session and that they're an active (non-blocked) match
+ * participant with targetUserID -- the same authorization pushConversation.js
+ * uses. This is the boundary for the chat-notification relay below: without it,
+ * anyone could push a fabricated "new message" notification to any user.
+ * @param {import('express').Request} req
+ * @param {string} targetUserID
+ * @param {string} matchId
+ */
+async function verifyActiveMatchWith(req, targetUserID, matchId) {
+    const headers = req.headers;
+    const auth_token = Array.isArray(headers['x-omi-auth']) ? headers['x-omi-auth'][0] : (headers['x-omi-auth'] ?? "");
+    const auth_hash = Array.isArray(headers['x-omi-hash']) ? headers['x-omi-hash'][0] : (headers['x-omi-hash'] ?? "");
+
+    const sessionValidation = sessions.verifyFullSession(auth_token, auth_hash);
+    if (!sessionValidation.status) {
+        return { ok: false, code: sessionValidation.code, message: sessionValidation.message };
+    }
+    const callerID = sessions.currentUserID;
+
+    if (!matchId || !targetUserID) {
+        return { ok: false, code: 400, message: "Missing matchId or target user." };
+    }
+
+    const [matchRows] = await db_pool.execute(
+        "SELECT match_status FROM matches WHERE match_id = ? AND ((match_user_id_from = ? AND match_user_id_to = ?) OR (match_user_id_from = ? AND match_user_id_to = ?))",
+        [matchId, callerID, targetUserID, targetUserID, callerID]
+    );
+    // @ts-ignore
+    if (matchRows.length === 0) {
+        return { ok: false, code: 404, message: "Match not found or no access." };
+    }
+    // @ts-ignore
+    if (blockedMatchStatuses.includes(String(matchRows[0].match_status))) {
+        return { ok: false, code: 403, message: "This match can no longer receive messages." };
+    }
+    return { ok: true, callerID };
+}
+
+// Relay a chat notification to a match partner's socket room. Used by
+// SocketClient.emit() right after a message is persisted via pushConversation.
 realtimedata_router.post('/pushUser/:userID', async (req, res) => {
     const { userID } = req.params;
-    if (!req.body) {
-        return res.status(400).json({ code: 400, message: "Message content is required" });
-    }
-    const { message, event = 'message' } = req.body;
-    const io = req.app.get('io');
+    const { message, event = 'message' } = req.body ?? {};
+    const matchId = message?.matchId;
+
     try {
+        const auth = await verifyActiveMatchWith(req, userID, matchId);
+        if (!auth.ok) {
+            return res.status(auth.code).json({ code: auth.code, message: auth.message });
+        }
+
+        const io = req.app.get('io');
         io.to(`user-${userID}`).emit(event, {
-            from: 'server',
+            from: auth.callerID,
             to: userID,
             message,
             timestamp: new Date().toISOString()
@@ -53,70 +72,12 @@ realtimedata_router.post('/pushUser/:userID', async (req, res) => {
         });
     }
     catch (error) {
-        res.status(500).json({
-            code: 500,
-            // @ts-ignore
-            error: error.message
-        });
+        tools.serverLog(`Error in realtimedata pushUser: ${error}`, "realtimedata-pushUser-0");
+        res.status(500).json({ code: 500, message: "Internal error." });
     }
 });
 
-// Broadcast to all users
-realtimedata_router.post('/broadcast', async (req, res) => {
-    const { message, event = 'broadcast' } = req.body;
-    const io = req.app.get('io');
-    try {
-        io.emit(event, {
-            from: 'server',
-            message,
-            timestamp: new Date().toISOString()
-        });
-        res.json({
-            code: 200,
-            message: 'Broadcast sent to all connected users'
-        });
-    }
-    catch (error) {
-        res.status(500).json({
-            code: 500,
-            // @ts-ignore
-            error: error.message
-        });
-    }
-});
-
-// Get all connected users
-realtimedata_router.get('/pullall', async (req, res) => {
-    const io = req.app.get('io');
-    try {
-        const sockets = await io.fetchSockets();
-        const users = new Set();
-        sockets.forEach((/** @type {{ rooms: any[]; }} */ socket) => {
-            // Extract user IDs from room names
-            socket.rooms.forEach((/** @type {string} */ room) => {
-                if (room.startsWith('user-')) {
-                    users.add(room.replace('user-', ''));
-                }
-            });
-        });
-        res.json({
-            code: 200,
-            totalConnections: sockets.length,
-            connectedUsers: Array.from(users),
-            timestamp: new Date().toISOString()
-        });
-    }
-    catch (error) {
-        res.status(500).json({
-            code: 500,
-            // @ts-ignore
-            error: error.message
-        });
-    }
-});
-
-// check status
-// Debug endpoint to check Socket.IO status
+// Debug endpoint to check Socket.IO status (no per-user/connection data exposed)
 realtimedata_router.get('/status', (req, res) => {
   const io = req.app.get('io');
   res.json({
@@ -127,9 +88,6 @@ realtimedata_router.get('/status', (req, res) => {
       transports: io.opts.transports,
       pingInterval: io.opts.pingInterval,
       pingTimeout: io.opts.pingTimeout,
-      j: [
-        "/socket.io/", "/status", "/api/realtime"
-      ]
     },
     timestamp: new Date().toISOString()
   });
@@ -140,64 +98,36 @@ realtimedata_router.get('/status', (req, res) => {
  * @param {import("socket.io").Server<import("socket.io").DefaultEventsMap, import("socket.io").DefaultEventsMap, import("socket.io").DefaultEventsMap, any>} io
  */
 export function setupRealtime(io) {
-    io.on('connection', (socket) => {
-        //console.log('User connected:', socket.id);
-        // Extract userID from handshake query
-        const { userID } = socket.handshake.query;
-        if (userID) {
-            // Join user-specific room
-            socket.join(`user-${userID}`);
-            //console.log(`User ${userID} (${socket.id}) joined their room`);
-            // Notify the user they're connected
-            socket.emit('connected', {
-                userID,
-                socketId: socket.id,
-                message: 'Successfully connected to socket server'
-            });
-            // Notify others in the room (optional)
-            socket.to(`user-${userID}`).emit('user-connected', {
-                userID,
-                socketId: socket.id
-            });
+    // Authenticate every connection before it's accepted. The client identity
+    // (userID) is derived from the verified session, never trusted from the client.
+    io.use((socket, next) => {
+        const auth = socket.handshake.auth ?? {};
+        const auth_token = auth.auth_token ?? "";
+        const auth_hash = auth.auth_hash ?? "";
+        const validation = sessions.verifyFullSession(auth_token, auth_hash);
+        if (!validation.status) {
+            return next(new Error('Unauthorized'));
         }
-        // Join custom rooms
-        socket.on('join-room', (room) => {
-            socket.join(room);
-            //console.log(`Socket ${socket.id} joined room ${room}`);
+        socket.data.userID = sessions.currentUserID;
+        next();
+    });
+
+    io.on('connection', (socket) => {
+        const userID = socket.data.userID;
+
+        // Join the caller's own room -- the only room a socket ever belongs to.
+        socket.join(`user-${userID}`);
+        socket.emit('connected', {
+            userID,
+            socketId: socket.id,
+            message: 'Successfully connected to socket server'
         });
-        // Leave room
-        socket.on('leave-room', (room) => {
-            socket.leave(room);
-            //console.log(`Socket ${socket.id} left room ${room}`);
+        // Let the user's other devices/tabs know a new one connected.
+        socket.to(`user-${userID}`).emit('user-connected', {
+            userID,
+            socketId: socket.id
         });
-        // Send message to room
-        socket.on('send-to-room', ({ room, event, data }) => {
-            io.to(room).emit(event || 'room-message', {
-                from: socket.id,
-                ...data,
-                timestamp: new Date().toISOString()
-            });
-        });
-        // Send message to user
-        socket.on('send-to-user', ({ userID, event, data }) => {
-            io.to(`user-${userID}`).emit(event || 'user-message', {
-                from: socket.id,
-                to: userID,
-                ...data,
-                timestamp: new Date().toISOString()
-            });
-        });
-        // Handle custom user events
-        socket.on('user-event', (data) => {
-            const { userID, event, payload } = data;
-            if (userID && event) {
-                io.to(`user-${userID}`).emit(event, {
-                    ...payload,
-                    from: socket.id,
-                    timestamp: new Date().toISOString()
-                });
-            }
-        });
+
         // Heartbeat/ping
         socket.on('ping', () => {
             socket.emit('pong', {
@@ -206,15 +136,11 @@ export function setupRealtime(io) {
         });
         // Disconnect handler
         socket.on('disconnect', (reason) => {
-            //console.log('User disconnected:', socket.id, 'Reason:', reason);
-            if (userID) {
-                // Notify others in the user's room
-                socket.to(`user-${userID}`).emit('user-disconnected', {
-                    userID,
-                    socketId: socket.id,
-                    reason
-                });
-            }
+            socket.to(`user-${userID}`).emit('user-disconnected', {
+                userID,
+                socketId: socket.id,
+                reason
+            });
         });
         // Error handler
         socket.on('error', (error) => {
