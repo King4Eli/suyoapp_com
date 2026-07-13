@@ -1,5 +1,5 @@
 import { createClient } from 'redis';
-import { namer, tools } from './functions.js';
+import { tools } from './functions.js';
 
 const redisClient = createClient({
     socket: {
