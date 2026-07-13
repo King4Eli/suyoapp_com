@@ -263,7 +263,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                             </ScrollView>
                         </View>}
                         renderItem={({ item, index }) => (
-                            <View style={{ flex:1 }}>
+                            <View style={{ width: layout.itemWidth }}>
                                 <Pressable style={[stylesoy.card, { width: '100%', height: layout.itemHeight, position: "relative" }]}
                                     onPress={() => {
                                         navigation.navigate(

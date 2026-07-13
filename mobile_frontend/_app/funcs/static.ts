@@ -257,7 +257,6 @@ export const namer = {
         login: "login",
         subscription: "payments",
         consumables: "consumable",
-        billingHistory: "BillingHistory",
     },
     productCategoryName: {
         mainsub: "mainsub",

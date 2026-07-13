@@ -33,7 +33,6 @@ import LottieView from 'lottie-react-native';
 import { Zz_devv } from './zz_devv';
 import { Auth_Signup } from './Auth_Signup';
 import { Screen_PurchaseConsumable } from './Purchase_Consumable';
-import { Screen_BillingHistory } from './BillingHistory';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 
 // Type definitions for props if needed
@@ -192,7 +191,6 @@ const MainApp: React.FC = () => {
                   }, headerStyle: { backgroundColor: '#1a1919ff' }
                 }} />
                 <Stack.Screen name={namer.navigation.settings} component={Screen_settings} options={{ headerBackTitle: '' }} />
-                <Stack.Screen name={namer.navigation.billingHistory} component={Screen_BillingHistory} options={{ title: "Billing History", headerBackTitle: '' }} />
 
               </>
             )}

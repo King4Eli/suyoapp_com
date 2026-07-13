@@ -306,27 +306,40 @@ export function Screen_chat({ navigation }: { navigation: any }) {
           const isYourTurn = !item?.convo_from_me;
           const isVerified = item?.user_verified;
           const lastMessage = () => {
-            if (item?.user_lastmessage?.t === "text") {
-              return <Text style={{ fontSize: 13, color: colors.textSecondary, flex: 1, fontWeight: item?.last_message_read ? 400 : 800 }} numberOfLines={1} ellipsizeMode="tail">{item?.user_lastmessage?.str}</Text>
-            } else if (item?.user_lastmessage?.t === "image") {
-              return (
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                  <MIcon name="camera-outline" size={18} color={colors.textSecondary} />
-                  <Text style={{ fontSize: 13, color: colors.textSecondary, flex: 1, fontWeight: item?.last_message_read ? 400 : 800 }}>PHOTO</Text>
-                </View>
-              )
-            } else if (item?.user_lastmessage?.t === "audio") {
-              return (
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                  <View style={{ flexDirection: "row" }}>
-                    <MIcon name="waveform" size={22} color={colors.textSecondary} />
-                    <MIcon name="waveform" size={22} color={colors.textSecondary} style={{ marginLeft: -8 }} />
+            // Message types are set by pushConversation.js: "text", "image", "video", "audio".
+            // Each send produces separate rows per type, so a message is never a text+media combo.
+            const previewWeight = item?.last_message_read ? 400 : 800;
+            switch (item?.user_lastmessage?.t) {
+              case "text":
+                return <Text style={{ fontSize: 13, color: colors.textSecondary, flex: 1, fontWeight: previewWeight }} numberOfLines={1} ellipsizeMode="tail">{item?.user_lastmessage?.str}</Text>
+              case "image":
+                return (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                    <IIcon name="image-outline" size={16} color={colors.textSecondary} />
+                    <Text style={{ fontSize: 13, color: colors.textSecondary, flex: 1, fontWeight: previewWeight }}>Photo</Text>
                   </View>
-                  <Text style={{ fontSize: 13, color: colors.textSecondary, flex: 1, fontWeight: item?.last_message_read ? 400 : 800 }}>VOICE NOTE</Text>
-                </View>
-              )
-            } else {
-              return <MIcon name="file-outline" size={20} color={colors.textSecondary} />
+                )
+              case "video":
+                return (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                    <IIcon name="videocam-outline" size={16} color={colors.textSecondary} />
+                    <Text style={{ fontSize: 13, color: colors.textSecondary, flex: 1, fontWeight: previewWeight }}>Video</Text>
+                  </View>
+                )
+              case "audio":
+                return (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                    <MIcon name="microphone" size={16} color={colors.textSecondary} />
+                    <Text style={{ fontSize: 13, color: colors.textSecondary, flex: 1, fontWeight: previewWeight }}>Voice message</Text>
+                  </View>
+                )
+              default:
+                return (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                    <MIcon name="file-outline" size={16} color={colors.textSecondary} />
+                    <Text style={{ fontSize: 13, color: colors.textSecondary, flex: 1, fontWeight: previewWeight }}>Attachment</Text>
+                  </View>
+                )
             }
           };
 
