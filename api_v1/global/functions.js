@@ -143,6 +143,7 @@ export class sessions {
 export const namer = {
     redis: {
         verifyCode: "verify:code:",
+        products: "products:list",
     },
     ratelimit: {
         login_ip: "ratelimit:login:ip:",

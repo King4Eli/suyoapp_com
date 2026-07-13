@@ -1,15 +1,29 @@
 import { createHash } from "crypto";
 import db_pool from "../../global/database.js";
-import { tools } from "../../global/functions.js";
+import { tools, namer } from "../../global/functions.js";
+import { redisDo } from "../../global/redisClient.js";
+
+const PRODUCTS_CACHE_TTL_SECONDS = 10 * 60; // 10 minutes
+
 // @ts-ignore
 export default async function getProducts() {
   /** @type { any } */
   const response = { code: 404, message: "This empty products." };
   try {
+    const cached = await redisDo(async (client) => client.get(namer.redis.products)).catch((err) => {
+      tools.serverLog(`Redis read failed in getProducts: ${err}`, "getProducts-1");
+      return null;
+    });
 
+    if (cached) {
+      response.products = JSON.parse(cached);
+      response.code = 200;
+      response.message = "ok";
+      return response;
+    }
 
-    // list products 
-    const [productRows] = await db_pool.query(`SELECT 
+    // list products
+    const [productRows] = await db_pool.query(`SELECT
                 JSON_OBJECT(
                     'category', pl.category,
                     'products', JSON_ARRAYAGG(
@@ -42,6 +56,12 @@ export default async function getProducts() {
     response.products = productRows;
     response.code = 200;
     response.message = "ok";
+
+    await redisDo(async (client) => {
+      await client.set(namer.redis.products, JSON.stringify(productRows), { EX: PRODUCTS_CACHE_TTL_SECONDS });
+    }).catch((err) => {
+      tools.serverLog(`Redis write failed in getProducts: ${err}`, "getProducts-2");
+    });
   }
   catch (err) {
     tools.serverLog(`Error in getProducts: ${err}`,"getProducts-0");
