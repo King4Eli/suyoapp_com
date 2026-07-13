@@ -22,8 +22,7 @@ export const hostServer = () => {
 
   if (Platform.OS === "android" && DeviceInfo.isEmulatorSync()) {
     // if android emulator
-    h_0 = "https://api.suyoapp.local";
-    // h_0 = "http://10.0.2.2:2000"; 
+    h_0 = "http://10.0.2.2:2001"; 
   }
   return h_0;
 }
@@ -225,7 +224,7 @@ export const __init__app = async (): Promise<void> => {
 
     const getProfile = await cacheStorage.getCurrentUserProfile();
     //console.log("For socket", getProfile)
-    const userId = getProfile?.user_id;
+    const userId = getProfile?.profile?.id;
     if (!userId) return;
     SocketClient.connect(userId, (data) => {
       const retrivedData = data?.message;

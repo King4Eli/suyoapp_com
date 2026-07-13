@@ -92,7 +92,9 @@
       "Bash(node /tmp/claude-1000/-home-king-goodapps-projs-suyoapp-com/02f3e2a0-d28e-4e4d-bfad-9a60ef51264a/scratchpad/socket_test.js)",
       "Bash(curl -s -o /dev/null -w \"broadcast: %{http_code}\\\\n\" -X POST http://127.0.0.1:2001/api/realtime/broadcast -H \"Content-Type: application/json\" -d '{}')",
       "Bash(curl -s -o /dev/null -w \"pullall: %{http_code}\\\\n\" http://127.0.0.1:2001/api/realtime/pullall)",
-      "Bash(curl -s -o /dev/null -w \"status: %{http_code}\\\\n\" http://127.0.0.1:2001/api/realtime/status)"
+      "Bash(curl -s -o /dev/null -w \"status: %{http_code}\\\\n\" http://127.0.0.1:2001/api/realtime/status)",
+      "Bash(timeout 90 npx tsc --noEmit -p .)",
+      "Bash(node --check api_v1/routers/realtimedata.js)"
     ],
     "additionalDirectories": [
       "/home/king/tr/goodapps/projs/suyoapp_com/mobile_frontend/_app/screens",

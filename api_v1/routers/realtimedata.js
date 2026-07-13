@@ -52,19 +52,28 @@ realtimedata_router.post('/pushUser/:userID', async (req, res) => {
     const { message, event = 'message' } = req.body ?? {};
     const matchId = message?.matchId;
 
+    console.log(`🟦 [SOCKET][HTTP] pushUser IN  -> target=${userID} matchId=${matchId} event=${event} body=${JSON.stringify(req.body)}`);
+
     try {
         const auth = await verifyActiveMatchWith(req, userID, matchId);
         if (!auth.ok) {
+            console.log(`🟥 [SOCKET][HTTP] pushUser REJECTED -> target=${userID} matchId=${matchId} code=${auth.code} reason=${auth.message}`);
             return res.status(auth.code).json({ code: auth.code, message: auth.message });
         }
 
         const io = req.app.get('io');
-        io.to(`user-${userID}`).emit(event, {
+        const roomName = `user-${userID}`;
+        const socketsInRoom = await io.in(roomName).fetchSockets();
+        console.log(`🟩 [SOCKET][HTTP] pushUser AUTHORIZED -> from=${auth.callerID} to=${userID} room=${roomName} liveSocketsInRoom=${socketsInRoom.length}`);
+
+        io.to(roomName).emit(event, {
             from: auth.callerID,
             to: userID,
             message,
             timestamp: new Date().toISOString()
         });
+        console.log(`🟩 [SOCKET][HTTP] pushUser EMITTED -> event="${event}" to room=${roomName}`);
+
         res.json({
             code: 200,
             message: `Message sent to user ${userID}`,
@@ -72,6 +81,7 @@ realtimedata_router.post('/pushUser/:userID', async (req, res) => {
         });
     }
     catch (error) {
+        console.log(`🟥 [SOCKET][HTTP] pushUser ERROR -> ${error}`);
         tools.serverLog(`Error in realtimedata pushUser: ${error}`, "realtimedata-pushUser-0");
         res.status(500).json({ code: 500, message: "Internal error." });
     }
@@ -104,16 +114,20 @@ export function setupRealtime(io) {
         const auth = socket.handshake.auth ?? {};
         const auth_token = auth.auth_token ?? "";
         const auth_hash = auth.auth_hash ?? "";
+        console.log(`🟨 [SOCKET][AUTH] handshake attempt -> socket=${socket.id} hasToken=${Boolean(auth_token)} hasHash=${Boolean(auth_hash)} query=${JSON.stringify(socket.handshake.query)}`);
         const validation = sessions.verifyFullSession(auth_token, auth_hash);
         if (!validation.status) {
+            console.log(`🟥 [SOCKET][AUTH] REJECTED -> socket=${socket.id} reason=${validation.message}`);
             return next(new Error('Unauthorized'));
         }
         socket.data.userID = sessions.currentUserID;
+        console.log(`🟩 [SOCKET][AUTH] OK -> socket=${socket.id} userID=${socket.data.userID}`);
         next();
     });
 
     io.on('connection', (socket) => {
         const userID = socket.data.userID;
+        console.log(`🟩 [SOCKET] CONNECTED -> socket=${socket.id} userID=${userID} transport=${socket.conn.transport.name}`);
 
         // Join the caller's own room -- the only room a socket ever belongs to.
         socket.join(`user-${userID}`);
@@ -128,6 +142,11 @@ export function setupRealtime(io) {
             socketId: socket.id
         });
 
+        // Log every event this socket emits to the server, for debugging.
+        socket.onAny((eventName, ...args) => {
+            console.log(`🟦 [SOCKET] EVENT IN <- socket=${socket.id} userID=${userID} event="${eventName}" args=${JSON.stringify(args)}`);
+        });
+
         // Heartbeat/ping
         socket.on('ping', () => {
             socket.emit('pong', {
@@ -136,6 +155,7 @@ export function setupRealtime(io) {
         });
         // Disconnect handler
         socket.on('disconnect', (reason) => {
+            console.log(`🟨 [SOCKET] DISCONNECTED -> socket=${socket.id} userID=${userID} reason=${reason}`);
             socket.to(`user-${userID}`).emit('user-disconnected', {
                 userID,
                 socketId: socket.id,
@@ -144,7 +164,7 @@ export function setupRealtime(io) {
         });
         // Error handler
         socket.on('error', (error) => {
-            console.error('🔴 Socket error:', socket.id, error);
+            console.error('🔴 [SOCKET] ERROR -> socket=' + socket.id, error);
         });
     });
 }

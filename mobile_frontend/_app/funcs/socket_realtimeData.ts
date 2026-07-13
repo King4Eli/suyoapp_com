@@ -9,6 +9,7 @@ export class SocketClient {
     private static callbacks: Map<string, Function> = new Map();
 
     static connect(userID: string, callback?: (data: any) => void) {
+        console.log(`🟨 [SOCKET] connect() called -> userID=${userID} host=${hostServer()} alreadyConnected=${Boolean(this.socket?.connected)}`);
         if (this.socket && this.socket.connected) {
             console.log('Socket already connected');
             if (callback) {
@@ -24,16 +25,22 @@ export class SocketClient {
 
         // The server derives identity from the session, not from the client-supplied
         // userID -- that's only kept here for local callback bookkeeping/logging.
-        const currentSession = sessionManager.getCurrentSession();
+        // `auth` as a function (not a plain object) is required here: socket.io calls
+        // it fresh on every connect/reconnect attempt, so a token that wasn't ready yet
+        // (or that's since been renewed) is picked up instead of being sent stale forever.
         this.socket = io(hostServer(), {
             transports: ['websocket', 'polling'],
             reconnection: true,
             reconnectionAttempts: 5,
             reconnectionDelay: 1000,
             timeout: 20000,
-            auth: {
-                auth_token: currentSession?.x_omi_payload,
-                auth_hash: currentSession?.x_omi_payload_hash,
+            auth: (cb: (data: any) => void) => {
+                const currentSession = sessionManager.getCurrentSession();
+                console.log(`🟨 [SOCKET] auth() handshake fn invoked -> hasToken=${Boolean(currentSession?.x_omi_payload)} hasHash=${Boolean(currentSession?.x_omi_payload_hash)}`);
+                cb({
+                    auth_token: currentSession?.x_omi_payload,
+                    auth_hash: currentSession?.x_omi_payload_hash,
+                });
             },
             path: '/socket.io/', // Use default path
         });
@@ -48,19 +55,25 @@ export class SocketClient {
         return this.socket;
     }
     static emit(event: string, data: any) {
-        const yy= _http_request({
+        console.log(`🟦 [SOCKET][HTTP] emit OUT -> ${hostServer()}/api/realtime${event}`, JSON.stringify(data));
+        const yy = _http_request({
             reqType: 'POST',
             customApiUrl: hostServer() + '/api/realtime'+event,
-            bodyArray: {  
-                message: data  
+            bodyArray: {
+                message: data
             }
         });
-        //console.log("Emit response:", yy);
-            // Handle response if needed
+        yy.then((res: any) => console.log(`🟩 [SOCKET][HTTP] emit RESPONSE <- ${event}`, JSON.stringify(res)))
+          .catch((err: any) => console.log(`🟥 [SOCKET][HTTP] emit ERROR <- ${event}`, err?.message ?? err));
     }
 
     private static registerEvents(userID: string) {
         if (!this.socket) return;
+
+        // Log every single event the socket receives, before any specific handling.
+        this.socket.onAny((eventName: string, ...args: any[]) => {
+            console.log(`🟦 [SOCKET] EVENT IN <- userID=${userID} event="${eventName}"`, JSON.stringify(args));
+        });
 
         this.socket.on('connect', () => {
             console.log('✅ Connected! Socket ID:', this.socket.id);

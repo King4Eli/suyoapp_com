@@ -17,6 +17,8 @@ services:
       - ./admin:/var/www/html
     extra_hosts:
       - "s3.global.local:host-gateway"
+    ports:
+      - "2003:80"
 
   suyoapp_com_webui:
     build:
@@ -26,4 +28,4 @@ services:
     volumes:
       - ./web_ui:/var/www/html
     ports:
-      - "5173:5173"
+      - "2002:5173"
