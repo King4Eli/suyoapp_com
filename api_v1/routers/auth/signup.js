@@ -50,14 +50,14 @@ signup_router.post('/', async (req, res) => {
         return res.json({ code: 400, message: 'Invalid phone number.' });
     }
 
-    const ipLimit = await checkRateLimit(`ratelimit:signup:ip:${req.ip}`, 30, 600);
+    const ipLimit = await checkRateLimit(`${namer.ratelimit.signup_ip}${req.ip}`, 30, 600);
     if (!ipLimit.allowed) {
         res.set('Retry-After', String(ipLimit.retryAfterSeconds));
         return res.status(429).json({ code: 429, message: 'Too many requests. Please try again later.' });
     }
 
     if (!verificationCode || verificationCode.length < 6) {
-        const otpRequestLimit = await checkRateLimit(`ratelimit:signup:otp-request:${phonenumber}`, 5, 600);
+        const otpRequestLimit = await checkRateLimit(`${namer.ratelimit.signup_otp_request}${phonenumber}`, 5, 600);
         if (!otpRequestLimit.allowed) {
             res.set('Retry-After', String(otpRequestLimit.retryAfterSeconds));
             return res.status(429).json({ code: 429, message: 'Too many codes requested. Please try again later.' });
@@ -82,7 +82,7 @@ signup_router.post('/', async (req, res) => {
         });
     }
 
-    const otpVerifyLimit = await checkRateLimit(`ratelimit:signup:otp-verify:${phonenumber}`, 10, 600);
+    const otpVerifyLimit = await checkRateLimit(`${namer.ratelimit.signup_otp_verify}${phonenumber}`, 10, 600);
     if (!otpVerifyLimit.allowed) {
         res.set('Retry-After', String(otpVerifyLimit.retryAfterSeconds));
         return res.status(429).json({ code: 429, message: 'Too many attempts. Please try again later.' });

@@ -2,9 +2,9 @@
 declare(strict_types=1);
 include "../main_config.php";
 
-$page_title = 'Reports';
-$page_subtitle = 'User reports and moderation queue';
-$active_page = 'reports';
+$page_title = 'Application Logs';
+$page_subtitle = 'Server/app error and event log stream';
+$active_page = 'applogs';
 
 $db = $DB_STMT;
 $action_error = '';
@@ -43,19 +43,6 @@ function safe_dom_id(string $value, int $fallback): string
     return $sanitized . '-' . $fallback;
 }
 
-function extract_reported_user_id(?string $raw): ?string
-{
-    if ($raw === null || $raw === '') {
-        return null;
-    }
-    $decoded = json_decode($raw, true);
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        return null;
-    }
-    $userId = $decoded['user']['reporteduserId'] ?? null;
-    return is_string($userId) && $userId !== '' ? $userId : null;
-}
-
 $status_actions = [
     'open' => 0,
     'resolved' => 1,
@@ -65,39 +52,18 @@ $status_actions = [
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $report_id = trim((string) ($_POST['report_id'] ?? ''));
     $action = trim((string) ($_POST['action'] ?? ''));
-
-    if ($action === 'ban_user') {
-        $target_user_id = trim((string) ($_POST['target_user_id'] ?? ''));
-        if ($report_id !== '' && $target_user_id !== '') {
-            try {
-                $db->beginTransaction();
-                $stmt = $db->prepare('UPDATE users SET user_active = ? WHERE user_id = ?');
-                $stmt->execute(['3', $target_user_id]);
-                $stmt = $db->prepare('UPDATE logreports SET report_status = 1, updated_at = NOW() WHERE report_id = ?');
-                $stmt->execute([$report_id]);
-                $db->commit();
-                $redirect = $_SERVER['HTTP_REFERER'] ?? 'reports.php';
-                header('Location: ' . $redirect);
-                exit;
-            } catch (PDOException $e) {
-                $db->rollBack();
-                $action_error = 'Unable to ban the reported user.';
-            }
-        } else {
-            $action_error = 'Invalid action.';
-        }
-    } elseif ($report_id !== '' && isset($status_actions[$action])) {
+    if ($report_id !== '' && isset($status_actions[$action])) {
         try {
-            $stmt = $db->prepare('UPDATE logreports SET report_status = :status, updated_at = NOW() WHERE report_id = :id');
+            $stmt = $db->prepare('UPDATE logs_application SET report_status = :status, updated_at = NOW() WHERE report_id = :id');
             $stmt->execute([
                 ':status' => $status_actions[$action],
                 ':id' => $report_id,
             ]);
-            $redirect = $_SERVER['HTTP_REFERER'] ?? 'reports.php';
+            $redirect = $_SERVER['HTTP_REFERER'] ?? 'applogs.php';
             header('Location: ' . $redirect);
             exit;
         } catch (PDOException $e) {
-            $action_error = 'Unable to update report status.';
+            $action_error = 'Unable to update log status.';
         }
     } else {
         $action_error = 'Invalid action.';
@@ -115,8 +81,8 @@ $reports = [];
 $params = [];
 $where = [];
 $sql = $view === 'group'
-    ? 'SELECT r.report_type, COUNT(*) AS report_count FROM logreports r LEFT JOIN users u ON u.user_id = r.report_currentuser'
-    : 'SELECT r.report_id, r.report_type, r.report_status, r.report_data, r.created_at, r.updated_at, r.report_currentuser, u.user_fullname FROM logreports r LEFT JOIN users u ON u.user_id = r.report_currentuser';
+    ? 'SELECT r.report_type, COUNT(*) AS report_count FROM logs_application r LEFT JOIN users u ON u.user_id = r.report_currentuser'
+    : 'SELECT r.report_id, r.report_type, r.report_status, r.report_data, r.created_at, r.updated_at, r.report_currentuser, u.user_fullname FROM logs_application r LEFT JOIN users u ON u.user_id = r.report_currentuser';
 if ($query !== '') {
     $where[] = '(r.report_id LIKE :q OR r.report_type LIKE :q OR r.report_currentuser LIKE :q OR u.user_fullname LIKE :q)';
     $params[':q'] = '%' . $query . '%';
@@ -160,9 +126,9 @@ try {
         <div class="card-body">
             <form class="row g-2 align-items-end" method="get">
                 <div class="col-12 col-md-6">
-                    <label class="form-label" for="report-search">Search reports</label>
+                    <label class="form-label" for="report-search">Search logs</label>
                     <input class="form-control" id="report-search" name="q" type="search"
-                        placeholder="Search by report id, type, or user"
+                        placeholder="Search by log id, type, or user"
                         value="<?php echo htmlspecialchars($query); ?>">
                 </div>
                 <div class="col-6 col-md-2">
@@ -193,7 +159,7 @@ try {
                 </div>
                 <div class="col-12 col-md-2 d-flex gap-2">
                     <button class="btn btn-primary flex-fill" type="submit">Apply</button>
-                    <a class="btn btn-outline-secondary flex-fill" href="reports.php">Reset</a>
+                    <a class="btn btn-outline-secondary flex-fill" href="applogs.php">Reset</a>
                 </div>
                 <div class="col-12 col-md-6">
                     <label class="form-label" for="client-filter">Quick filter (client)</label>
@@ -205,7 +171,7 @@ try {
 
     <div class="card shadow-sm">
         <div class="card-header d-flex align-items-center justify-content-between">
-            <span class="fw-semibold">Report Queue</span>
+            <span class="fw-semibold">Log Queue</span>
             <span class="text-muted small"><?php echo count($reports); ?> rows</span>
         </div>
         <div class="table-responsive">
@@ -213,11 +179,11 @@ try {
                 <thead class="table-light">
                     <tr>
                         <?php if ($view === 'group'): ?>
-                            <th>Report type</th>
+                            <th>Log type</th>
                             <th>Count</th>
                             <th colspan="4"></th>
                         <?php else: ?>
-                            <th>Report</th>
+                            <th>Log</th>
                             <th>User</th>
                             <th>Status</th>
                             <th>Created</th>
@@ -229,7 +195,7 @@ try {
                 <tbody>
                     <?php if (!$reports): ?>
                         <tr>
-                            <td colspan="6" class="text-center text-muted py-4">No reports found.</td>
+                            <td colspan="6" class="text-center text-muted py-4">No logs found.</td>
                         </tr>
                     <?php endif; ?>
                     <?php foreach ($reports as $index => $report): ?>
@@ -244,9 +210,6 @@ try {
                             <?php $collapse_id = 'report-' . safe_dom_id((string) ($report['report_id'] ?? ''), $index); ?>
                             <?php $last_updated = $report['updated_at'] ?? $report['created_at'] ?? ''; ?>
                             <?php $created_at = $report['created_at'] ?? $report['created_at'] ?? ''; ?>
-                            <?php $reported_user_id = ($report['report_type'] ?? '') === 'reportuser'
-                                ? extract_reported_user_id($report['report_data'] ?? null)
-                                : null; ?>
                             <tr>
                                 <td>
                                     <div class="fw-semibold"><?php echo htmlspecialchars($report['report_type'] ?? ''); ?></div>
@@ -292,32 +255,16 @@ try {
                                                     Mark as escalated
                                                 </button>
                                             </li>
-                                            <?php if ($reported_user_id !== null): ?>
-                                                <li>
-                                                    <hr class="dropdown-divider">
-                                                </li>
-                                                <li>
-                                                    <button type="button" class="dropdown-item text-danger js-report-action"
-                                                        data-action="ban_user" data-target-user="<?php echo htmlspecialchars($reported_user_id); ?>">
-                                                        Ban reported user
-                                                    </button>
-                                                </li>
-                                            <?php endif; ?>
                                         </ul>
                                     </div>
                                     <form method="post" class="d-inline">
                                         <input type="hidden" name="report_id"
                                             value="<?php echo htmlspecialchars($report['report_id'] ?? ''); ?>">
                                         <input type="hidden" name="action" value="">
-                                        <input type="hidden" name="target_user_id" value="">
                                     </form>
                                     <?php if (!empty($report['report_currentuser'])): ?>
                                         <a class="btn btn-sm btn-outline-primary"
-                                            href="singleuser.php?id=<?php echo urlencode($report['report_currentuser']); ?>">Reporter</a>
-                                    <?php endif; ?>
-                                    <?php if ($reported_user_id !== null): ?>
-                                        <a class="btn btn-sm btn-outline-danger"
-                                            href="singleuser.php?id=<?php echo urlencode($reported_user_id); ?>">Reported</a>
+                                            href="singleuser.php?id=<?php echo urlencode($report['report_currentuser']); ?>">User</a>
                                     <?php endif; ?>
                                 </td>
                             </tr>
@@ -348,11 +295,7 @@ try {
 
             $('.js-report-action').on('click', function () {
                 var action = $(this).data('action');
-                var targetUser = $(this).data('target-user');
-                var confirmMessage = action === 'ban_user'
-                    ? 'Ban this user? They will be marked inactive and hidden from discovery.'
-                    : 'Are you sure you want to do this?';
-                var first = confirm(confirmMessage);
+                var first = confirm('Are you sure you want to do this?');
                 if (!first) {
                     return;
                 }
@@ -362,9 +305,6 @@ try {
                 }
                 var $form = $(this).closest('td').find('form');
                 $form.find('input[name="action"]').val(action);
-                if (targetUser) {
-                    $form.find('input[name="target_user_id"]').val(targetUser);
-                }
                 $form.trigger('submit');
             });
         });

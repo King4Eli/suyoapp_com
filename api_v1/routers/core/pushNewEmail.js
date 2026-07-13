@@ -24,7 +24,7 @@ export default async function pushNewEmail(oldEmail, newEmail, requestNewCode, v
     }
     try {
         if (requestNewCode) {
-            const otpRequestLimit = await checkRateLimit(`ratelimit:emailchange:otp-request:${sessions.currentUserID}`, 5, 600);
+            const otpRequestLimit = await checkRateLimit(`${namer.ratelimit.emailchange_otp_request}${sessions.currentUserID}`, 5, 600);
             if (!otpRequestLimit.allowed) {
                 response.code = 429;
                 response.message = "Too many codes requested. Please try again later.";
@@ -50,7 +50,7 @@ export default async function pushNewEmail(oldEmail, newEmail, requestNewCode, v
             }
         }
         else if (tools.validateIsNumber(verificationCode)) {
-            const otpVerifyLimit = await checkRateLimit(`ratelimit:emailchange:otp-verify:${sessions.currentUserID}`, 10, 600);
+            const otpVerifyLimit = await checkRateLimit(`${namer.ratelimit.emailchange_otp_verify}${sessions.currentUserID}`, 10, 600);
             if (!otpVerifyLimit.allowed) {
                 response.code = 429;
                 response.message = "Too many attempts. Please try again later.";

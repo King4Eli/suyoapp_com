@@ -9,12 +9,36 @@ import variables from "../../global/variables.json" with { type: "json" };
 export default async function pushLogReport(scripts, requestIP) {
     const response = { code: 400, message: "Error generating report." };
     try {
-        const genId = tools.generateAlphanumeric(11, 30);
         const jsonStatsRaw = scripts ?? "{}";
         const decodeStats = JSON.parse(jsonStatsRaw);
         const type = decodeStats.type ?? "undef_Type";
         const ipAddr = requestIP ?? "n/a";
-        // enrich stats
+
+        // User-submitted "report this person" flows are moderation data, not app logs --
+        // they go into users_reported, keyed to both the reported and reporting user.
+        if (type === "reportuser") {
+            const reportedUserId = decodeStats?.user?.reporteduserId;
+            const reason = decodeStats?._error?.description || "No reason provided.";
+            if (!reportedUserId) {
+                response.code = 400;
+                response.message = "Missing reported user.";
+                return response;
+            }
+            /** @type {[import('mysql2/promise').ResultSetHeader, any]} */
+            const [result] = await db_pool.query(
+                `INSERT INTO users_reported (user_id, reporter_user_id, reason, status)
+                VALUES (?, ?, ?, 0)`,
+                [reportedUserId, sessions.currentUserID, reason]
+            );
+            if (result.affectedRows > 0) {
+                response.code = 200;
+                response.message = "report generated";
+            }
+            return response;
+        }
+
+        // Generic application/error log
+        const genId = tools.generateAlphanumeric(11, 30);
         const enrichedStats = {
             ...decodeStats,
             device: { ...(decodeStats.device ?? {}), requestIP: ipAddr },
@@ -23,7 +47,7 @@ export default async function pushLogReport(scripts, requestIP) {
         };
         const jsonStats = JSON.stringify(enrichedStats);
         /** @type {[import('mysql2/promise').ResultSetHeader, any]} */
-        const [result] = await db_pool.query(`INSERT INTO logreports 
+        const [result] = await db_pool.query(`INSERT INTO logs_application
             (report_id, report_type, report_data, report_status, report_currentuser)
             VALUES (?, ?, ?, 0, ?)`, [genId, type, jsonStats, sessions.currentUserID]);
 

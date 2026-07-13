@@ -63,7 +63,7 @@ export class tools {
                 const id= "lg_" + this.generateAlphanumeric(10, 46);
                 // @ts-ignore
                 const [jj]=await db_pool.query(
-                    `INSERT INTO logreports
+                    `INSERT INTO logs_application
                     (report_id, report_type,report_data,report_currentuser)
                     VALUES (?,?,?,?)`,
                     [id, "server_"+title, message, (sessions.currentUserID || null)]
@@ -143,6 +143,18 @@ export class sessions {
 export const namer = {
     redis: {
         verifyCode: "verify:code:",
+    },
+    ratelimit: {
+        login_ip: "ratelimit:login:ip:",
+        login_otp_request: "ratelimit:login:otp-request:",
+        login_otp_verify: "ratelimit:login:otp-verify:",
+        signup_ip: "ratelimit:signup:ip:",
+        signup_otp_request: "ratelimit:signup:otp-request:",
+        signup_otp_verify: "ratelimit:signup:otp-verify:",
+        phonechange_otp_request: "ratelimit:phonechange:otp-request:",
+        phonechange_otp_verify: "ratelimit:phonechange:otp-verify:",
+        emailchange_otp_request: "ratelimit:emailchange:otp-request:",
+        emailchange_otp_verify: "ratelimit:emailchange:otp-verify:",
     }
 }
 

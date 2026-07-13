@@ -291,7 +291,7 @@ async function processWebhookEvent(event) {
                     });
 
                     await connection.query(
-                        `INSERT INTO logreports (report_id, report_type, report_data, report_status, report_currentuser)
+                        `INSERT INTO logs_application (report_id, report_type, report_data, report_status, report_currentuser)
                          SELECT ?, 'payment_failed', ?, 0, s.user_id
                          FROM subscriptions s WHERE s.external_id = ?
                          LIMIT 1`,

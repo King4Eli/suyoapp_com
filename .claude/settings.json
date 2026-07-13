@@ -84,7 +84,11 @@
       "Bash(cd /home/king/goodapps/projs/suyoapp_com/mobile_frontend *)",
       "Read(//home/king/goodapps/projs/suyoapp_com/mobile_frontend/node_modules/react-native/**)",
       "Bash(git check-ignore *)",
-      "Bash(node --check api_v1/routers/core/pushConversation.js)"
+      "Bash(node --check api_v1/routers/core/pushConversation.js)",
+      "Bash(apt list *)",
+      "Bash(python3 -c \"print\\('no php available, will visually verify'\\)\")",
+      "Bash(docker restart *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://127.0.0.1:2001/s)"
     ],
     "additionalDirectories": [
       "/home/king/tr/goodapps/projs/suyoapp_com/mobile_frontend/_app/screens",
