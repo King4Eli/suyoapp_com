@@ -45,6 +45,28 @@ async function verifyActiveMatchWith(req, targetUserID, matchId) {
     return { ok: true, callerID };
 }
 
+/**
+ * Loads a match row and confirms userID is an active (non-blocked) participant.
+ * Used by the join-match-room socket handler, which authenticates via the
+ * already-verified socket.data.userID rather than request headers.
+ * @param {string} matchId
+ * @param {string} userID
+ */
+async function loadActiveMatchParticipant(matchId, userID) {
+    const [matchRows] = await db_pool.execute(
+        "SELECT match_status, match_user_id_from, match_user_id_to FROM matches WHERE match_id = ? AND (match_user_id_from = ? OR match_user_id_to = ?)",
+        [matchId, userID, userID]
+    );
+    // @ts-ignore
+    const row = matchRows[0];
+    if (!row) return { ok: false, message: "Match not found or no access." };
+    if (blockedMatchStatuses.includes(String(row.match_status))) {
+        return { ok: false, message: "This match can no longer receive messages." };
+    }
+    const otherUserID = String(row.match_user_id_from) === String(userID) ? row.match_user_id_to : row.match_user_id_from;
+    return { ok: true, otherUserID };
+}
+
 // Relay a chat notification to a match partner's socket room. Used by
 // SocketClient.emit() right after a message is persisted via pushConversation.
 realtimedata_router.post('/pushUser/:userID', async (req, res) => {
@@ -127,6 +149,10 @@ export function setupRealtime(io) {
 
     io.on('connection', (socket) => {
         const userID = socket.data.userID;
+        // Match rooms (`match-{matchId}`) this socket has joined -- tracked so
+        // disconnect can announce "peer-left" to each one, since by the time
+        // 'disconnect' fires socket.io has already dropped room membership.
+        socket.data.matchRooms = new Set();
         console.log(`🟩 [SOCKET] CONNECTED -> socket=${socket.id} userID=${userID} transport=${socket.conn.transport.name}`);
 
         // Join the caller's own room -- the only room a socket ever belongs to.
@@ -153,6 +179,41 @@ export function setupRealtime(io) {
                 timestamp: new Date().toISOString()
             });
         });
+
+        // Join a match's conversation room, used by the Conversations screen to
+        // show a live presence dot (connected / partner in room / partner absent).
+        socket.on('join-match-room', async ({ matchId } = {}) => {
+            if (!matchId) return;
+            try {
+                const participant = await loadActiveMatchParticipant(matchId, userID);
+                if (!participant.ok) {
+                    socket.emit('match-room-error', { matchId, message: participant.message });
+                    return;
+                }
+
+                const roomName = `match-${matchId}`;
+                socket.join(roomName);
+                socket.data.matchRooms.add(matchId);
+
+                const socketsInRoom = await io.in(roomName).fetchSockets();
+                const peerPresent = socketsInRoom.some((s) => String(s.data.userID) === String(participant.otherUserID) && s.id !== socket.id);
+
+                socket.emit('match-room-status', { matchId, peerPresent });
+                socket.to(roomName).emit('peer-joined', { matchId, userID });
+            } catch (error) {
+                tools.serverLog(`Error in join-match-room: ${error}`, 'realtimedata-joinMatchRoom-0');
+            }
+        });
+
+        // Leave a match's conversation room (screen blur/unmount).
+        socket.on('leave-match-room', ({ matchId } = {}) => {
+            if (!matchId) return;
+            const roomName = `match-${matchId}`;
+            socket.leave(roomName);
+            socket.data.matchRooms.delete(matchId);
+            socket.to(roomName).emit('peer-left', { matchId, userID });
+        });
+
         // Disconnect handler
         socket.on('disconnect', (reason) => {
             console.log(`🟨 [SOCKET] DISCONNECTED -> socket=${socket.id} userID=${userID} reason=${reason}`);
@@ -161,6 +222,9 @@ export function setupRealtime(io) {
                 socketId: socket.id,
                 reason
             });
+            for (const matchId of socket.data.matchRooms) {
+                socket.to(`match-${matchId}`).emit('peer-left', { matchId, userID });
+            }
         });
         // Error handler
         socket.on('error', (error) => {

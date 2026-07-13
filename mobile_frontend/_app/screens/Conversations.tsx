@@ -90,7 +90,9 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     const inputTextRef = useRef<TextInput>(null);
     const [isUploadingMedia, setIsUploadingMedia] = useState(false);
     const [reloadIfRealtimeData_File, setReloadIfRealtimeData_File] = useState<boolean>(false);
- 
+    const [socketConnected, setSocketConnected] = useState<boolean>(SocketClient.isConnected());
+    const [peerPresent, setPeerPresent] = useState<boolean>(false);
+
     const bottomSheet_convotools = {
         ref: useRef<BottomSheet>(null), snap: useMemo(() => ['35%'], [])
     };
@@ -128,6 +130,49 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             }, ...getConversations]);
         }
     }, [route?.params?.realtimedata])
+
+    // Live presence dot: join this match's socket room so the server can tell us
+    // whether the other participant is also in the conversation right now.
+    useEffect(() => {
+        const matchId = route.params?.matchId;
+        if (!matchId) return;
+
+        const listenerId = `conversation-presence-${matchId}`;
+        setSocketConnected(SocketClient.isConnected());
+
+        SocketClient.addListener(listenerId, (data: any) => {
+            switch (data?.event) {
+                case 'connect':
+                    setSocketConnected(true);
+                    // Rejoin on reconnect -- the server-side room membership was dropped.
+                    SocketClient.socketEmit('join-match-room', { matchId });
+                    break;
+                case 'disconnect':
+                case 'connect_error':
+                    setSocketConnected(false);
+                    setPeerPresent(false);
+                    break;
+                case 'match-room-status':
+                    if (data.matchId === matchId) setPeerPresent(Boolean(data.peerPresent));
+                    break;
+                case 'peer-joined':
+                    if (data.matchId === matchId) setPeerPresent(true);
+                    break;
+                case 'peer-left':
+                    if (data.matchId === matchId) setPeerPresent(false);
+                    break;
+            }
+        });
+
+        if (SocketClient.isConnected()) {
+            SocketClient.socketEmit('join-match-room', { matchId });
+        }
+
+        return () => {
+            SocketClient.socketEmit('leave-match-room', { matchId });
+            SocketClient.removeListener(listenerId);
+        };
+    }, [route.params?.matchId]);
 
     // profile
     useEffect(() => {
@@ -802,11 +847,16 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
 
 
 
+    // red = our socket is disconnected, yellow = connected but the other person
+    // isn't in this conversation right now, green = both are here.
+    const presenceColor = !socketConnected ? '#ff3b30' : (peerPresent ? '#34c759' : '#f5a623');
+
     useLayoutEffect(() => {
         navigation.setOptions({
             headerTitleAlign: 'left',
             headerTitle: () => <View style={{ alignItems: "center", flexDirection: "row", gap: 5 }}>
                 <Text style={{ fontSize: 18, fontWeight: 'bold', textTransform: "capitalize" }}>{getUser2Deets?.fullname}</Text>
+                <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: presenceColor }} />
                 {getUser2Deets?.verified ? <IonIcon name="checkmark-done-circle-sharp" size={20} color={colors.accent} /> : <></>}
             </View>,
 
@@ -843,7 +893,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             </View>
 
         });
-    }, [getUser2Deets]);
+    }, [getUser2Deets, presenceColor]);
 
 
 
@@ -1232,7 +1282,10 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                         {getUser2Deets?.image?.p ? <FastImage source={{ uri: imageDomain + getUser2Deets?.image?.p, cache: FastImage.cacheControl.immutable }}
                             style={{ width: 80, height: 80, borderRadius: 50 }} /> : <View style={{ width: 52, height: 52, borderRadius: 12, backgroundColor: colors.border }} />}
                         <View style={{ flex: 1, gap: 4 }}>
-                            <Text style={{ fontSize: 16, fontWeight: 'bold', textTransform: "capitalize" }}>{getUser2Deets?.fullname || "Your match"}</Text>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                                <Text style={{ fontSize: 16, fontWeight: 'bold', textTransform: "capitalize" }}>{getUser2Deets?.fullname || "Your match"}</Text>
+                                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: presenceColor }} />
+                            </View>
                             <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
                                 {getUser2Deets?.city && <Text style={{ color: colors.textSecondary }}><IonIcon name="location-outline" size={14} color={colors.accent} /> {getUser2Deets?.city}</Text>}
                                 {getUser2Deets?.verified && <View style={{ backgroundColor: colors.backgroundSecondary, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, flexDirection: "row", alignItems: "center", gap: 4 }}>

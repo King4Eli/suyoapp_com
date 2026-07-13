@@ -214,7 +214,8 @@ export const __init__app = async (): Promise<void> => {
   // 222222
   // connect with socket for realtime info
   (async () => {
-    if (notSessionAndNavigation){ 
+    console.log(`🟨 [INIT] socket-connect step -> notSessionAndNavigation=${notSessionAndNavigation}`);
+    if (notSessionAndNavigation){
       Toastx.show({
         message: "Session not found.",
         type: 'info'
@@ -222,11 +223,12 @@ export const __init__app = async (): Promise<void> => {
       return;
     }
 
-    const getProfile = await cacheStorage.getCurrentUserProfile();
-    //console.log("For socket", getProfile)
-    const userId = getProfile?.user_id;
-    if (!userId) return;
-    SocketClient.connect(userId, (data) => {
+    try {
+      const getProfile = await cacheStorage.getCurrentUserProfile();
+      const userId = getProfile?.profile?.id;
+      console.log(`🟨 [INIT] socket-connect step -> gotProfile=${Boolean(getProfile)} userId=${userId}`);
+      if (!userId) return;
+      SocketClient.connect(userId, (data) => {
       const retrivedData = data?.message;
       if (data.event === 'message') {
         if (retrivedData?.type !== "single-convo") return;
@@ -266,7 +268,17 @@ export const __init__app = async (): Promise<void> => {
           }
         }
       }
-    });
+      });
+    } catch (error: any) {
+      console.log(`🔴 [INIT] socket-connect step FAILED -> ${error?.message || String(error)}`);
+      xxa_logggingReport({
+        type: "function",
+        extra: error?.message || String(error),
+        useraction: 'initSocketConnect',
+        logMessage: error?.message || String(error),
+        stackTrace: error
+      });
+    }
   })();
 }
 

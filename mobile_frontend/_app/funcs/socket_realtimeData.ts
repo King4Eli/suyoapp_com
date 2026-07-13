@@ -7,6 +7,36 @@ import { sessionManager } from "./SessionContext";
 export class SocketClient {
     private static socket: any;
     private static callbacks: Map<string, Function> = new Map();
+    // Secondary subscribers (e.g. a focused Conversations screen watching connection/
+    // presence events) that get every dispatch alongside the primary per-user callback.
+    private static listeners: Map<string, Function> = new Map();
+
+    private static dispatch(payload: any) {
+        for (const callback of this.callbacks.values()) {
+            callback(payload);
+        }
+        for (const listener of this.listeners.values()) {
+            listener(payload);
+        }
+    }
+
+    static addListener(id: string, callback: (data: any) => void) {
+        this.listeners.set(id, callback);
+    }
+
+    static removeListener(id: string) {
+        this.listeners.delete(id);
+    }
+
+    static isConnected() {
+        return Boolean(this.socket?.connected);
+    }
+
+    // Direct socket.io emit (join/leave rooms etc.) -- distinct from emit() below,
+    // which relays through the HTTP API instead of the live socket connection.
+    static socketEmit(event: string, data?: any) {
+        this.socket?.emit(event, data);
+    }
 
     static connect(userID: string, callback?: (data: any) => void) {
         console.log(`🟨 [SOCKET] connect() called -> userID=${userID} host=${hostServer()} alreadyConnected=${Boolean(this.socket?.connected)}`);
@@ -79,45 +109,29 @@ export class SocketClient {
             console.log('✅ Connected! Socket ID:', this.socket.id);
             console.log('Transport:', this.socket.io.engine.transport.name);
 
-            // Trigger callback on connect
-            const callbackId = `user-${userID}`;
-            const callback = this.callbacks.get(callbackId);
-            if (callback) {
-                callback({
-                    connected: true,
-                    socketId: this.socket.id,
-                    userID: userID,
-                    event: 'connect'
-                });
-            }
+            this.dispatch({
+                connected: true,
+                socketId: this.socket.id,
+                userID: userID,
+                event: 'connect'
+            });
         });
 
         this.socket.on('connected', (data: any) => {
-
-            // Trigger callback on server welcome
-            const callbackId = `user-${userID}`;
-            const callback = this.callbacks.get(callbackId);
-            if (callback) {
-                callback({
-                    ...data,
-                    event: 'connected'
-                });
-            }
+            this.dispatch({
+                ...data,
+                event: 'connected'
+            });
         });
 
         this.socket.on('connect_error', (error: any) => {
             console.log('🔴 Connection error:', error.message);
 
-            // Trigger callback on error
-            const callbackId = `user-${userID}`;
-            const callback = this.callbacks.get(callbackId);
-            if (callback) {
-                callback({
-                    error: error.message,
-                    event: 'connect_error',
-                    connected: false
-                });
-            }
+            this.dispatch({
+                error: error.message,
+                event: 'connect_error',
+                connected: false
+            });
 
             // Fallback transport handling
             if (this.socket.io.opts.transports?.[0] === 'websocket') {
@@ -126,70 +140,45 @@ export class SocketClient {
         });
 
         this.socket.on('message', (msg: any) => {
-
-            // Trigger callback on message
-            const callbackId = `user-${userID}`;
-            const callback = this.callbacks.get(callbackId);
-            if (callback) {
-                callback({
-                    ...msg,
-                    event: 'message'
-                });
-            }
+            this.dispatch({
+                ...msg,
+                event: 'message'
+            });
         });
 
         this.socket.on('user-message', (data: any) => {
-
-            const callbackId = `user-${userID}`;
-            const callback = this.callbacks.get(callbackId);
-            if (callback) {
-                callback({
-                    ...data,
-                    event: 'user-message'
-                });
-            }
+            this.dispatch({
+                ...data,
+                event: 'user-message'
+            });
         });
 
         this.socket.on('broadcast', (data: any) => {
-
-            const callbackId = `user-${userID}`;
-            const callback = this.callbacks.get(callbackId);
-            if (callback) {
-                callback({
-                    ...data,
-                    event: 'broadcast'
-                });
-            }
+            this.dispatch({
+                ...data,
+                event: 'broadcast'
+            });
         });
 
         // Handle any other events dynamically
         this.socket.onAny((event: string, data: any) => {
             if (!['connect', 'connected', 'connect_error', 'message', 'user-message', 'broadcast'].includes(event)) {
                 // console.log(`📨 Event [${event}]:`, data);
-
-                const callbackId = `user-${userID}`;
-                const callback = this.callbacks.get(callbackId);
-                if (callback) {
-                    callback({
-                        ...data,
-                        event: event
-                    });
-                }
+                this.dispatch({
+                    ...data,
+                    event: event
+                });
             }
         });
 
         this.socket.on('disconnect', (reason: any) => {
             console.log('🔌 Disconnected:', reason);
 
-            const callbackId = `user-${userID}`;
-            const callback = this.callbacks.get(callbackId);
-            if (callback) {
-                callback({
-                    event: 'disconnect',
-                    reason: reason,
-                    connected: false
-                });
-            }
+            this.dispatch({
+                event: 'disconnect',
+                reason: reason,
+                connected: false
+            });
         });
     }
 
@@ -202,6 +191,7 @@ export class SocketClient {
             this.socket.disconnect();
             this.socket = null;
             this.callbacks.clear();
+            this.listeners.clear();
             //console.log('Socket disconnected and callbacks cleared');
         }
     }
