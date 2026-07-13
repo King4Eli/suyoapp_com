@@ -28,4 +28,4 @@ services:
     volumes:
       - ./web_ui:/var/www/html
     ports:
-      - "2002:5173"
+      - "2004:5173"

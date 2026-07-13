@@ -1,10 +1,11 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LottieView from 'lottie-react-native';
 import { _http_request, hostServer } from '../funcs/functions';
 import { resourceMap } from '../funcs/static';
+import { useTheme, ThemeColors } from '../funcs/theme';
 
 const STATUS_UI: Record<number, { label: string; color: string; bg: string }> = {
     0: { label: 'Pending', color: '#92400e', bg: '#fef3c7' },
@@ -22,6 +23,8 @@ const formatDate = (value: string) =>
         : '';
 
 export const Screen_BillingHistory = () => {
+    const { colors } = useTheme();
+    const stylesx = useMemo(() => createStylesx(colors), [colors]);
     const [history, setHistory] = useState<any[] | null>(null);
 
     useFocusEffect(
@@ -81,16 +84,17 @@ export const Screen_BillingHistory = () => {
     );
 };
 
-const stylesx = StyleSheet.create({
+function createStylesx(colors: ThemeColors) {
+    return StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.background,
     },
     loadingWrap: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#fff',
+        backgroundColor: colors.background,
     },
     listContent: {
         padding: 16,
@@ -101,31 +105,31 @@ const stylesx = StyleSheet.create({
         alignItems: 'center',
     },
     emptyText: {
-        color: '#64748b',
+        color: colors.textSecondary,
         fontSize: 14,
     },
     row: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
         borderRadius: 16,
         padding: 14,
         gap: 12,
-        shadowColor: '#0f172a',
+        shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.05,
         shadowRadius: 12,
         elevation: 2,
     },
     rowTitle: {
-        color: '#0f172a',
+        color: colors.text,
         fontSize: 14,
         fontWeight: '700',
         textTransform: 'capitalize',
     },
     rowDate: {
-        color: '#94a3b8',
+        color: colors.textTertiary,
         fontSize: 12,
         marginTop: 2,
     },
@@ -134,7 +138,7 @@ const stylesx = StyleSheet.create({
         gap: 6,
     },
     rowAmount: {
-        color: '#0f172a',
+        color: colors.text,
         fontSize: 14,
         fontWeight: '700',
     },
@@ -147,4 +151,5 @@ const stylesx = StyleSheet.create({
         fontSize: 11,
         fontWeight: '700',
     },
-});
+    });
+}

@@ -12,6 +12,7 @@ import { Toastx } from '../funcs/customNotification';
 import { Loaderx } from '../funcs/functions_stateful';
 import { namer } from '../funcs/static';
 import { sessionManager } from '../funcs/SessionContext';
+import { useTheme, ThemeColors } from '../funcs/theme';
 
 type SignupData = {
   phoneNumber: string;
@@ -133,6 +134,8 @@ const mapperToOptions = (mapper: any, keys: string[], fallback: MapperOption[]) 
 
 
 export const Auth_Signup = ({route}:{route: any}) => {
+  const { colors } = useTheme();
+  const stylesx = useMemo(() => createStylesx(colors), [colors]);
   const initialSignupData: SignupData = {
   phoneNumber:route.params?.phone ?? '',
   verificationCode: '',
@@ -605,8 +608,8 @@ export const Auth_Signup = ({route}:{route: any}) => {
 
   const renderIntentScreen = () =>
     renderStepShell(
-      <StepScroll>
-        <StepHeader eyebrow="Intent" title="What are you looking for?" />
+      <StepScroll stylesx={stylesx}>
+        <StepHeader eyebrow="Intent" title="What are you looking for?" stylesx={stylesx} />
         <View style={stylesx.optionStack}>
           {getMapper.intent.map((intent, index) => (
             <OptionCard
@@ -616,6 +619,8 @@ export const Auth_Signup = ({route}:{route: any}) => {
               icon={['heart-outline', 'glass-cocktail', 'account-group-outline', 'compass-outline'][index]}
               selected={signupData.intent === intent.value}
               onPress={() => updateSignupData('intent', intent.value)}
+              colors={colors}
+              stylesx={stylesx}
             />
           ))}
         </View>
@@ -625,32 +630,32 @@ export const Auth_Signup = ({route}:{route: any}) => {
   const renderBasicsScreen = () =>
     renderStepShell(
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <StepScroll>
-          <StepHeader eyebrow="Basics" title="Tell us about you" helper="Keep it simple. You can edit these later." />
+        <StepScroll stylesx={stylesx}>
+          <StepHeader eyebrow="Basics" title="Tell us about you" helper="Keep it simple. You can edit these later." stylesx={stylesx} />
           <View style={stylesx.card}>
-            <FieldLabel label="First name" />
+            <FieldLabel label="First name" stylesx={stylesx} />
             <TextInput
               style={stylesx.input}
               placeholder="Alex"
-              placeholderTextColor="#9a9aae"
+              placeholderTextColor={colors.placeholder}
               value={signupData.firstName}
               onChangeText={value => updateSignupData('firstName', value)}
               maxLength={28}
               autoCapitalize="words"
             />
 
-            <FieldLabel label="Birthday" helper="YYYY-MM-DD" />
+            <FieldLabel label="Birthday" helper="YYYY-MM-DD" stylesx={stylesx} />
             <TextInput
               style={stylesx.input}
               placeholder="1998-04-22"
-              placeholderTextColor="#9a9aae"
+              placeholderTextColor={colors.placeholder}
               value={signupData.birthday}
               onChangeText={value => updateSignupData('birthday', formatBirthday(value))}
               keyboardType="number-pad"
               maxLength={10}
             />
 
-            <FieldLabel label="Gender" />
+            <FieldLabel label="Gender" stylesx={stylesx} />
             <View style={stylesx.chipWrap}>
               {getMapper.gender.map(gender => (
                 <Chip
@@ -658,11 +663,12 @@ export const Auth_Signup = ({route}:{route: any}) => {
                   label={gender.label}
                   selected={signupData.gender === gender.value}
                   onPress={() => updateSignupData('gender', gender.value)}
+                  stylesx={stylesx}
                 />
               ))}
             </View>
 
-            <FieldLabel label="Interested in" />
+            <FieldLabel label="Interested in" stylesx={stylesx} />
             <View style={stylesx.chipWrap}>
               {getMapper.interestedIn.map(option => (
                 <Chip
@@ -670,6 +676,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
                   label={option.label}
                   selected={signupData.interestedIn === option.value}
                   onPress={() => updateSignupData('interestedIn', option.value)}
+                  stylesx={stylesx}
                 />
               ))}
             </View>
@@ -680,8 +687,8 @@ export const Auth_Signup = ({route}:{route: any}) => {
 
   const renderPhotosScreen = () =>
     renderStepShell(
-      <StepScroll>
-        <StepHeader eyebrow="Photos" title="Add up to 6 photos" helper="At least two photos are required." />
+      <StepScroll stylesx={stylesx}>
+        <StepHeader eyebrow="Photos" title="Add up to 6 photos" helper="At least two photos are required." stylesx={stylesx} />
         <View style={stylesx.photoGrid}>
           {Array.from({ length: 6 }).map((_, index) => {
             const photoUri = signupData.photos[index];
@@ -708,7 +715,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
                   </>
                 ) : (
                   <View style={stylesx.emptyPhoto}>
-                    <MaterialCommunityIcons name="plus" size={26} color="#e8546f" />
+                    <MaterialCommunityIcons name="plus" size={26} color={colors.primary} />
                     <Text style={stylesx.emptyPhotoText}>{index === 0 ? 'Main photo' : 'Add photo'}</Text>
                   </View>
                 )}
@@ -717,7 +724,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
           })}
         </View>
         <TouchableOpacity style={stylesx.secondaryButton} onPress={addPhoto}>
-          <MaterialCommunityIcons name="image-plus" size={20} color="#e8546f" />
+          <MaterialCommunityIcons name="image-plus" size={20} color={colors.primary} />
           <Text style={stylesx.secondaryButtonText}>Upload Photos</Text>
         </TouchableOpacity>
       </StepScroll>,
@@ -725,13 +732,13 @@ export const Auth_Signup = ({route}:{route: any}) => {
 
   const renderBioScreen = () =>
     renderStepShell(
-      <StepScroll>
-        <StepHeader eyebrow="Bio" title="Write a short bio" helper="A few specific details beat a long resume." />
+      <StepScroll stylesx={stylesx}>
+        <StepHeader eyebrow="Bio" title="Write a short bio" helper="A few specific details beat a long resume." stylesx={stylesx} />
         <View style={stylesx.card}>
           <TextInput
             style={[stylesx.input, stylesx.bioInput]}
             placeholder="A tiny intro that makes someone want to say hi..."
-            placeholderTextColor="#9a9aae"
+            placeholderTextColor={colors.placeholder}
             value={signupData.bio}
             onChangeText={value => updateSignupData('bio', value.slice(0, 240))}
             multiline
@@ -754,8 +761,8 @@ export const Auth_Signup = ({route}:{route: any}) => {
 
   // const renderInterestsScreen = () =>
   //   renderStepShell(
-  //     <StepScroll>
-  //       <StepHeader eyebrow="Interests" title="Choose at least 3" helper={`${signupData.interests.length}/3 selected`} />
+  //     <StepScroll stylesx={stylesx}>
+  //       <StepHeader eyebrow="Interests" title="Choose at least 3" helper={`${signupData.interests.length}/3 selected`} stylesx={stylesx} />
   //       <View style={stylesx.card}>
   //         <View style={stylesx.chipWrap}>
   //           {getMapper.interests.map(interest => (
@@ -775,7 +782,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
     renderStepShell(
       <View style={stylesx.centerPage}>
         <View style={stylesx.locationIcon}>
-          <MaterialCommunityIcons name="map-marker-radius-outline" size={52} color="#e8546f" />
+          <MaterialCommunityIcons name="map-marker-radius-outline" size={52} color={colors.primary} />
         </View>
         <Text style={stylesx.heroTitle}>Find people nearby.</Text>
         <Text style={stylesx.heroCopy}>We use your location to show better matches.</Text>
@@ -813,14 +820,14 @@ export const Auth_Signup = ({route}:{route: any}) => {
   const verifyPhonenumber = () =>
     renderStepShell(
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <StepScroll>
-          <StepHeader eyebrow="Phone" title="Verify your number" helper="We'll use this to keep accounts real." />
+        <StepScroll stylesx={stylesx}>
+          <StepHeader eyebrow="Phone" title="Verify your number" helper="We'll use this to keep accounts real." stylesx={stylesx} />
           <View style={stylesx.card}>
-            <FieldLabel label="Phone number" />
+            <FieldLabel label="Phone number" stylesx={stylesx} />
             <TextInput
               style={stylesx.input}
               placeholder="(555) 123-4567"
-              placeholderTextColor="#9a9aae"
+              placeholderTextColor={colors.placeholder}
               value={signupData.phoneNumber}
               onChangeText={value => {
                 updateSignupData('phoneNumber', formatPhoneNumber(value));
@@ -836,7 +843,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
               style={[stylesx.secondaryButton, resendCooldownSeconds > 0 && stylesx.secondaryButtonDisabled]}
               onPress={sendVerificationCode}
               disabled={resendCooldownSeconds > 0}>
-              <MaterialCommunityIcons name="message-processing-outline" size={20} color="#e8546f" />
+              <MaterialCommunityIcons name="message-processing-outline" size={20} color={colors.primary} />
               <Text style={stylesx.secondaryButtonText}>
                 {resendCooldownSeconds > 0
                   ? `Resend in ${formatCooldown(resendCooldownSeconds)}`
@@ -848,11 +855,11 @@ export const Auth_Signup = ({route}:{route: any}) => {
 
             {verificationSent && (
               <>
-                <FieldLabel label="Verification code" helper="6 digits" />
+                <FieldLabel label="Verification code" helper="6 digits" stylesx={stylesx} />
                 <TextInput
                   style={[stylesx.input,{letterSpacing:5}]}
                   placeholder="123456"
-                  placeholderTextColor="#9a9aae"
+                  placeholderTextColor={colors.placeholder}
                   value={signupData.verificationCode}
                   onChangeText={value => {
                     updateSignupData('verificationCode', value.replace(/\D/g, '').slice(0, 6));
@@ -862,7 +869,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
                   maxLength={6}
                 />
                 <TouchableOpacity style={stylesx.secondaryButton} onPress={confirmVerificationCode} disabled={isSubmitting}>
-                  <MaterialCommunityIcons name="check-circle-outline" size={20} color="#e8546f" />
+                  <MaterialCommunityIcons name="check-circle-outline" size={20} color={colors.primary} />
                   <Text style={stylesx.secondaryButtonText}>
                     {signupData.phoneVerified ? 'Verified' : 'Verify Code'}
                   </Text>
@@ -890,7 +897,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
         <TouchableOpacity
           style={ stylesx.backButton   } 
           onPress={step !== 0 ?goBack:()=>{navigationRef.goBack()}}>
-          <MaterialCommunityIcons name="chevron-left" size={26} color="#2d2430" />
+          <MaterialCommunityIcons name="chevron-left" size={26} color={colors.text} />
         </TouchableOpacity>
         <View style={stylesx.progressWrap}>
           <Text style={stylesx.progressText}>
@@ -919,23 +926,23 @@ export const Auth_Signup = ({route}:{route: any}) => {
   );
 };
 
-const OptionCard = ({ label, selected, onPress, icon = 'heart-outline' }: OptionCardProps) => (
+const OptionCard = ({ label, selected, onPress, icon = 'heart-outline', colors, stylesx }: OptionCardProps & { colors: ThemeColors; stylesx: any }) => (
   <TouchableOpacity style={[stylesx.optionCard, selected && stylesx.optionCardSelected]} onPress={onPress}>
     <View style={[stylesx.optionIcon, selected && stylesx.optionIconSelected]}>
-      <MaterialCommunityIcons name={icon} size={22} color={selected ? '#ffffff' : '#e8546f'} />
+      <MaterialCommunityIcons name={icon} size={22} color={selected ? '#ffffff' : colors.primary} />
     </View>
     <Text style={[stylesx.optionText, selected && stylesx.optionTextSelected, {textTransform:"capitalize"}]}>{label}</Text>
-    {selected && <MaterialCommunityIcons name="check-circle" size={22} color="#e8546f" />}
+    {selected && <MaterialCommunityIcons name="check-circle" size={22} color={colors.primary} />}
   </TouchableOpacity>
 );
 
-const Chip = ({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) => (
+const Chip = ({ label, selected, onPress, stylesx }: { label: string; selected: boolean; onPress: () => void; stylesx: any }) => (
   <TouchableOpacity style={[stylesx.chip, selected && stylesx.chipSelected]} onPress={onPress}>
     <Text style={[stylesx.chipText, selected && stylesx.chipTextSelected,{textTransform:"capitalize"}]}>{label}</Text>
   </TouchableOpacity>
 );
 
-const StepHeader = ({ eyebrow, title, helper }: { eyebrow: string; title: string; helper?: string }) => (
+const StepHeader = ({ eyebrow, title, helper, stylesx }: { eyebrow: string; title: string; helper?: string; stylesx: any }) => (
   <View style={stylesx.stepHeader}>
     <Text style={stylesx.eyebrow}>{eyebrow}</Text>
     <Text style={stylesx.stepTitle}>{title}</Text>
@@ -943,14 +950,14 @@ const StepHeader = ({ eyebrow, title, helper }: { eyebrow: string; title: string
   </View>
 );
 
-const FieldLabel = ({ label, helper }: { label: string; helper?: string }) => (
+const FieldLabel = ({ label, helper, stylesx }: { label: string; helper?: string; stylesx: any }) => (
   <View style={stylesx.fieldLabelRow}>
     <Text style={stylesx.fieldLabel}>{label}</Text>
     {helper && <Text style={stylesx.fieldHelper}>{helper}</Text>}
   </View>
 );
 
-const StepScroll = ({ children }: { children: React.ReactNode }) => (
+const StepScroll = ({ children, stylesx }: { children: React.ReactNode; stylesx: any }) => (
   <ScrollView
     style={{ flex: 1 }}
     showsVerticalScrollIndicator={false}
@@ -960,10 +967,11 @@ const StepScroll = ({ children }: { children: React.ReactNode }) => (
   </ScrollView>
 );
 
-const stylesx = StyleSheet.create({
+function createStylesx(colors: ThemeColors) {
+  return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff8fa',
+    backgroundColor: colors.background,
   },
   topBar: {
     flexDirection: 'row',
@@ -979,8 +987,8 @@ const stylesx = StyleSheet.create({
     borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ffffff',
-    shadowColor: '#2b1020',
+    backgroundColor: colors.surface,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -993,19 +1001,19 @@ const stylesx = StyleSheet.create({
   progressText: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#7d6770',
+    color: colors.textSecondary,
     textTransform: 'uppercase',
   },
   progressTrack: {
     height: 7,
     borderRadius: 7,
     overflow: 'hidden',
-    backgroundColor: '#f2dbe2',
+    backgroundColor: colors.border,
   },
   progressFill: {
     height: '100%',
     borderRadius: 7,
-    backgroundColor: '#e8546f',
+    backgroundColor: colors.primary,
   },
   page: {
     width: screenWidth,
@@ -1028,10 +1036,10 @@ const stylesx = StyleSheet.create({
     width: 82,
     height: 82,
     borderRadius: 41,
-    backgroundColor: '#e8546f',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#e8546f',
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 0.25,
     shadowRadius: 20,
@@ -1041,23 +1049,23 @@ const stylesx = StyleSheet.create({
     fontSize: 34,
     lineHeight: 40,
     fontWeight: '900',
-    color: '#2d2430',
+    color: colors.text,
     textAlign: 'center',
   },
   heroCopy: {
     fontSize: 16,
     lineHeight: 23,
-    color: '#74636b',
+    color: colors.textSecondary,
     textAlign: 'center',
     maxWidth: 330,
   },
   previewCard: {
     width: '100%',
     maxWidth: 310,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderRadius: 18,
     padding: 12,
-    shadowColor: '#2b1020',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.12,
     shadowRadius: 24,
@@ -1066,7 +1074,7 @@ const stylesx = StyleSheet.create({
   previewPhoto: {
     height: 240,
     borderRadius: 14,
-    backgroundColor: '#e8546f',
+    backgroundColor: colors.primary,
   },
   previewBody: {
     paddingTop: 12,
@@ -1074,31 +1082,31 @@ const stylesx = StyleSheet.create({
   previewName: {
     fontSize: 22,
     fontWeight: '900',
-    color: '#2d2430',
+    color: colors.text,
   },
   previewMeta: {
     marginTop: 4,
     fontSize: 14,
-    color: '#74636b',
+    color: colors.textSecondary,
   },
   stepHeader: {
     gap: 8,
     marginBottom: 2,
   },
   eyebrow: {
-    color: '#e8546f',
+    color: colors.primary,
     fontSize: 13,
     fontWeight: '900',
     textTransform: 'uppercase',
   },
   stepTitle: {
-    color: '#2d2430',
+    color: colors.text,
     fontSize: 30,
     lineHeight: 36,
     fontWeight: '900',
   },
   stepHelper: {
-    color: '#74636b',
+    color: colors.textSecondary,
     fontSize: 15,
     lineHeight: 21,
   },
@@ -1108,22 +1116,22 @@ const stylesx = StyleSheet.create({
   optionCard: {
     minHeight: 74,
     borderRadius: 18,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#f1dce3',
+    borderColor: colors.border,
     padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    shadowColor: '#2b1020',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.08,
     shadowRadius: 16,
     elevation: 3,
   },
   optionCardSelected: {
-    borderColor: '#e8546f',
-    backgroundColor: '#fff1f5',
+    borderColor: colors.primary,
+    backgroundColor: colors.backgroundSecondary,
   },
   optionIcon: {
     width: 42,
@@ -1131,26 +1139,26 @@ const stylesx = StyleSheet.create({
     borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ffe4eb',
+    backgroundColor: colors.backgroundSecondary,
   },
   optionIconSelected: {
-    backgroundColor: '#e8546f',
+    backgroundColor: colors.primary,
   },
   optionText: {
     flex: 1,
     fontSize: 16,
-    color: '#2d2430',
+    color: colors.text,
     fontWeight: '800',
   },
   optionTextSelected: {
-    color: '#e8546f',
+    color: colors.primary,
   },
   card: {
     borderRadius: 18,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     padding: 16,
     gap: 12,
-    shadowColor: '#2b1020',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.08,
     shadowRadius: 18,
@@ -1163,24 +1171,24 @@ const stylesx = StyleSheet.create({
     marginTop: 4,
   },
   fieldLabel: {
-    color: '#2d2430',
+    color: colors.text,
     fontSize: 13,
     fontWeight: '900',
     textTransform: 'uppercase',
   },
   fieldHelper: {
-    color: '#9b8790',
+    color: colors.textTertiary,
     fontSize: 12,
     fontWeight: '700',
   },
   input: {
     minHeight: 52,
     borderRadius: 14,
-    backgroundColor: '#fbf5f7',
+    backgroundColor: colors.backgroundSecondary,
     borderWidth: 1,
-    borderColor: '#efdbe2',
+    borderColor: colors.border,
     paddingHorizontal: 14,
-    color: '#2d2430',
+    color: colors.text,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -1191,7 +1199,7 @@ const stylesx = StyleSheet.create({
   },
   characterCount: {
     alignSelf: 'flex-end',
-    color: '#9b8790',
+    color: colors.textTertiary,
     fontWeight: '700',
   },
   chipWrap: {
@@ -1203,16 +1211,16 @@ const stylesx = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: 10,
     paddingHorizontal: 15,
-    backgroundColor: '#fbf5f7',
+    backgroundColor: colors.backgroundSecondary,
     borderWidth: 1,
-    borderColor: '#efdbe2',
+    borderColor: colors.border,
   },
   chipSelected: {
-    backgroundColor: '#e8546f',
-    borderColor: '#e8546f',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   chipText: {
-    color: '#5c4c54',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '800',
   },
@@ -1229,17 +1237,17 @@ const stylesx = StyleSheet.create({
     aspectRatio: 0.78,
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#efdbe2',
-    shadowColor: '#2b1020',
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.07,
     shadowRadius: 14,
     elevation: 3,
   },
   primaryPhotoSlot: {
-    borderColor: '#e8546f',
+    borderColor: colors.primary,
   },
   emptyPhoto: {
     flex: 1,
@@ -1248,7 +1256,7 @@ const stylesx = StyleSheet.create({
     gap: 8,
   },
   emptyPhotoText: {
-    color: '#8f747f',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '800',
     textAlign: 'center',
@@ -1281,8 +1289,8 @@ const stylesx = StyleSheet.create({
     height: 52,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#f2c9d4',
-    backgroundColor: '#ffffff',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -1292,7 +1300,7 @@ const stylesx = StyleSheet.create({
     opacity: 0.55,
   },
   secondaryButtonText: {
-    color: '#e8546f',
+    color: colors.primary,
     fontSize: 15,
     fontWeight: '900',
   },
@@ -1301,13 +1309,13 @@ const stylesx = StyleSheet.create({
   },
   promptPill: {
     borderRadius: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#efdbe2',
+    borderColor: colors.border,
     padding: 14,
   },
   promptText: {
-    color: '#5c4c54',
+    color: colors.text,
     fontWeight: '800',
     fontSize: 15,
   },
@@ -1315,10 +1323,10 @@ const stylesx = StyleSheet.create({
     width: 104,
     height: 104,
     borderRadius: 52,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#2b1020',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.1,
     shadowRadius: 22,
@@ -1328,10 +1336,10 @@ const stylesx = StyleSheet.create({
     width: 92,
     height: 92,
     borderRadius: 46,
-    backgroundColor: '#28b686',
+    backgroundColor: colors.success,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#28b686',
+    shadowColor: colors.success,
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.22,
     shadowRadius: 20,
@@ -1341,16 +1349,16 @@ const stylesx = StyleSheet.create({
     paddingHorizontal: 18,
     paddingTop: 10,
     paddingBottom: 12,
-    backgroundColor: '#fff8fa',
+    backgroundColor: colors.background,
   },
   primaryButton: {
     width: '100%',
     minHeight: 56,
     borderRadius: 18,
-    backgroundColor: '#e8546f',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#e8546f',
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.24,
     shadowRadius: 18,
@@ -1366,8 +1374,9 @@ const stylesx = StyleSheet.create({
     paddingHorizontal: 20,
   },
   textButtonText: {
-    color: '#74636b',
+    color: colors.textSecondary,
     fontSize: 15,
     fontWeight: '900',
   },
-});
+  });
+}

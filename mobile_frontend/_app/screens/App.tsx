@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -25,7 +25,8 @@ import { namer, resourceMap } from '../funcs/static';
 import { Screen_PurchaseSubscribe } from './Purchase_Subscribe';
 import { __init__app, handleDeepLink, logReport, navigationRef } from '../funcs/functions';
 import { SocketClient } from '../funcs/socket_realtimeData';
-import { Linking, View } from 'react-native';
+import { Linking, StatusBar, View } from 'react-native';
+import { ThemeProvider, useTheme } from '../funcs/theme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Toastx } from '../funcs/customNotification'; 
 import LottieView from 'lottie-react-native';
@@ -42,6 +43,20 @@ const TabBottom = createBottomTabNavigator<any>();
 const MainApp: React.FC = () => {
   const [currentSession, setCurrentSession] = useState<SessionTypes | null>(sessionManager.getCurrentSession());
   const [getAllGood, setAllGood] = useState(false);
+  const { colors, resolvedScheme } = useTheme();
+
+  const navigationTheme = {
+    ...(resolvedScheme === 'dark' ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(resolvedScheme === 'dark' ? DarkTheme.colors : DefaultTheme.colors),
+      primary: colors.primary,
+      background: colors.background,
+      card: colors.surfaceElevated,
+      text: colors.text,
+      border: colors.border,
+      notification: colors.danger,
+    },
+  };
 
   // Handle deep linking to Settings screen
   useEffect(() => {
@@ -129,14 +144,20 @@ const MainApp: React.FC = () => {
 
 
   if (getAllGood === false) {
-    return <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#fff" }}><LottieView source={resourceMap.lottie.infinityLoading} autoPlay loop style={{ width: 220, height: 220 }} /></View>
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background }}>
+        <StatusBar barStyle={colors.statusBarStyle} backgroundColor={colors.background} />
+        <LottieView source={resourceMap.lottie.infinityLoading} autoPlay loop style={{ width: 220, height: 220 }} />
+      </View>
+    );
   }
 
 
 
   return (
     <>
-      <NavigationContainer ref={navigationRef}>
+      <StatusBar barStyle={colors.statusBarStyle} backgroundColor={colors.background} />
+      <NavigationContainer ref={navigationRef} theme={navigationTheme}>
         <Stack.Navigator initialRouteName={currentSession?.x_omi_payload_hash ? "Home" : namer.navigation.login}>
 
           {!currentSession?.x_omi_payload_hash ?
@@ -189,15 +210,17 @@ const MainApp: React.FC = () => {
 
 
 const App = () => (
-  <SafeAreaProvider style={{ flex: 1, position: 'relative' }}>
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <BottomSheetModalProvider>
-        <Loaderx />
-      <MainApp />
-      <Toastx />
-      </BottomSheetModalProvider>
-    </GestureHandlerRootView>
-  </SafeAreaProvider>
+  <ThemeProvider>
+    <SafeAreaProvider style={{ flex: 1, position: 'relative' }}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <BottomSheetModalProvider>
+          <Loaderx />
+        <MainApp />
+        <Toastx />
+        </BottomSheetModalProvider>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
+  </ThemeProvider>
 );
 
 export default App;

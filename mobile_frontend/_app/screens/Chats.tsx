@@ -10,9 +10,11 @@ import MIcon from "react-native-vector-icons/MaterialCommunityIcons";
 import IIcon from 'react-native-vector-icons/Ionicons';
 import FastImage from 'react-native-fast-image'
 import LottieView from 'lottie-react-native';
+import { useTheme } from '../funcs/theme';
 
 
 export function Screen_chat({ navigation }: { navigation: any }) {
+  const { colors } = useTheme();
   const [getProfile, setProfile] = useState<any>(null);
   const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
 
@@ -116,9 +118,9 @@ export function Screen_chat({ navigation }: { navigation: any }) {
   const NoConversationsScreen = () => {
     return (
       <View style={stylesc.emptyState}>
-        <IIcon name="chatbubble-ellipses-outline" size={48} color="#ccc" />
-        <Text style={stylesc.emptyText}>No Conversations Yet</Text>
-        <Text style={stylesc.emptySubtext}>Start chatting with your matches and spark a new connection!</Text>
+        <IIcon name="chatbubble-ellipses-outline" size={48} color={colors.textTertiary} />
+        <Text style={[stylesc.emptyText, { color: colors.textSecondary }]}>No Conversations Yet</Text>
+        <Text style={[stylesc.emptySubtext, { color: colors.textTertiary }]}>Start chatting with your matches and spark a new connection!</Text>
       </View>
     );
   };
@@ -171,15 +173,15 @@ export function Screen_chat({ navigation }: { navigation: any }) {
             paddingVertical: 9,
             borderRadius: 16,
             borderWidth: 1,
-            borderColor: isActive ? '#1d4ed8' : '#e5e7eb',
-            backgroundColor: isActive ? '#e0e7ff' : '#f8fafc'
+            borderColor: isActive ? colors.accent : colors.border,
+            backgroundColor: isActive ? colors.backgroundSecondary : colors.backgroundSecondary
           }}>
-            <Text style={{ color: isActive ? '#1d4ed8' : '#334155', fontWeight: '600', fontSize: 12 }}>{filter.label}</Text>
+            <Text style={{ color: isActive ? colors.accent : colors.textSecondary, fontWeight: '600', fontSize: 12 }}>{filter.label}</Text>
           </Pressable>
         );
       })}
     </ScrollView>
-  ), [activeFilter, filtersList]);
+  ), [activeFilter, filtersList, colors]);
 
 
 
@@ -188,7 +190,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
 
     //if (!hasLikes && !hasNewMatches) return null;
     return (
-      <View style={{ backgroundColor: '#fff', borderRadius: 16, gap: 10, }}>
+      <View style={{ backgroundColor: colors.surface, borderRadius: 16, gap: 10, }}>
         <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
           {hasLikes && (
             <Animated.View style={{ transform: [{ translateY: bounceInterpolate }] }}>
@@ -229,11 +231,11 @@ export function Screen_chat({ navigation }: { navigation: any }) {
                 nestedScrollEnabled
               />
             ) : (
-              <View style={{ flex: 1, height: 180, backgroundColor: '#f8fafc', borderRadius: 16, borderWidth: 1, borderColor: '#e2e8f0', alignItems: 'center', justifyContent: 'center', padding: 12, gap: 6 }}>
-                <IIcon name="sparkles-outline" size={30} color="#94a3b8" />
-                <Text style={{ color: '#0f172a', fontWeight: '700' }}>No new connections yet</Text>
-                <Text style={{ color: '#475569', fontSize: 12, textAlign: 'center' }}>Keep swiping to spark new conversations.</Text>
-                <Pressable onPress={() => navigation.navigate(namer.navigation.peoples)} style={{ marginTop: 4, backgroundColor: '#0ea5e9', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 }}>
+              <View style={{ flex: 1, height: 180, backgroundColor: colors.backgroundSecondary, borderRadius: 16, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', padding: 12, gap: 6 }}>
+                <IIcon name="sparkles-outline" size={30} color={colors.textTertiary} />
+                <Text style={{ color: colors.text, fontWeight: '700' }}>No new connections yet</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 12, textAlign: 'center' }}>Keep swiping to spark new conversations.</Text>
+                <Pressable onPress={() => navigation.navigate(namer.navigation.peoples)} style={{ marginTop: 4, backgroundColor: colors.accent, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 }}>
                   <Text style={{ color: '#fff', fontWeight: '700' }}>Continue swiping</Text>
                 </Pressable>
               </View>
@@ -242,7 +244,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
         </View>
       </View>
     );
-  }, [bounceInterpolate, getCountLikes, getNewMatches, getProfile]);
+  }, [bounceInterpolate, getCountLikes, getNewMatches, getProfile, colors]);
 
 
 
@@ -286,13 +288,13 @@ export function Screen_chat({ navigation }: { navigation: any }) {
   }, []));
 
   if (getNewMatches === null) {
-    return <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#fff" }}><LottieView source={resourceMap.lottie.infinityLoading} autoPlay loop style={{ width: 220, height: 220 }} /></View>
+    return <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background }}><LottieView source={resourceMap.lottie.infinityLoading} autoPlay loop style={{ width: 220, height: 220 }} /></View>
   }
 
   // Replace the entire FlatList section (around line 290-330) with this:
 
   return (
-    <View style={[styles.container, { paddingTop: headerHeight }]}>
+    <View style={[styles.container, { paddingTop: headerHeight, backgroundColor: colors.background }]}>
       <View style={styles.zcircle1} />
       <View style={styles.zcircle2} />
       <View style={styles.zcircle3} />
@@ -305,51 +307,51 @@ export function Screen_chat({ navigation }: { navigation: any }) {
           const isVerified = item?.user_verified;
           const lastMessage = () => {
             if (item?.user_lastmessage?.t === "text") {
-              return <Text style={{ fontSize: 13, color: '#475569', flex: 1, fontWeight: item?.last_message_read ? 400 : 800 }} numberOfLines={1} ellipsizeMode="tail">{item?.user_lastmessage?.str}</Text>
+              return <Text style={{ fontSize: 13, color: colors.textSecondary, flex: 1, fontWeight: item?.last_message_read ? 400 : 800 }} numberOfLines={1} ellipsizeMode="tail">{item?.user_lastmessage?.str}</Text>
             } else if (item?.user_lastmessage?.t === "image") {
               return (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                  <MIcon name="camera-outline" size={18} color="#475569" />
-                  <Text style={{ fontSize: 13, color: '#475569', flex: 1, fontWeight: item?.last_message_read ? 400 : 800 }}>PHOTO</Text>
+                  <MIcon name="camera-outline" size={18} color={colors.textSecondary} />
+                  <Text style={{ fontSize: 13, color: colors.textSecondary, flex: 1, fontWeight: item?.last_message_read ? 400 : 800 }}>PHOTO</Text>
                 </View>
               )
             } else if (item?.user_lastmessage?.t === "audio") {
               return (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
                   <View style={{ flexDirection: "row" }}>
-                    <MIcon name="waveform" size={22} color="#475569" />
-                    <MIcon name="waveform" size={22} color="#475569" style={{ marginLeft: -8 }} />
+                    <MIcon name="waveform" size={22} color={colors.textSecondary} />
+                    <MIcon name="waveform" size={22} color={colors.textSecondary} style={{ marginLeft: -8 }} />
                   </View>
-                  <Text style={{ fontSize: 13, color: '#475569', flex: 1, fontWeight: item?.last_message_read ? 400 : 800 }}>VOICE NOTE</Text>
+                  <Text style={{ fontSize: 13, color: colors.textSecondary, flex: 1, fontWeight: item?.last_message_read ? 400 : 800 }}>VOICE NOTE</Text>
                 </View>
               )
             } else {
-              return <MIcon name="file-outline" size={20} color="#475569" />
+              return <MIcon name="file-outline" size={20} color={colors.textSecondary} />
             }
           };
 
           return (
             <Pressable key={`message-${item?.match_id}-${index}`} onPress={() => { navigation.navigate(namer.navigation.conversation, { matchId: item?.match_id }); }}>
-              <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 12, flexDirection: 'row', gap: 12, alignItems: 'center', borderWidth: 1, borderColor: '#e2e8f0', shadowColor: '#0f172a', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 2 }}>
-                <FastImage style={{ height: 58, width: 58, borderRadius: 16, backgroundColor: '#e2e8f0' }} source={{ uri: String(imageDomain + item?.user_image?.p), cache: FastImage.cacheControl.immutable, }} />
+              <View style={{ backgroundColor: colors.surface, borderRadius: 16, padding: 12, flexDirection: 'row', gap: 12, alignItems: 'center', borderWidth: 1, borderColor: colors.border, shadowColor: colors.shadow, shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 2 }}>
+                <FastImage style={{ height: 58, width: 58, borderRadius: 16, backgroundColor: colors.backgroundSecondary }} source={{ uri: String(imageDomain + item?.user_image?.p), cache: FastImage.cacheControl.immutable, }} />
                 <View style={{ flex: 1, gap: 5 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-                      <Text style={{ fontSize: 16, fontWeight: '700', textTransform: 'capitalize', color: '#0f172a' }} numberOfLines={1}>{item?.user_fullname}</Text>
-                      {isVerified && <IIcon name="checkmark-done-circle-sharp" size={20} color="#4F8EF7" />}
+                      <Text style={{ fontSize: 16, fontWeight: '700', textTransform: 'capitalize', color: colors.text }} numberOfLines={1}>{item?.user_fullname}</Text>
+                      {isVerified && <IIcon name="checkmark-done-circle-sharp" size={20} color={colors.accent} />}
                     </View>
-                    {item?.user_lastmessage_date && <Text style={{ fontSize: 11, color: '#64748b' }}>{help.timeAgo(item?.user_lastmessage_date)}</Text>}
+                    {item?.user_lastmessage_date && <Text style={{ fontSize: 11, color: colors.textSecondary }}>{help.timeAgo(item?.user_lastmessage_date)}</Text>}
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                     {lastMessage()}
                     {isYourTurn && (
-                      <View style={{ backgroundColor: '#e0f2fe', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 }}>
-                        <Text style={{ fontSize: 11, color: '#0369a1', fontWeight: '700' }}>Your turn</Text>
+                      <View style={{ backgroundColor: colors.backgroundSecondary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 }}>
+                        <Text style={{ fontSize: 11, color: colors.accent, fontWeight: '700' }}>Your turn</Text>
                       </View>
                     )}
                   </View>
                   <View style={{ flexDirection: 'row', gap: 8 }}>
-                    {item?.user_distance && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: '#f8fafc' }}><Text style={{ color: '#475569', fontSize: 11 }}>{item.user_distance} away</Text></View>}
+                    {item?.user_distance && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: colors.backgroundSecondary }}><Text style={{ color: colors.textSecondary, fontSize: 11 }}>{item.user_distance} away</Text></View>}
                   </View>
                 </View>
               </View>
@@ -368,8 +370,8 @@ export function Screen_chat({ navigation }: { navigation: any }) {
         ListFooterComponent={
           visibleMessages < filteredMessages.length ? (
             <View style={{ alignItems: 'center', paddingVertical: 12, width: '100%' }}>
-              <ActivityIndicator size="small" color="#1d4ed8" />
-              <Text style={{ marginTop: 6, color: '#475569', fontSize: 12 }}>Loading more conversations...</Text>
+              <ActivityIndicator size="small" color={colors.accent} />
+              <Text style={{ marginTop: 6, color: colors.textSecondary, fontSize: 12 }}>Loading more conversations...</Text>
             </View>
           ) : null
         }

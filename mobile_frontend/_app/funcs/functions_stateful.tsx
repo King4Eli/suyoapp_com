@@ -16,8 +16,8 @@ export const Loaderx = () => {
   useEffect(() => { showLoaderFunc = (opts) => { setLoader(opts); }; }, []);
   if (!getLoader) return null;
   return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.5)', zIndex: 1011, }}>
-    <ActivityIndicator size="large" color="#0000ff" />
-    <Text>Loading...</Text>
+    <ActivityIndicator size="large" color="#fff" />
+    <Text style={{ color: '#fff', marginTop: 8 }}>Loading...</Text>
   </View>;
 };
 Loaderx.show = () => { if (showLoaderFunc) { showLoaderFunc(true); } else { console.warn('Loader show is not mounted yet.'); } };

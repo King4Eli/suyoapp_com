@@ -10,6 +10,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import { useHeaderHeight } from '@react-navigation/elements';
 import FastImage from 'react-native-fast-image';
 import LottieView from 'lottie-react-native';
+import { useTheme, ThemeColors } from '../funcs/theme';
 
 type LikesFilter = 'all' | 'verifiedOnly';
 
@@ -31,6 +32,8 @@ const getAllLikesSortPriority = (item: any) => {
 };
 
 export function Screen_likes({ navigation }: { navigation: any }) {
+    const { colors } = useTheme();
+    const stylesoy = useMemo(() => createStylesoy(colors), [colors]);
     const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
 
     const [getProfile, setProfile] = useState<any>(null);
@@ -209,11 +212,11 @@ export function Screen_likes({ navigation }: { navigation: any }) {
     }, []));
 
     if (getNewLikes === null) {
-        return <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#fff" }}><LottieView source={resourceMap.lottie.infinityLoading} autoPlay loop style={{ width: 220, height: 220 }} /></View>
+        return <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background }}><LottieView source={resourceMap.lottie.infinityLoading} autoPlay loop style={{ width: 220, height: 220 }} /></View>
     }
 
     return (
-        <View style={[styles.container, { paddingTop: headerHeight }]}>
+        <View style={[styles.container, { paddingTop: headerHeight, backgroundColor: colors.background }]}>
 
             <View style={styles.zcircle1} />
             <View style={styles.zcircle2} />
@@ -250,10 +253,10 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                                             paddingVertical: 9,
                                             borderRadius: 16,
                                             borderWidth: 1,
-                                            borderColor: active ? '#1d4ed8' : '#e5e7eb',
-                                            backgroundColor: active ? '#e0e7ff' : '#f8fafc'
+                                            borderColor: active ? colors.accent : colors.border,
+                                            backgroundColor: active ? colors.backgroundSecondary : colors.backgroundSecondary
                                         }}>
-                                            <Text style={{ color: active ? '#1d4ed8' : '#334155', fontWeight: '600', fontSize: 12 }}>{f.label}</Text>
+                                            <Text style={{ color: active ? colors.accent : colors.textSecondary, fontWeight: '600', fontSize: 12 }}>{f.label}</Text>
                                         </Pressable>
                                     );
                                 })}
@@ -309,12 +312,12 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                             </View>
                         )}
                         ListEmptyComponent={<View style={{ paddingVertical: 30, alignItems: 'center' }}>
-                            <Text style={{ color: '#475569' }}>No likes match this filter.</Text>
+                            <Text style={{ color: colors.textSecondary }}>No likes match this filter.</Text>
                         </View>}
                         ListFooterComponent={isLoadingMore ? (
                             <View style={{ alignItems: 'center', paddingVertical: 12, width: '100%' }}>
-                                <ActivityIndicator size="small" color="#1d4ed8" />
-                                <Text style={{ marginTop: 6, color: '#475569', fontSize: 12 }}>Loading more likes...</Text>
+                                <ActivityIndicator size="small" color={colors.accent} />
+                                <Text style={{ marginTop: 6, color: colors.textSecondary, fontSize: 12 }}>Loading more likes...</Text>
                             </View>
                         ) : null}
                         // Optional performance optimizations:
@@ -339,7 +342,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                 <View style={stylesoy.emptyState}>
                     <View style={stylesoy.emptyCard}>
                         <View style={stylesoy.emptyIconWrap}>
-                            <MaterialCommunityIcons name="heart-outline" size={34} color="#db2777" />
+                            <MaterialCommunityIcons name="heart-outline" size={34} color={colors.primary} />
                         </View>
                         <Text style={stylesoy.emptyText}>No new likes at the moment</Text>
                         <Text style={stylesoy.emptySubtext}>Keep your profile active and check back soon for new likes.</Text>
@@ -354,13 +357,14 @@ export function Screen_likes({ navigation }: { navigation: any }) {
     );
 }
 
-const stylesoy = StyleSheet.create({
-
-
+function createStylesoy(colors: ThemeColors) {
+    return StyleSheet.create({
+    // Like-photo cards keep a dark overlay + white text regardless of theme
+    // (same treatment as the swipe deck -- needs to stay legible over photos).
     card: {
         borderRadius: 8,
-        backgroundColor: '#fff', marginBottom: 10,
-        shadowColor: '#000',
+        backgroundColor: colors.surface, marginBottom: 10,
+        shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
@@ -417,13 +421,13 @@ const stylesoy = StyleSheet.create({
     emptyCard: {
         width: '100%',
         maxWidth: 360,
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
         borderRadius: 22,
         paddingVertical: 24,
         paddingHorizontal: 18,
         alignItems: 'center',
         gap: 10,
-        shadowColor: '#0f172a',
+        shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.12,
         shadowRadius: 18,
@@ -433,25 +437,25 @@ const stylesoy = StyleSheet.create({
         width: 62,
         height: 62,
         borderRadius: 31,
-        backgroundColor: '#fce7f3',
+        backgroundColor: colors.backgroundSecondary,
         alignItems: 'center',
         justifyContent: 'center',
     },
     emptyText: {
         fontSize: 21,
         fontWeight: '800',
-        color: '#0f172a',
+        color: colors.text,
         textAlign: 'center',
     },
     emptySubtext: {
         fontSize: 14,
-        color: '#475569',
+        color: colors.textSecondary,
         textAlign: 'center',
         lineHeight: 20,
     },
     emptyActionBtn: {
         marginTop: 4,
-        backgroundColor: '#1d4ed8',
+        backgroundColor: colors.accent,
         paddingVertical: 11,
         paddingHorizontal: 16,
         borderRadius: 12,
@@ -464,4 +468,5 @@ const stylesoy = StyleSheet.create({
     cbsheet_press: {
         padding: 12,
     }
-});
+    });
+}

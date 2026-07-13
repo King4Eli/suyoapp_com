@@ -1,14 +1,17 @@
-import React, { useCallback, useEffect, useLayoutEffect, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import { _http_request, hostServer } from '../funcs/functions';
 import { Toastx } from '../funcs/customNotification';
 import { MAX_INTERESTS, InterestEntry } from './ProfileEdit';
+import { useTheme, ThemeColors } from '../funcs/theme';
 
 type InterestGroup = { category: string; items: Array<{ id_ai: number; interested_in: string }> };
 
 export function Screen_editProfileInterests({ navigation, route }: { navigation: any; route: any }) {
+    const { colors } = useTheme();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const existingInterests: InterestEntry[] = route.params?.existingInterests ?? [];
     const onSave: ((updated: InterestEntry[]) => void) | undefined = route.params?.onSave;
 
@@ -26,7 +29,7 @@ export function Screen_editProfileInterests({ navigation, route }: { navigation:
             headerTitle: () => <Text style={styles.headerTitle}>Interests</Text>,
             headerLeft: () => (
                 <Pressable style={styles.headerButton} onPress={returnWithUpdates} hitSlop={10}>
-                    <IIcon name="chevron-back" size={24} color="#0f172a" />
+                    <IIcon name="chevron-back" size={24} color={colors.text} />
                 </Pressable>
             ),
             headerRight: () => (
@@ -74,7 +77,7 @@ export function Screen_editProfileInterests({ navigation, route }: { navigation:
                 <Text style={styles.countBadge}>{interests.length}/{MAX_INTERESTS} selected</Text>
             </View>
             {isLoading ? (
-                <ActivityIndicator style={{ marginTop: 24 }} color="#e8546f" />
+                <ActivityIndicator style={{ marginTop: 24 }} color={colors.primary} />
             ) : (
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                     {groups.map(({ category, items }) => (
@@ -105,45 +108,47 @@ export function Screen_editProfileInterests({ navigation, route }: { navigation:
     );
 }
 
-const styles = StyleSheet.create({
-    screen: { flex: 1, backgroundColor: '#f8fafc' },
+function createStyles(colors: ThemeColors) {
+    return StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.backgroundSecondary },
     header: {
         flexDirection: 'row',
         justifyContent: 'flex-end',
         paddingHorizontal: 18,
         paddingTop: 12,
     },
-    headerTitle: { fontSize: 18, fontWeight: '900', color: '#0f172a' },
+    headerTitle: { fontSize: 18, fontWeight: '900', color: colors.text },
     headerButton: { paddingHorizontal: 12, paddingVertical: 6 },
-    doneText: { fontSize: 15, fontWeight: '900', color: '#e8546f' },
-    countBadge: { color: '#94a3b8', fontSize: 12, fontWeight: '800' },
+    doneText: { fontSize: 15, fontWeight: '900', color: colors.primary },
+    countBadge: { color: colors.textTertiary, fontSize: 12, fontWeight: '800' },
     scrollContent: { padding: 18, gap: 12, paddingBottom: 40 },
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingTop: 2 },
     chip: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.backgroundSecondary,
         borderRadius: 999,
         paddingHorizontal: 12,
         paddingVertical: 8,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderColor: colors.border,
     },
-    chipSelected: { backgroundColor: '#e8546f', borderColor: '#e8546f' },
-    chipText: { fontSize: 13, color: '#334155', fontWeight: '800' },
+    chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+    chipText: { fontSize: 13, color: colors.textSecondary, fontWeight: '800' },
     chipTextSelected: { color: '#fff', fontWeight: '900' },
     interestCategory: {
         borderRadius: 16,
         overflow: 'hidden',
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderColor: colors.border,
         padding: 12,
         gap: 8,
     },
     interestCategoryTitle: {
-        color: '#0f172a',
+        color: colors.text,
         fontSize: 15,
         fontWeight: '900',
     },
-});
+    });
+}

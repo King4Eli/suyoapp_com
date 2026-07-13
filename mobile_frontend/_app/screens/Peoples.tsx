@@ -4,7 +4,8 @@ import MIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { View, Text, Pressable, ScrollView, Alert, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import { Loaderx, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import { useFocusEffect } from '@react-navigation/native';
-import { styles, namer, colors, resourceMap } from '../funcs/static';
+import { styles, namer, colors as staticColors, resourceMap } from '../funcs/static';
+import { useTheme, ThemeColors } from '../funcs/theme';
 import { _http_request, cacheStorage,    help, hostServer, logReport, screenHeight, sleep } from '../funcs/functions';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
@@ -21,6 +22,8 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withSequ
 
 
 export default function Peoples_Screen({ route, navigation }: { route: any, navigation: any }) {
+    const { colors } = useTheme();
+    const deckStyles = useMemo(() => createDeckStyles(colors), [colors]);
     const [getProfile, setProfile] = useState<any>(null);
 
     const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
@@ -132,8 +135,8 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
             headerTitleAlign: 'left',
             headerTitle: () => <View style={{ paddingVertical: 6, }}>
                 <View style={{ alignItems: "center", flexDirection: "row", gap: 2 }}>
-                    {getPeopleToMatch?.[0]?.user_verified === 1 && <IIcon name="checkmark-done-circle-sharp" size={20} color="#4F8EF7" />}
-                    <Text style={{ fontSize: 20, fontWeight: 'bold', textTransform: "capitalize" }}>{(getPeopleToMatch?.[0]?.user_fullname ?? "") + (getPeopleToMatch?.[0]?.user_bio_dob ? ", " + help.getageFromDOB(getPeopleToMatch?.[0]?.user_bio_dob) : "")}</Text>
+                    {getPeopleToMatch?.[0]?.user_verified === 1 && <IIcon name="checkmark-done-circle-sharp" size={20} color={colors.accent} />}
+                    <Text style={{ fontSize: 20, fontWeight: 'bold', textTransform: "capitalize", color: colors.text }}>{(getPeopleToMatch?.[0]?.user_fullname ?? "") + (getPeopleToMatch?.[0]?.user_bio_dob ? ", " + help.getageFromDOB(getPeopleToMatch?.[0]?.user_bio_dob) : "")}</Text>
                 </View>
             </View>,
 
@@ -144,9 +147,9 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                         borderRadius: 21,
                         alignItems: 'center',
                         justifyContent: 'center',
-                        backgroundColor: '#fff',
+                        backgroundColor: colors.surface,
                         marginRight: 10,
-                        shadowColor: '#0f172a',
+                        shadowColor: colors.shadow,
                         shadowOffset: { width: 0, height: 6 },
                         shadowOpacity: 0.08,
                         shadowRadius: 14,
@@ -157,14 +160,14 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                         setPeopleToMatch((prev) => [getSkippedLastPerson, ...(prev ?? [])]);
                         setSkippedLastPerson(null);
                     }}>
-                        <MIcon name="backup-restore" size={30} color="#204586ff" />
+                        <MIcon name="backup-restore" size={30} color={colors.text} />
                     </Pressable>}
                     <Pressable style={{ gap: 3 }} onPress={() => { navigation.navigate(namer.navigation.editpreference); }}>
-                        <IIcon name="filter-outline" size={30} color="#204586ff" />
+                        <IIcon name="filter-outline" size={30} color={colors.text} />
                     </Pressable>
                 </View>),
         });
-    }, [getPeopleToMatch, getSkippedLastPerson]);
+    }, [getPeopleToMatch, getSkippedLastPerson, colors]);
 
     // next person load images
     useEffect(() => {
@@ -217,19 +220,19 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                 height: 22,
                 borderRadius: 11,
                 borderWidth: 2,
-                borderColor: '#999',
+                borderColor: colors.border,
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginRight: 10,
             },
-            radioOuterSelected: { borderColor: '#ff3366' },
+            radioOuterSelected: { borderColor: colors.primary },
             radioInner: {
                 width: 10,
                 height: 10,
                 borderRadius: 5,
-                backgroundColor: '#ff3366',
+                backgroundColor: colors.primary,
             },
-            radioText: { fontSize: 16, color: '#333' },
+            radioText: { fontSize: 16, color: colors.text },
 
         });
 
@@ -250,7 +253,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
 
         return (
             <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={{ flex: 1 }}  >
-                <View style={[styles.container, { paddingBottom: 5 }]}>
+                <View style={[styles.container, { paddingBottom: 5, backgroundColor: colors.background }]}>
                     <Text style={styles.title}>Report {reportedUserName}</Text>
                     <Text style={[styles.subtitle, { marginBottom: 12, textAlign: "center" }]}>Select a reason</Text>
                     {reasons.map((reason, index) => (<TouchableOpacity key={index} style={styless.radioRow} onPress={() => { setSelectedReason(reason); scrollRef.current?.scrollToEnd({ animated: true }); }} >
@@ -260,7 +263,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
 
                     {selectedReason === 'Other' && (<View style={{ marginBottom: 12 }}>
                         <TextInput style={[styles.input, { height: 120, textAlignVertical: 'top', marginBottom: 0 }]} placeholder="Please specify" value={otherText} onChangeText={setOtherText} multiline maxLength={300} />
-                        <Text style={{ fontSize: 11, color: '#909090', textAlign: 'right' }}>{otherText.length} / 300</Text>
+                        <Text style={{ fontSize: 11, color: colors.textTertiary, textAlign: 'right' }}>{otherText.length} / 300</Text>
                     </View>)}
 
                     <TouchableOpacity style={[styles.pressableButton, { marginTop: 15 }]} onPress={() => {
@@ -396,29 +399,29 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
     })();
 
     const highlightFields = !currentPerson ? [] : [
-        { icon: <IIcon name="navigate-outline" size={18} color="#0ea5e9" />, value: distanceLabel },
-        { icon: <IIcon name="location-outline" size={18} color="#0ea5e9" />, value: currentPerson?.user_location?.city },
-        { icon: <MIcon name="ruler" size={18} color="#0ea5e9" />, value: currentPerson?.user_bio_height ? help.cmToFtIn(currentPerson?.user_bio_height) : null },
-        { icon: <IIcon name="heart-circle-outline" size={18} color="#0ea5e9" />, value: __MAPPER?.bio_intent?.[currentPerson?.user_bio_relationshipgoal] },
-        { icon: <MIcon name="flag-outline" size={18} color="#0ea5e9" />, value: currentPerson?.user_bio_ethnicity },
+        { icon: <IIcon name="navigate-outline" size={18} color={colors.accent} />, value: distanceLabel },
+        { icon: <IIcon name="location-outline" size={18} color={colors.accent} />, value: currentPerson?.user_location?.city },
+        { icon: <MIcon name="ruler" size={18} color={colors.accent} />, value: currentPerson?.user_bio_height ? help.cmToFtIn(currentPerson?.user_bio_height) : null },
+        { icon: <IIcon name="heart-circle-outline" size={18} color={colors.accent} />, value: __MAPPER?.bio_intent?.[currentPerson?.user_bio_relationshipgoal] },
+        { icon: <MIcon name="flag-outline" size={18} color={colors.accent} />, value: currentPerson?.user_bio_ethnicity },
     ].filter((item) => item.value);
 
     const detailFields = !currentPerson ? [] : [
-        { icon: <IIcon name="ribbon-outline" size={22} color="#0ea5e9" />, value: __MAPPER?.bio_education?.[currentPerson?.user_bio_highesteducation] },
-        { icon: <IIcon name="language-outline" size={22} color="#0ea5e9" />, value: languagesSpoken.length > 0 ? languagesSpoken.join(', ') : null },
-        { icon: <MIcon name="candle" size={22} color="#0ea5e9" />, value: __MAPPER?.bio_religion?.[currentPerson?.user_bio_religion] },
-        { icon: <MIcon name="baby-carriage" size={22} color="#0ea5e9" />, value: __MAPPER?.bio_children?.[currentPerson?.user_bio_children] },
-        { icon: <IIcon name="wine-outline" size={22} color="#0ea5e9" />, value: __MAPPER?.bio_drinking?.[currentPerson?.user_bio_drinking] },
-        { icon: <MIcon name="smoking" size={22} color="#0ea5e9" />, value: __MAPPER?.bio_smoking?.[currentPerson?.user_bio_smoking] },
+        { icon: <IIcon name="ribbon-outline" size={22} color={colors.accent} />, value: __MAPPER?.bio_education?.[currentPerson?.user_bio_highesteducation] },
+        { icon: <IIcon name="language-outline" size={22} color={colors.accent} />, value: languagesSpoken.length > 0 ? languagesSpoken.join(', ') : null },
+        { icon: <MIcon name="candle" size={22} color={colors.accent} />, value: __MAPPER?.bio_religion?.[currentPerson?.user_bio_religion] },
+        { icon: <MIcon name="baby-carriage" size={22} color={colors.accent} />, value: __MAPPER?.bio_children?.[currentPerson?.user_bio_children] },
+        { icon: <IIcon name="wine-outline" size={22} color={colors.accent} />, value: __MAPPER?.bio_drinking?.[currentPerson?.user_bio_drinking] },
+        { icon: <MIcon name="smoking" size={22} color={colors.accent} />, value: __MAPPER?.bio_smoking?.[currentPerson?.user_bio_smoking] },
         { icon: <IIcon name="transgender-outline" size={22} color="#fe6fa6" />, value: __MAPPER?.bio_gender?.[currentPerson?.user_bio_gender] },
-        { icon: <MIcon name="gavel" size={22} color="#0ea5e9" />, value: __MAPPER?.bio_politicalview?.[currentPerson?.user_bio_politicalview] },
-        { icon: <MIcon name="dog-side" size={18} color="#0ea5e9" />, value: __MAPPER?.bio_pets?.[currentPerson?.user_bio_haspet] },
+        { icon: <MIcon name="gavel" size={22} color={colors.accent} />, value: __MAPPER?.bio_politicalview?.[currentPerson?.user_bio_politicalview] },
+        { icon: <MIcon name="dog-side" size={18} color={colors.accent} />, value: __MAPPER?.bio_pets?.[currentPerson?.user_bio_haspet] },
     ].filter((item) => item.value);
 
     const writableFields = !currentPerson ? [] : [
-        { icon: <MIcon name="briefcase-variant-outline" size={22} color="#0ea5e9" />, value: (currentPerson?.user_bio_jobrole) },
-        { icon: <MIcon name="home-outline" size={22} color="#0ea5e9" />, value: currentPerson?.user_bio_hometown },
-        { icon: <MIcon name="school-outline" size={22} color="#0ea5e9" />, value: currentPerson?.user_bio_schoolattended },
+        { icon: <MIcon name="briefcase-variant-outline" size={22} color={colors.accent} />, value: (currentPerson?.user_bio_jobrole) },
+        { icon: <MIcon name="home-outline" size={22} color={colors.accent} />, value: currentPerson?.user_bio_hometown },
+        { icon: <MIcon name="school-outline" size={22} color={colors.accent} />, value: currentPerson?.user_bio_schoolattended },
     ].filter((item) => item.value);
 
     if (getPeopleToMatch === null) {
@@ -432,7 +435,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
 
 
     return (
-        <><View style={[styles.container, { paddingHorizontal: 0, paddingTop: headerHeight }]}>
+        <><View style={[styles.container, { paddingHorizontal: 0, paddingTop: headerHeight, backgroundColor: colors.background }]}>
 
             {getPeopleToMatch?.length === 0 ? (
                 <View style={deckStyles.emptyStateWrap}>
@@ -508,7 +511,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
 
                         <View style={[deckStyles.detailCard, deckStyles.cardShadow]}>
                             <Text style={deckStyles.sectionTitle}>About {currentPerson?.user_fullname?.split(" ")?.[0] || "them"}</Text>
-                            {currentPerson?.user_bio_about && <Text style={{ fontSize: 14, color: '#4b5563', lineHeight: 20 }}>{currentPerson?.user_bio_about}</Text>}
+                            {currentPerson?.user_bio_about && <Text style={{ fontSize: 14, color: colors.textSecondary, lineHeight: 20 }}>{currentPerson?.user_bio_about}</Text>}
                             {detailFields.length > 0 && (
                                 <View style={deckStyles.detailGrid}>
                                     {detailFields.map((field, idx) => (
@@ -575,12 +578,12 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                             <View style={[deckStyles.detailCard, deckStyles.cardShadow]}>
                                 <Text style={deckStyles.sectionTitle}>Safety</Text>
                                 <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
-                                    <Pressable style={[styles.pressableButton, { backgroundColor: colors.warning, flex: 1 }]} onPress={() => {
+                                    <Pressable style={[styles.pressableButton, { backgroundColor: staticColors.warning, flex: 1 }]} onPress={() => {
                                         bottomSheetRef_reportUser.ref.current?.expand();
                                     }}>
                                         <Text style={styles.pressableButtonText}>Report</Text>
                                     </Pressable>
-                                    <Pressable style={[styles.pressableButton, { flex: 1, backgroundColor: colors.error }]} onPress={async () => {
+                                    <Pressable style={[styles.pressableButton, { flex: 1, backgroundColor: staticColors.error }]} onPress={async () => {
                                         function showConfirmAlert() {
                                             return new Promise((resolve) => {
                                                 Alert.alert(
@@ -782,46 +785,50 @@ const PROMPT_GRADIENTS: [string, string][] = [
     ['#0c1e3d', '#134e4a'],
 ];
 
-const deckStyles = StyleSheet.create({
+function createDeckStyles(colors: ThemeColors) {
+    return StyleSheet.create({
+    // The swipe/photo card intentionally stays dark-on-photo regardless of app theme
+    // (text/chips need to stay legible over arbitrary user photos either way).
     cardFooter: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 18, gap: 8 },
     nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     name: { color: '#fff', fontSize: 26, fontWeight: '800' },
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     chip: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: 'rgba(15,23,42,0.75)', borderRadius: 18 },
     chipText: { color: '#e5e7eb', fontSize: 13, textTransform: 'capitalize' },
-    detailCard: { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginHorizontal: 5, marginTop: 14 },
+    detailCard: { backgroundColor: colors.surface, borderRadius: 16, padding: 16, marginHorizontal: 5, marginTop: 14 },
     promptCard: { borderRadius: 16, padding: 18, marginTop: 14, overflow: 'hidden', position: 'relative' },
     promptQuoteDeco: { position: 'absolute', top: 2, right: 8 },
     promptTag: { alignSelf: 'flex-start', backgroundColor: 'rgba(56,189,248,0.16)', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 12 },
     promptTagText: { color: '#7dd3fc', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
     promptAnswer: { color: '#fff', fontSize: 19, fontWeight: '700', lineHeight: 25, paddingRight: 30 },
     promptLikeBtn: { position: 'absolute', bottom: 14, right: 14, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
-    sectionTitle: { fontSize: 18, fontWeight: '700', color: '#0f172a', marginBottom: 2 },
+    sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 2 },
     detailGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
-    detailItem: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, backgroundColor: '#f3f4f6', borderRadius: 12, flexBasis: '48%' },
-    detailText: { color: '#0f172a', fontSize: 14, flexShrink: 1 },
-    galleryImage: { width: 160, height: 200, borderRadius: 16, backgroundColor: colors.gray1 },
+    detailItem: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, backgroundColor: colors.backgroundSecondary, borderRadius: 12, flexBasis: '48%' },
+    detailText: { color: colors.text, fontSize: 14, flexShrink: 1 },
+    galleryImage: { width: 160, height: 200, borderRadius: 16, backgroundColor: staticColors.gray1 },
     actionDock: { position: 'absolute', bottom: 16, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 16 },
-    circleBtn: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
-    circleBtnGhost: { backgroundColor: '#fff' },
+    circleBtn: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center', shadowColor: colors.shadow, shadowOpacity: 0.15, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
+    circleBtnGhost: { backgroundColor: colors.surface },
     circleBtnAccent: { backgroundColor: '#e0f2fe' },
     circleBtnPrimary: { backgroundColor: '#dcfce7' },
-    cardShadow: { shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 10 }, elevation: 12 },
+    cardShadow: { shadowColor: colors.shadow, shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 10 }, elevation: 12 },
     tapZones: { ...StyleSheet.absoluteFillObject, flexDirection: 'row' },
     tapZone: { flex: 1 },
     progressDots: { position: 'absolute', top: 16, alignSelf: 'center', flexDirection: 'row', gap: 6, backgroundColor: 'rgba(0,0,0,0.3)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
     dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.4)' },
     dotActive: { backgroundColor: '#fff' },
     emptyStateWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 40 },
-    emptyStateCard: { width: '100%', maxWidth: 410, borderRadius: 22, backgroundColor: '#ffffff', paddingVertical: 28, paddingHorizontal: 20, alignItems: 'center', gap: 10 },
+    emptyStateCard: { width: '100%', maxWidth: 410, borderRadius: 22, backgroundColor: colors.surface, paddingVertical: 28, paddingHorizontal: 20, alignItems: 'center', gap: 10 },
     emptyStateIconWrap: { width: 68, height: 68, borderRadius: 34, backgroundColor: '#e0f2fe', alignItems: 'center', justifyContent: 'center' },
-    emptyStateTitle: { fontSize: 23, color: '#0f172a', fontWeight: '800', textAlign: 'center' },
-    emptyStateSubtitle: { fontSize: 14, color: '#475569', lineHeight: 21, textAlign: 'center' },
+    emptyStateTitle: { fontSize: 23, color: colors.text, fontWeight: '800', textAlign: 'center' },
+    emptyStateSubtitle: { fontSize: 14, color: colors.textSecondary, lineHeight: 21, textAlign: 'center' },
     emptyStateActions: { width: '100%', gap: 10, marginTop: 8 },
-    emptyStatePrimaryAction: { backgroundColor: '#0ea5e9', borderRadius: 14, paddingVertical: 12 },
-    emptyStateSecondaryAction: { borderWidth: 1, borderColor: '#bae6fd', backgroundColor: '#f0f9ff', borderRadius: 14, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
-    emptyStateSecondaryActionText: { fontSize: 15, color: '#0369a1', fontWeight: '700' },
-});
+    emptyStatePrimaryAction: { backgroundColor: colors.accent, borderRadius: 14, paddingVertical: 12 },
+    emptyStateSecondaryAction: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.backgroundSecondary, borderRadius: 14, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
+    emptyStateSecondaryActionText: { fontSize: 15, color: colors.accent, fontWeight: '700' },
+    });
+}
 
 const matchStyles = StyleSheet.create({
     backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center', padding: 24 },
@@ -830,7 +837,7 @@ const matchStyles = StyleSheet.create({
     title: { fontSize: 28, fontWeight: '800', color: '#fff' },
     subtitle: { fontSize: 14, color: '#cbd5e1', textAlign: 'center' },
     photoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginVertical: 10 },
-    photoCard: { width: 130, height: 170, borderRadius: 18, overflow: 'hidden', backgroundColor: colors.gray1, shadowColor: '#000', shadowOpacity: 0.22, shadowRadius: 12, shadowOffset: { width: 0, height: 8 }, elevation: 10 },
+    photoCard: { width: 130, height: 170, borderRadius: 18, overflow: 'hidden', backgroundColor: staticColors.gray1, shadowColor: '#000', shadowOpacity: 0.22, shadowRadius: 12, shadowOffset: { width: 0, height: 8 }, elevation: 10 },
     leftPhoto: { marginRight: -26, borderWidth: 2, borderColor: '#0ea5e9' },
     rightPhoto: { marginLeft: -26, borderWidth: 2, borderColor: '#22c55e' },
     primaryBtn: { width: '100%', backgroundColor: '#22c55e', paddingVertical: 14, borderRadius: 14, alignItems: 'center' },

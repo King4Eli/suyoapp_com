@@ -3,6 +3,7 @@ import { Animated, Easing, Pressable, StyleSheet, Text, TouchableOpacity, View }
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import IIcon from 'react-native-vector-icons/Ionicons';
 import { screenWidth } from "./functions";
+import { useTheme } from "./theme";
 
 
 let showToastFunc: (opts: any) => void;
@@ -17,18 +18,22 @@ type ToastOptions = {
 };
 
 export const Toastx = () => {
+  const { colors } = useTheme();
   const [toast, setToast] = useState<ToastOptions | null>(null);
   const [opacity] = useState(new Animated.Value(0));
   const [translateY] = useState(new Animated.Value(-24));
   const inset = useSafeAreaInsets();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Semantic (success/error/info/warning) toasts keep fixed pastel colors in both
+  // themes -- status colors staying put is more legible than inverting them. Only
+  // the untyped "default" toast follows the theme, since it's just a plain message.
   const theme = {
     success: { bg: '#e8f7ef', text: '#0f5132', border: '#b7e4c7', icon: 'checkmark-circle' },
     error: { bg: '#fdecec', text: '#842029', border: '#f5c2c7', icon: 'alert-circle' },
     info: { bg: '#e7f1ff', text: '#0a4fa3', border: '#cfe2ff', icon: 'information-circle' },
     warning: { bg: '#fff4e5', text: '#9c5700', border: '#ffe0b2', icon: 'alert' },
-    default: { bg: '#1f2937', text: '#f9fafb', border: '#374151', icon: 'information-circle' }
+    default: { bg: colors.surfaceElevated, text: colors.text, border: colors.border, icon: 'information-circle' }
   };
 
   const hideToast = () => {

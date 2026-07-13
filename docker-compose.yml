@@ -17,6 +17,7 @@ services:
   suyoapp_com_admin:
     image: kingeli/suyoapp_com_admin:latest
     container_name: suyoapp_com_admin
+    restart: unless-stopped
     networks:
       - shared-global-network
     env_file:
@@ -28,6 +29,7 @@ services:
   suyoapp_com_webui:
     image: kingeli/suyoapp_com_webui:latest
     container_name: suyoapp_com_webui
+    restart: unless-stopped
     networks:
       - shared-global-network
 

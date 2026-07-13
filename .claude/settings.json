@@ -94,7 +94,9 @@
       "Bash(curl -s -o /dev/null -w \"pullall: %{http_code}\\\\n\" http://127.0.0.1:2001/api/realtime/pullall)",
       "Bash(curl -s -o /dev/null -w \"status: %{http_code}\\\\n\" http://127.0.0.1:2001/api/realtime/status)",
       "Bash(timeout 90 npx tsc --noEmit -p .)",
-      "Bash(node --check api_v1/routers/realtimedata.js)"
+      "Bash(node --check api_v1/routers/realtimedata.js)",
+      "Bash(awk 'NR==963{print NR\": \"$0}' _app/screens/Auth_Signup.tsx)",
+      "Bash(timeout 120 npx tsc --noEmit -p .)"
     ],
     "additionalDirectories": [
       "/home/king/tr/goodapps/projs/suyoapp_com/mobile_frontend/_app/screens",

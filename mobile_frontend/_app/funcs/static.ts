@@ -235,7 +235,8 @@ export const namer = {
         deviceSpecs: 'a54yregfdsg5534g',
         currentUserProfile: "b5rb5vt8euiynry",
         mapper:"dhgfhst4hj6h6h6",
-        products: "j6yn65ik57y"
+        products: "j6yn65ik57y",
+        themeMode: "pk3nf7vqxz8w2m"
     },
     navigation: {
         devpage: "zz_devv",

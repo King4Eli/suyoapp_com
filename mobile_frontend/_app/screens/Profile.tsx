@@ -11,6 +11,7 @@ import MIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { _http_request, cacheStorage, help, hostServer, logReport, parseCategoryProducts, screenWidth } from '../funcs/functions';
 import { Loaderx } from '../funcs/functions_stateful';
 import { namer, resourceMap, styles } from '../funcs/static';
+import { useTheme, ThemeColors } from '../funcs/theme';
 
 const PLAN_UI: Record<string, { icon: string; color: string; cardColors: string[] }> = {
     plus: { icon: 'diamond-outline', color: '#111827', cardColors: ['#111827', '#374151'] },
@@ -22,6 +23,8 @@ const getPlanUi = (plan?: string | null) => PLAN_UI[String(plan ?? '').trim().to
 
 export function Screen_profile({ navigation }: { navigation: any }) {
     const headerHeight = useHeaderHeight();
+    const { colors } = useTheme();
+    const stylesx = useMemo(() => createStylesx(colors), [colors]);
     const [profile, setProfile] = useState<any>(null);
     const [mainSubProducts, setMainSubProducts] = useState<any[]>([]);
 
@@ -141,10 +144,10 @@ export function Screen_profile({ navigation }: { navigation: any }) {
             headerTransparent: true,
             headerTitle: '',
             headerRight:()=>  <Pressable style={stylesx.headerButton} onPress={() => navigation.navigate(namer.navigation.settings)}>
-                    <MIcon name="cog-outline" size={25} color="#263238" />
+                    <MIcon name="cog-outline" size={25} color={colors.text} />
                 </Pressable>
         });
-    }, [navigation]);
+    }, [navigation, colors, stylesx]);
 
     if (profile === null) {
         return (
@@ -155,13 +158,13 @@ export function Screen_profile({ navigation }: { navigation: any }) {
     }
 
     return (
-        <View style={[styles.container, {paddingTop: headerHeight,paddingLeft:0,paddingRight:0 }]}>
+        <View style={[styles.container, {paddingTop: headerHeight,paddingLeft:0,paddingRight:0, backgroundColor: colors.background }]}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.conainerScrollView,{gap:14, paddingBottom:10}]}>
                 <View style={stylesx.profileCard}>
                     <View style={stylesx.profileRow}>
                         <Pressable onPress={() => navigation.navigate(namer.navigation.editprofile)}>
                             <View style={stylesx.avatarWrap}>
-                                <CircularProgress progress={profileCompletion} />
+                                <CircularProgress progress={profileCompletion} color={colors.primary} trackColor={colors.border} styleProp={stylesx.progressCircle} />
                                 {firstImageUri ? (
                                     <FastImage
                                         style={stylesx.avatar}
@@ -171,12 +174,12 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                                     />
                                 ) : (
                                     <View style={[stylesx.avatar, stylesx.avatarEmpty]}>
-                                        <MIcon name="account-heart-outline" size={42} color="#e8546f" />
+                                        <MIcon name="account-heart-outline" size={42} color={colors.primary} />
                                     </View>
                                 )}
                                 {userVerified && (
                                     <View style={stylesx.verifiedBadge}>
-                                        <IIcon name="checkmark-done-circle-sharp" size={28} color="#2563eb" />
+                                        <IIcon name="checkmark-done-circle-sharp" size={28} color={colors.accent} />
                                     </View>
                                 )}
                             </View>
@@ -197,15 +200,15 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                     </View>
 
                     <View style={stylesx.actionRow}>
-                        <ProfileAction icon="square-edit-outline" label="Edit Profile" onPress={() => navigation.navigate(namer.navigation.editprofile)} />
+                        <ProfileAction icon="square-edit-outline" label="Edit Profile" onPress={() => navigation.navigate(namer.navigation.editprofile)} stylesx={stylesx} />
                         {!userVerified && (
-                            <ProfileAction icon="camera-outline" label="Verify Account" secondary onPress={() => navigation.navigate(namer.navigation.editprofile)} />
+                            <ProfileAction icon="camera-outline" label="Verify Account" secondary onPress={() => navigation.navigate(namer.navigation.editprofile)} stylesx={stylesx} />
                         )}
                     </View>
                 </View>
 
                 <View style={stylesx.card}>
-                    <SectionHeader title="Power-ups" hint="Boost, spotlight, or message first." />
+                    <SectionHeader title="Power-ups" hint="Boost, spotlight, or message first." colors={colors} stylesx={stylesx} />
                     {consumableProducts.length > 0 ? (
                         <View style={stylesx.powerGrid}>
                             {consumableProducts.map((product: any, index: number) => (
@@ -213,7 +216,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                                     key={product?.sku ?? product?.name ?? index}
                                     style={stylesx.productPill}
                                     onPress={() => navigation.navigate(namer.navigation.consumables, { productcategory: namer.productCategoryName.superlike })}>
-                                    <MIcon name={index % 2 === 0 ? 'heart' : 'chatbubble-ellipses'} size={22} color="#e8546f" />
+                                    <MIcon name={index % 2 === 0 ? 'heart' : 'chatbubble-ellipses'} size={22} color={colors.primary} />
                                     <View>
                                         <Text style={stylesx.productLabel}>{product?.name}</Text>
                                         <Text style={stylesx.productCount}>{product?.count ?? 0} available</Text>
@@ -226,20 +229,20 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                             style={stylesx.powerEmpty}
                             onPress={() => navigation.navigate(namer.navigation.consumables, { productcategory: namer.productCategoryName.superlike })}>
                             <View style={stylesx.powerEmptyIcon}>
-                                <MIcon name="star-four-points-outline" size={24} color="#e8546f" />
+                                <MIcon name="star-four-points-outline" size={24} color={colors.primary} />
                             </View>
                             <View style={{ flex: 1 }}>
                                 <Text style={stylesx.powerEmptyTitle}>No power-ups active</Text>
                                 <Text style={stylesx.powerEmptyText}>Open the shop to add one when you need a lift.</Text>
                             </View>
-                            <MIcon name="chevron-right" size={24} color="#94a3b8" />
+                            <MIcon name="chevron-right" size={24} color={colors.textTertiary} />
                         </Pressable>
                     )}
                 </View>
 
                 {activeSubscription && (
                     <View style={stylesx.card}>
-                        <SectionHeader title="Manage subscription" icon="credit-card-outline" />
+                        <SectionHeader title="Manage subscription" icon="credit-card-outline" colors={colors} stylesx={stylesx} />
                         <View style={stylesx.manageSubRow}>
                             <Text style={stylesx.manageSubLabel}>Plan</Text>
                             <Text style={stylesx.manageSubValue}>
@@ -252,14 +255,14 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                         </View>
                         {subscriptionCancelPending ? (
                             <View style={stylesx.manageSubNotice}>
-                                <MIcon name="information-outline" size={16} color="#64748b" />
+                                <MIcon name="information-outline" size={16} color={colors.textSecondary} />
                                 <Text style={stylesx.manageSubNoticeText}>
                                     This subscription will not renew and ends on the date above.
                                 </Text>
                             </View>
                         ) : (
                             <Pressable style={stylesx.cancelSubButton} onPress={confirmCancelSubscription}>
-                                <MIcon name="close-circle-outline" size={18} color="#dc2626" />
+                                <MIcon name="close-circle-outline" size={18} color={colors.danger} />
                                 <Text style={stylesx.cancelSubButtonText}>Cancel subscription</Text>
                             </Pressable>
                         )}
@@ -325,13 +328,13 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
                 {!activeSubscription && (
                     <View style={stylesx.card}>
-                        <SectionHeader title="7 day streak" hint="Come back tomorrow to keep it going." icon="fire" />
+                        <SectionHeader title="7 day streak" hint="Come back tomorrow to keep it going." icon="fire" colors={colors} stylesx={stylesx} />
                         <View style={stylesx.streakRow}>
                             {Array.from({ length: 7 }).map((_, index) => {
                                 const isActive = index < (profile?.user_effect?.streakcount ?? 1);
                                 return (
                                     <View key={index} style={[stylesx.streakDot, isActive && stylesx.streakDotActive]}>
-                                        <MIcon name={index === 6 ? 'gift-outline' : 'fire'} size={index === 6 ? 21 : 23} color={isActive ? '#f59e0b' : '#94a3b8'} />
+                                        <MIcon name={index === 6 ? 'gift-outline' : 'fire'} size={index === 6 ? 21 : 23} color={isActive ? colors.premium : colors.textTertiary} />
                                     </View>
                                 );
                             })}
@@ -343,31 +346,31 @@ export function Screen_profile({ navigation }: { navigation: any }) {
     );
 }
 
-const CircularProgress = ({ size = 112, strokeWidth = 3, progress = 0, color = '#e8546f' }) => {
+const CircularProgress = ({ size = 112, strokeWidth = 3, progress = 0, color, trackColor, styleProp }: { size?: number; strokeWidth?: number; progress?: number; color: string; trackColor: string; styleProp: any }) => {
     const radius = (size - strokeWidth) / 2;
     const circumference = radius * 2 * Math.PI;
     const strokeDashoffset = circumference - (progress / 100) * circumference;
 
     return (
-        <Svg width={size} height={size} style={stylesx.progressCircle}>
-            <Circle stroke="#e5e7eb" fill="none" cx={size / 2} cy={size / 2} r={radius} strokeWidth={strokeWidth} />
+        <Svg width={size} height={size} style={styleProp}>
+            <Circle stroke={trackColor} fill="none" cx={size / 2} cy={size / 2} r={radius} strokeWidth={strokeWidth} />
             <Circle stroke={color} fill="none" cx={size / 2} cy={size / 2} r={radius} strokeWidth={strokeWidth} strokeDasharray={`${circumference} ${circumference}`} strokeDashoffset={strokeDashoffset} strokeLinecap="round" transform={`rotate(-90 ${size / 2} ${size / 2})`} />
         </Svg>
     );
 };
 
-const ProfileAction = ({ icon, label, secondary, onPress }: { icon: string; label: string; secondary?: boolean; onPress: () => void }) => (
+const ProfileAction = ({ icon, label, secondary, onPress, stylesx }: { icon: string; label: string; secondary?: boolean; onPress: () => void; stylesx: any }) => (
     <Pressable style={[stylesx.profileAction, secondary && stylesx.profileActionSecondary]} onPress={onPress}>
         <MIcon name={icon} size={20} color={secondary ? '#7c3aed' : '#fff'} />
         <Text style={[stylesx.profileActionText, secondary && stylesx.profileActionTextSecondary]}>{label}</Text>
     </Pressable>
 );
 
-const SectionHeader = ({ title, hint, icon }: { title: string; hint?: string; icon?: string }) => (
+const SectionHeader = ({ title, hint, icon, colors, stylesx }: { title: string; hint?: string; icon?: string; colors: ThemeColors; stylesx: any }) => (
     <View style={stylesx.sectionHeader}>
         {icon && (
             <View style={stylesx.sectionIcon}>
-                <MIcon name={icon} size={20} color="#e8546f" />
+                <MIcon name={icon} size={20} color={colors.primary} />
             </View>
         )}
         <View style={{ flex: 1 }}>
@@ -377,16 +380,17 @@ const SectionHeader = ({ title, hint, icon }: { title: string; hint?: string; ic
     </View>
 );
 
-const stylesx = StyleSheet.create({
+function createStylesx(colors: ThemeColors) {
+    return StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.backgroundSecondary,
     },
     loadingWrap: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
     },
     headerButton: {
         width: 42,
@@ -394,9 +398,9 @@ const stylesx = StyleSheet.create({
         borderRadius: 21,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
         marginRight: 10,
-        shadowColor: '#0f172a',
+        shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.08,
         shadowRadius: 14,
@@ -405,9 +409,9 @@ const stylesx = StyleSheet.create({
     
     profileCard: {
         borderRadius: 24,
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
         padding: 16,
-        shadowColor: '#0f172a',
+        shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 14 },
         shadowOpacity: 0.08,
         shadowRadius: 24,
@@ -431,7 +435,7 @@ const stylesx = StyleSheet.create({
         width: 100,
         height: 100,
         borderRadius: 50,
-        backgroundColor: '#f1f5f9',
+        backgroundColor: colors.backgroundSecondary,
     },
     avatarEmpty: {
         alignItems: 'center',
@@ -442,19 +446,19 @@ const stylesx = StyleSheet.create({
         right: 4,
         bottom: 5,
         borderRadius: 16,
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
     },
     profileInfo: {
         flex: 1,
         gap: 8,
     },
     profileName: {
-        color: '#0f172a',
+        color: colors.text,
         fontSize: 22,
         fontWeight: '900',
     },
     completionText: {
-        color: '#64748b',
+        color: colors.textSecondary,
         fontSize: 13,
         fontWeight: '700',
     },
@@ -463,15 +467,15 @@ const stylesx = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.backgroundSecondary,
         borderRadius: 999,
         paddingHorizontal: 11,
         paddingVertical: 6,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderColor: colors.border,
     },
     subscriptionBadgeText: {
-        color: '#475569',
+        color: colors.textSecondary,
         fontSize: 12,
         fontWeight: '800',
         textTransform: 'capitalize',
@@ -485,7 +489,7 @@ const stylesx = StyleSheet.create({
         flex: 1,
         minHeight: 48,
         borderRadius: 16,
-        backgroundColor: '#e8546f',
+        backgroundColor: colors.primary,
         alignItems: 'center',
         justifyContent: 'center',
         flexDirection: 'row',
@@ -505,10 +509,10 @@ const stylesx = StyleSheet.create({
     },
     card: {
         borderRadius: 22,
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
         padding: 16,
         gap: 14,
-        shadowColor: '#0f172a',
+        shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.06,
         shadowRadius: 20,
@@ -525,15 +529,15 @@ const stylesx = StyleSheet.create({
         borderRadius: 20,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#fff1f5',
+        backgroundColor: colors.backgroundSecondary,
     },
     sectionTitle: {
-        color: '#0f172a',
+        color: colors.text,
         fontSize: 17,
         fontWeight: '900',
     },
     sectionHint: {
-        color: '#64748b',
+        color: colors.textSecondary,
         fontSize: 12,
         fontWeight: '700',
         marginTop: 3,
@@ -547,22 +551,22 @@ const stylesx = StyleSheet.create({
         flexGrow: 1,
         minWidth: 140,
         borderRadius: 16,
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.backgroundSecondary,
         padding: 12,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderColor: colors.border,
     },
     productLabel: {
-        color: '#0f172a',
+        color: colors.text,
         fontSize: 14,
         fontWeight: '900',
         textTransform: 'capitalize',
     },
     productCount: {
-        color: '#64748b',
+        color: colors.textSecondary,
         fontSize: 12,
         fontWeight: '700',
         marginTop: 2,
@@ -570,9 +574,9 @@ const stylesx = StyleSheet.create({
     powerEmpty: {
         minHeight: 76,
         borderRadius: 18,
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.backgroundSecondary,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderColor: colors.border,
         padding: 12,
         flexDirection: 'row',
         alignItems: 'center',
@@ -584,15 +588,15 @@ const stylesx = StyleSheet.create({
         borderRadius: 23,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#fff1f5',
+        backgroundColor: colors.backgroundSecondary,
     },
     powerEmptyTitle: {
-        color: '#0f172a',
+        color: colors.text,
         fontSize: 14,
         fontWeight: '900',
     },
     powerEmptyText: {
-        color: '#64748b',
+        color: colors.textSecondary,
         fontSize: 12,
         lineHeight: 17,
         marginTop: 2,
@@ -676,13 +680,13 @@ const stylesx = StyleSheet.create({
         borderRadius: 999,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.backgroundSecondary,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderColor: colors.border,
     },
     streakDotActive: {
-        backgroundColor: '#fffbeb',
-        borderColor: '#fde68a',
+        backgroundColor: colors.backgroundSecondary,
+        borderColor: colors.premium,
     },
     manageSubRow: {
         flexDirection: 'row',
@@ -691,11 +695,11 @@ const stylesx = StyleSheet.create({
         paddingVertical: 6,
     },
     manageSubLabel: {
-        color: '#64748b',
+        color: colors.textSecondary,
         fontSize: 13,
     },
     manageSubValue: {
-        color: '#0f172a',
+        color: colors.text,
         fontSize: 13,
         fontWeight: '700',
     },
@@ -706,10 +710,10 @@ const stylesx = StyleSheet.create({
         marginTop: 8,
         paddingTop: 10,
         borderTopWidth: 1,
-        borderTopColor: '#e2e8f0',
+        borderTopColor: colors.border,
     },
     manageSubNoticeText: {
-        color: '#64748b',
+        color: colors.textSecondary,
         fontSize: 12,
         flex: 1,
     },
@@ -722,11 +726,12 @@ const stylesx = StyleSheet.create({
         paddingTop: 12,
         paddingVertical: 10,
         borderTopWidth: 1,
-        borderTopColor: '#e2e8f0',
+        borderTopColor: colors.border,
     },
     cancelSubButtonText: {
-        color: '#dc2626',
+        color: colors.danger,
         fontSize: 13,
         fontWeight: '700',
     },
-});
+    });
+}

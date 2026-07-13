@@ -27,6 +27,7 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import BottomSheet, { BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
 import LinearGradient from 'react-native-linear-gradient';
+import { useTheme, ThemeColors } from '../funcs/theme';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const GAP = 5;
@@ -144,12 +145,15 @@ interface DraggablePhotoProps {
     onDragStart: (index: number) => void;
     onDragMove: (index: number, tx: number, ty: number) => void;
     onDragEnd: (index: number, tx: number, ty: number) => void;
+    colors: ThemeColors;
+    photoStyles: any;
 }
 
 const DraggablePhoto = React.memo(({
     image, slotIndex, cellWidth, cellHeight, x, y,
     imageUri, isDropTarget,
     onPress, onRemove, onDragStart, onDragMove, onDragEnd,
+    colors, photoStyles,
 }: DraggablePhotoProps) => {
     const empty = isEmptySlot(image);
 
@@ -235,7 +239,7 @@ const DraggablePhoto = React.memo(({
                                     hitSlop={6}
                                 >
                                     <View style={photoStyles.removeBtnInner}>
-                                        <IIcon name="close" size={12} color="#ff4444" />
+                                        <IIcon name="close" size={12} color={colors.danger} />
                                     </View>
                                 </Pressable>
 
@@ -257,8 +261,8 @@ const DraggablePhoto = React.memo(({
                         ) : (
                             <View style={photoStyles.emptyContent}>
                                 {isDropTarget
-                                    ? <IIcon name="swap-horizontal-outline" size={24} color="#4f8ef7" />
-                                    : <IIcon name="add" size={26} color="#c8c8c8" />
+                                    ? <IIcon name="swap-horizontal-outline" size={24} color={colors.accent} />
+                                    : <IIcon name="add" size={26} color={colors.textTertiary} />
                                 }
                             </View>
                         )}
@@ -269,7 +273,8 @@ const DraggablePhoto = React.memo(({
     );
 });
 
-const photoStyles = StyleSheet.create({
+function createPhotoStyles(colors: ThemeColors) {
+    return StyleSheet.create({
     wrapper: {
         position: 'absolute',
         shadowColor: '#000',
@@ -280,23 +285,23 @@ const photoStyles = StyleSheet.create({
         flex: 1,
         borderRadius: 18,
         overflow: 'hidden',
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.backgroundSecondary,
     },
     emptyCell: {
         borderWidth: 1.4,
-        borderColor: '#dbe3ef',
+        borderColor: colors.border,
         borderStyle: 'dashed',
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.backgroundSecondary,
     },
     dropTargetFilled: {
         borderWidth: 2.5,
-        borderColor: '#4f8ef7',
+        borderColor: colors.accent,
     },
     dropTargetEmpty: {
         borderWidth: 2.5,
-        borderColor: '#4f8ef7',
+        borderColor: colors.accent,
         borderStyle: 'solid',
-        backgroundColor: '#eef3fe',
+        backgroundColor: colors.backgroundSecondary,
     },
     img: { width: '100%', height: '100%' },
     dropOverlay: {
@@ -309,7 +314,7 @@ const photoStyles = StyleSheet.create({
     },
     removeBtnInner: {
         width: 26, height: 26, borderRadius: 13,
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
         alignItems: 'center', justifyContent: 'center',
         elevation: 4,
         shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
@@ -329,7 +334,8 @@ const photoStyles = StyleSheet.create({
         flexDirection: 'row', alignItems: 'center', gap: 3,
     },
     mainBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
-});
+    });
+}
 
 // ─── Photo Grid ───────────────────────────────────────────────────────────────
 
@@ -344,11 +350,14 @@ interface PhotoGridProps {
     onDragMove: (index: number, tx: number, ty: number) => void;
     onDragEnd: (index: number, tx: number, ty: number) => void;
     onLayout: (width: number) => void;
+    colors: ThemeColors;
+    photoStyles: any;
 }
 
 const PhotoGrid = React.memo(({
     images, containerWidth, dropTargetIndex, getImageUri,
     onPress, onRemove, onDragStart, onDragMove, onDragEnd, onLayout,
+    colors, photoStyles,
 }: PhotoGridProps) => {
     if (containerWidth === 0) {
         return (
@@ -389,6 +398,8 @@ const PhotoGrid = React.memo(({
                     onDragStart={onDragStart}
                     onDragMove={onDragMove}
                     onDragEnd={onDragEnd}
+                    colors={colors}
+                    photoStyles={photoStyles}
                 />
             ))}
         </View>
@@ -398,6 +409,9 @@ const PhotoGrid = React.memo(({
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
 export function Screen_editprofile({ navigation }: { navigation: any }) {
+    const { colors } = useTheme();
+    const photoStyles = useMemo(() => createPhotoStyles(colors), [colors]);
+    const pgStyles = useMemo(() => createPgStyles(colors), [colors]);
     const headerHeight = useHeaderHeight();
 
     const [getProfile, setProfile] = useState<any>(null);
@@ -792,7 +806,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                         <View style={pgStyles.sectionCard}>
                             <View style={pgStyles.sectionHeader}>
                                 <View style={pgStyles.sectionIcon}>
-                                    <MIcons name="image-multiple-outline" size={18} color="#e8546f" />
+                                    <MIcons name="image-multiple-outline" size={18} color={colors.primary} />
                                 </View>
                                 <View style={{ flex: 1 }}>
                                     <Text style={pgStyles.sectionLabel}>Profile Photos</Text>
@@ -811,12 +825,14 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                 onDragMove={handleDragMove}
                                 onDragEnd={handleDragEnd}
                                 onLayout={handleGridLayout}
+                                colors={colors}
+                                photoStyles={photoStyles}
                             />
                         </View>
 
                         {/* ── Vibes Banner ──────────────────────────────── */}
                         <LinearGradient
-                            colors={['#e8546f', '#f27a9c']}
+                            colors={[colors.primary, '#f27a9c']}
                             style={pgStyles.bannerCard}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
@@ -824,7 +840,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                             <View style={pgStyles.bannerRow}>
                                 <View style={{ gap: 6, flex: 1 }}>
                                     <View style={pgStyles.bannerBadge}>
-                                        <MIcons name="heart-multiple-outline" color="#e8546f" size={14} />
+                                        <MIcons name="heart-multiple-outline" color={colors.primary} size={14} />
                                         <Text style={pgStyles.bannerBadgeText}>Vibes &amp; Energy</Text>
                                     </View>
                                     <Text style={pgStyles.bannerTitle}>Show your best self today</Text>
@@ -840,7 +856,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                         <View style={pgStyles.formField}>
                             <View style={pgStyles.inputHeader}>
                                 <Text style={pgStyles.fieldLabel}>Full Name</Text>
-                                <IIcon name="lock-closed" size={15} color="#94a3b8" />
+                                <IIcon name="lock-closed" size={15} color={colors.textTertiary} />
                             </View>
                             <TextInput
                                 style={[pgStyles.textInput, pgStyles.readOnlyInput]}
@@ -853,7 +869,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                         <View style={pgStyles.formField}>
                             <View style={pgStyles.inputHeader}>
                                 <Text style={pgStyles.fieldLabel}>Age</Text>
-                                <IIcon name="lock-closed" size={15} color="#94a3b8" />
+                                <IIcon name="lock-closed" size={15} color={colors.textTertiary} />
                             </View>
                             <TextInput
                                 style={[pgStyles.textInput, pgStyles.readOnlyInput]}
@@ -866,7 +882,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                         <View style={pgStyles.formField}>
                             <View style={pgStyles.inputHeader}>
                                 <Text style={pgStyles.fieldLabel}>About you</Text>
-                                <IIcon name="create-outline" size={17} color="#888" />
+                                <IIcon name="create-outline" size={17} color={colors.textSecondary} />
                             </View>
                             <TextInput
                                 style={[pgStyles.textInput, pgStyles.textArea]}
@@ -875,7 +891,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                 value={getProfileEdit.about}
                                 onChangeText={(e) => updateProfileEdit({ about: e })}
                                 placeholder="Write something about yourself…"
-                                placeholderTextColor="#94a3b8"
+                                placeholderTextColor={colors.textTertiary}
                                 maxLength={400}
                             />
                             <Text style={pgStyles.charCounter}>
@@ -883,7 +899,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                             </Text>
                         </View>
 
-                        <FormGroup title="Core Details" hint="These help people understand who you are looking for.">
+                        <FormGroup title="Core Details" hint="These help people understand who you are looking for." pgStyles={pgStyles}>
                             <PickerField
                                 label="Intentions"
                                 value={__MAPPER?.bio_intent?.[getProfileEdit.relationshipgoal ?? ""]}
@@ -894,6 +910,8 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                     sections: [{ title: 'Dating goals', options: buildOptions(__MAPPER?.bio_intent) }],
                                     onSelect: (id) => updateProfileEdit({ relationshipgoal: id }),
                                 })}
+                                colors={colors}
+                                pgStyles={pgStyles}
                             />
                             <PickerField
                                 label="Gender"
@@ -905,6 +923,8 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                     sections: [{ title: 'Gender', options: buildOptions(__MAPPER?.bio_gender) }],
                                     onSelect: (id) => updateProfileEdit({ gender: id }),
                                 })}
+                                colors={colors}
+                                pgStyles={pgStyles}
                             />
                         </FormGroup>
 
@@ -922,7 +942,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                         Interests
                                         <Text style={pgStyles.countBadge}> {getInterests.length}/{MAX_INTERESTS}</Text>
                                     </Text>
-                                    <MIcons name="cursor-default-click-outline" size={17} color="#888" />
+                                    <MIcons name="cursor-default-click-outline" size={17} color={colors.textSecondary} />
                                 </View>
 
                                 {getInterests.length === 0 ? (
@@ -946,11 +966,13 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                             </Pressable>
                         </View>
 
-                        <FormGroup title="Background" hint="A few real-world details for better context.">
+                        <FormGroup title="Background" hint="A few real-world details for better context." pgStyles={pgStyles}>
                             <StaticField
                                 label="Location"
                                 value={getProfileEdit.city || '—'}
                                 icon="map-marker-outline"
+                                colors={colors}
+                                pgStyles={pgStyles}
                             />
                             <InlineTextField
                                 label="Hometown"
@@ -959,6 +981,8 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                 placeholder="Where are you from?"
                                 maxLength={45}
                                 onChangeText={(text) => updateProfileEdit({ hometown: text })}
+                                colors={colors}
+                                pgStyles={pgStyles}
                             />
                             <PickerField
                                 label="Highest Education"
@@ -970,6 +994,8 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                     sections: [{ title: 'Education', options: buildOptions(__MAPPER?.bio_education) }],
                                     onSelect: (id) => updateProfileEdit({ highEducation: id }),
                                 })}
+                                colors={colors}
+                                pgStyles={pgStyles}
                             />
                             <InlineTextField
                                 label="Languages"
@@ -982,6 +1008,8 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                         .map((item) => item.trim())
                                         .filter(Boolean)
                                 })}
+                                colors={colors}
+                                pgStyles={pgStyles}
                             />
                             <InlineTextField
                                 label="School Attended"
@@ -990,6 +1018,8 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                 placeholder="What school did you attend?"
                                 maxLength={45}
                                 onChangeText={(text) => updateProfileEdit({ schoolattended: text })}
+                                colors={colors}
+                                pgStyles={pgStyles}
                             />
                         </FormGroup>
 
@@ -1007,14 +1037,14 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                         onPress={() => removePrompt(index)}
                                         hitSlop={6}
                                     >
-                                        <IIcon name="close-circle" size={20} color="#ff4444" />
+                                        <IIcon name="close-circle" size={20} color={colors.danger} />
                                     </Pressable>
                                     <Text style={pgStyles.promptQuestion}>{item?.question}</Text>
                                     <TextInput
                                         style={[pgStyles.textInput, pgStyles.promptAnswer]}
                                         value={item?.answer}
                                         placeholder={item?.question}
-                                        placeholderTextColor="#94a3b8"
+                                        placeholderTextColor={colors.textTertiary}
                                         multiline
                                         maxLength={140}
                                         onChangeText={text => {
@@ -1036,13 +1066,13 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                         onSave: (updated: PromptEntry[]) => setPrompts(updated),
                                     })}
                                 >
-                                    <MIcons name="plus-circle-outline" size={18} color="#e8546f" />
+                                    <MIcons name="plus-circle-outline" size={18} color={colors.primary} />
                                     <Text style={pgStyles.addPromptText}>Add a Prompt</Text>
                                 </Pressable>
                             )}
                         </View>
 
-                        <FormGroup title="Lifestyle" hint="Optional details that make matching more thoughtful.">
+                        <FormGroup title="Lifestyle" hint="Optional details that make matching more thoughtful." pgStyles={pgStyles}>
                             {[
                                 { label: 'Children', title: 'Do you have children?', icon: 'human-male-child', map: __MAPPER?.bio_children, state: getProfileEdit.children, set: (id: string) => updateProfileEdit({ children: id }) },
                                 { label: 'Smoking', title: 'Do you smoke?', icon: 'smoking-off', map: __MAPPER?.bio_smoking, state: getProfileEdit.smoking, set: (id: string) => updateProfileEdit({ smoking: id }) },
@@ -1060,11 +1090,13 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                         sections: [{ title: 'Lifestyle', options: buildOptions(map as Record<string, string>) }],
                                         onSelect: set,
                                     })}
-                                />
+                                colors={colors}
+                                pgStyles={pgStyles}
+                            />
                             ))}
                         </FormGroup>
 
-                        <FormGroup title="Identity" hint="Share as much or as little as feels right.">
+                        <FormGroup title="Identity" hint="Share as much or as little as feels right." pgStyles={pgStyles}>
                             {[
                                 { label: 'Religion', title: 'What is your religion?', icon: 'hands-pray', map: religionOptions, state: getProfileEdit.religion, set: (id: string) => updateProfileEdit({ religion: id }) },
                                 { label: 'Ethnicity', title: 'What is your ethnicity?', icon: 'account-group-outline', map: __MAPPER?.bio_ethnicity, state: getProfileEdit.ethnicity, set: (id: string) => updateProfileEdit({ ethnicity: id }) },
@@ -1081,7 +1113,9 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                         sections: [{ title: 'Identity', options: buildOptions(map as Record<string, string>) }],
                                         onSelect: set,
                                     })}
-                                />
+                                colors={colors}
+                                pgStyles={pgStyles}
+                            />
                             ))}
                         </FormGroup>
 
@@ -1105,7 +1139,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                             {!!pickerSheet.subtitle && <Text style={pgStyles.sectionHint}>{pickerSheet.subtitle}</Text>}
                         </View>
                         <Pressable style={pgStyles.sheetCloseButton} onPress={closePicker}>
-                            <IIcon name="close" size={18} color="#64748b" />
+                            <IIcon name="close" size={18} color={colors.textSecondary} />
                         </Pressable>
                     </View>
                     <BottomSheetScrollView contentContainerStyle={pgStyles.sheetScrollContent} showsVerticalScrollIndicator={false}>
@@ -1128,7 +1162,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                                 <Text style={[pgStyles.pickerOptionText, selected && pgStyles.pickerOptionTextSelected]}>
                                                     {option.label}
                                                 </Text>
-                                                {selected && <IIcon name="checkmark-circle" size={20} color="#e8546f" />}
+                                                {selected && <IIcon name="checkmark-circle" size={20} color={colors.primary} />}
                                             </TouchableOpacity>
                                         );
                                     })}
@@ -1142,7 +1176,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
     );
 }
 
-const FormGroup = ({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) => (
+const FormGroup = ({ title, hint, children, pgStyles }: { title: string; hint?: string; children: React.ReactNode; pgStyles: any }) => (
     <View style={pgStyles.groupCard}>
         <View style={pgStyles.groupHeader}>
             <Text style={pgStyles.groupTitle}>{title}</Text>
@@ -1157,15 +1191,19 @@ const PickerField = ({
     value,
     icon,
     onPress,
+    colors,
+    pgStyles,
 }: {
     label: string;
     value?: string | null;
     icon: string;
     onPress: () => void;
+    colors: ThemeColors;
+    pgStyles: any;
 }) => (
     <Pressable style={pgStyles.pickerField} onPress={onPress}>
         <View style={pgStyles.pickerFieldIcon}>
-            <MIcons name={icon} size={18} color="#e8546f" />
+            <MIcons name={icon} size={18} color={colors.primary} />
         </View>
         <View style={{ flex: 1 }}>
             <Text style={pgStyles.fieldLabel}>{label}</Text>
@@ -1173,7 +1211,7 @@ const PickerField = ({
                 {value || 'Choose an option'}
             </Text>
         </View>
-        <MIcons name="chevron-right" size={22} color="#94a3b8" />
+        <MIcons name="chevron-right" size={22} color={colors.textTertiary} />
     </Pressable>
 );
 
@@ -1181,14 +1219,18 @@ const StaticField = ({
     label,
     value,
     icon,
+    colors,
+    pgStyles,
 }: {
     label: string;
     value: string;
     icon: string;
+    colors: ThemeColors;
+    pgStyles: any;
 }) => (
     <View style={pgStyles.inlineField}>
         <View style={pgStyles.pickerFieldIcon}>
-            <MIcons name={icon} size={18} color="#e8546f" />
+            <MIcons name={icon} size={18} color={colors.primary} />
         </View>
         <View style={{ flex: 1 }}>
             <Text style={pgStyles.fieldLabel}>{label}</Text>
@@ -1204,6 +1246,8 @@ const InlineTextField = ({
     placeholder,
     maxLength,
     onChangeText,
+    colors,
+    pgStyles,
 }: {
     label: string;
     value: string;
@@ -1211,10 +1255,12 @@ const InlineTextField = ({
     placeholder: string;
     maxLength?: number;
     onChangeText: (text: string) => void;
+    colors: ThemeColors;
+    pgStyles: any;
 }) => (
     <View style={pgStyles.inlineField}>
         <View style={pgStyles.pickerFieldIcon}>
-            <MIcons name={icon} size={18} color="#e8546f" />
+            <MIcons name={icon} size={18} color={colors.primary} />
         </View>
         <View style={{ flex: 1, gap: 6 }}>
             <Text style={pgStyles.fieldLabel}>{label}</Text>
@@ -1223,7 +1269,7 @@ const InlineTextField = ({
                 value={value}
                 onChangeText={onChangeText}
                 placeholder={placeholder}
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={colors.textTertiary}
                 maxLength={maxLength}
             />
         </View>
@@ -1231,10 +1277,11 @@ const InlineTextField = ({
 );
 
 // ─── Page-level styles ────────────────────────────────────────────────────────
-const pgStyles = StyleSheet.create({
+function createPgStyles(colors: ThemeColors) {
+    return StyleSheet.create({
     screen: {
         flex: 1,
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.backgroundSecondary,
         paddingHorizontal: 0,
     },
     scrollContent: {
@@ -1249,7 +1296,7 @@ const pgStyles = StyleSheet.create({
     headerTitle: {
         fontSize: 18,
         fontWeight: '900',
-        color: '#0f172a',
+        color: colors.text,
     },
     headerActions: {
         paddingRight: 12,
@@ -1262,21 +1309,21 @@ const pgStyles = StyleSheet.create({
         justifyContent: 'center',
         borderRadius: 999,
         paddingHorizontal: 12,
-        backgroundColor: '#f1f5f9',
+        backgroundColor: colors.backgroundSecondary,
     },
     previewBtnText: {
         fontSize: 13,
-        color: '#475569',
+        color: colors.textSecondary,
         fontWeight: '800',
     },
     saveBtn: {
         minHeight: 36,
-        backgroundColor: '#e8546f',
+        backgroundColor: colors.primary,
         paddingHorizontal: 16,
         borderRadius: 999,
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#e8546f',
+        shadowColor: colors.primary,
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.18,
         shadowRadius: 12,
@@ -1290,10 +1337,10 @@ const pgStyles = StyleSheet.create({
 
     sectionCard: {
         borderRadius: 22,
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
         padding: 14,
         gap: 12,
-        shadowColor: '#0f172a',
+        shadowColor: colors.text,
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.06,
         shadowRadius: 18,
@@ -1308,19 +1355,19 @@ const pgStyles = StyleSheet.create({
         width: 38,
         height: 38,
         borderRadius: 19,
-        backgroundColor: '#fff1f5',
+        backgroundColor: colors.backgroundSecondary,
         alignItems: 'center',
         justifyContent: 'center',
     },
     sectionLabel: {
         fontSize: 14,
         fontWeight: '900',
-        color: '#0f172a',
+        color: colors.text,
         textTransform: 'uppercase',
     },
     sectionHint: {
         fontSize: 12,
-        color: '#64748b',
+        color: colors.textSecondary,
         fontWeight: '700',
         marginTop: 2,
     },
@@ -1328,7 +1375,7 @@ const pgStyles = StyleSheet.create({
     bannerCard: {
         borderRadius: 22,
         overflow: 'hidden',
-        shadowColor: '#e8546f',
+        shadowColor: colors.primary,
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.14,
         shadowRadius: 18,
@@ -1343,25 +1390,25 @@ const pgStyles = StyleSheet.create({
     bannerBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
         borderRadius: 20,
         paddingHorizontal: 10,
         paddingVertical: 5,
         alignSelf: 'flex-start',
         gap: 5,
     },
-    bannerBadgeText: { color: '#e8546f', fontWeight: '900', fontSize: 12 },
+    bannerBadgeText: { color: colors.primary, fontWeight: '900', fontSize: 12 },
     bannerTitle: { fontSize: 21, color: '#fff', fontWeight: '900', marginTop: 2 },
     bannerSubtitle: { color: '#ffe7ef', fontSize: 12, lineHeight: 17, marginTop: 2 },
 
     formField: {
         borderRadius: 18,
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
         padding: 14,
         gap: 8,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
-        shadowColor: '#0f172a',
+        borderColor: colors.border,
+        shadowColor: colors.text,
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.045,
         shadowRadius: 16,
@@ -1369,12 +1416,12 @@ const pgStyles = StyleSheet.create({
     },
     groupCard: {
         borderRadius: 22,
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
         padding: 14,
         gap: 12,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
-        shadowColor: '#0f172a',
+        borderColor: colors.border,
+        shadowColor: colors.text,
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.045,
         shadowRadius: 16,
@@ -1384,12 +1431,12 @@ const pgStyles = StyleSheet.create({
         gap: 3,
     },
     groupTitle: {
-        color: '#0f172a',
+        color: colors.text,
         fontSize: 16,
         fontWeight: '900',
     },
     groupHint: {
-        color: '#64748b',
+        color: colors.textSecondary,
         fontSize: 12,
         lineHeight: 17,
         fontWeight: '700',
@@ -1400,9 +1447,9 @@ const pgStyles = StyleSheet.create({
     pickerField: {
         minHeight: 62,
         borderRadius: 16,
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.backgroundSecondary,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderColor: colors.border,
         padding: 12,
         flexDirection: 'row',
         alignItems: 'center',
@@ -1412,33 +1459,33 @@ const pgStyles = StyleSheet.create({
         width: 38,
         height: 38,
         borderRadius: 19,
-        backgroundColor: '#fff1f5',
+        backgroundColor: colors.backgroundSecondary,
         alignItems: 'center',
         justifyContent: 'center',
     },
     pickerFieldValue: {
-        color: '#0f172a',
+        color: colors.text,
         fontSize: 14,
         fontWeight: '800',
         marginTop: 3,
         textTransform: 'capitalize',
     },
     pickerFieldPlaceholder: {
-        color: '#94a3b8',
+        color: colors.textTertiary,
     },
     inlineField: {
         minHeight: 62,
         borderRadius: 16,
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.backgroundSecondary,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderColor: colors.border,
         padding: 12,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
     },
     inlineFieldValue: {
-        color: '#0f172a',
+        color: colors.text,
         fontSize: 14,
         fontWeight: '800',
         marginTop: 3,
@@ -1446,7 +1493,7 @@ const pgStyles = StyleSheet.create({
     inlineInput: {
         minHeight: 34,
         borderRadius: 0,
-        color: '#0f172a',
+        color: colors.text,
         fontSize: 14,
         fontWeight: '800',
         paddingHorizontal: 0,
@@ -1459,7 +1506,7 @@ const pgStyles = StyleSheet.create({
         marginBottom: 1,
     },
     fieldLabel: {
-        color: '#334155',
+        color: colors.textSecondary,
         fontSize: 12,
         fontWeight: '900',
         textTransform: 'uppercase',
@@ -1467,10 +1514,10 @@ const pgStyles = StyleSheet.create({
     textInput: {
         minHeight: 44,
         borderRadius: 14,
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.backgroundSecondary,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
-        color: '#0f172a',
+        borderColor: colors.border,
+        color: colors.text,
         fontSize: 15,
         fontWeight: '700',
         paddingHorizontal: 12,
@@ -1484,57 +1531,57 @@ const pgStyles = StyleSheet.create({
         textAlignVertical: 'top',
     },
     readOnlyInput: {
-        color: '#64748b',
-        backgroundColor: '#f1f5f9',
+        color: colors.textSecondary,
+        backgroundColor: colors.backgroundSecondary,
     },
     charCounter: {
         fontSize: 11,
-        color: '#94a3b8',
+        color: colors.textTertiary,
         textAlign: 'right',
         fontWeight: '700',
     },
     placeholder: {
-        color: '#94a3b8',
+        color: colors.textTertiary,
         fontSize: 14,
         paddingHorizontal: 4,
         paddingVertical: 6,
         fontWeight: '700',
     },
 
-    countBadge: { color: '#94a3b8', fontSize: 12, fontWeight: '800' },
+    countBadge: { color: colors.textTertiary, fontSize: 12, fontWeight: '800' },
 
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingTop: 2 },
     chip: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.backgroundSecondary,
         borderRadius: 999,
         paddingHorizontal: 12,
         paddingVertical: 8,
         gap: 5,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderColor: colors.border,
     },
-    chipSelected: { backgroundColor: '#e8546f', borderColor: '#e8546f' },
-    chipText: { fontSize: 13, color: '#334155', fontWeight: '800' },
+    chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+    chipText: { fontSize: 13, color: colors.textSecondary, fontWeight: '800' },
     chipTextSelected: { color: '#fff', fontWeight: '900' },
     chipRemove: { marginLeft: 2 },
-    chipRemoveText: { fontSize: 16, color: '#999', lineHeight: 16 },
+    chipRemoveText: { fontSize: 16, color: colors.textTertiary, lineHeight: 16 },
 
     promptCard: {
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderColor: colors.border,
         padding: 12,
         gap: 9,
         position: 'relative',
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.backgroundSecondary,
     },
     promptRemove: { position: 'absolute', top: 8, right: 8, zIndex: 10 },
-    promptQuestion: { fontSize: 12, fontWeight: '900', textTransform: 'uppercase', color: '#475569', paddingRight: 28 },
+    promptQuestion: { fontSize: 12, fontWeight: '900', textTransform: 'uppercase', color: colors.textSecondary, paddingRight: 28 },
     promptAnswer: {
         minHeight: 92,
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
         textAlignVertical: 'top',
         lineHeight: 20,
         paddingTop: 12,
@@ -1549,10 +1596,10 @@ const pgStyles = StyleSheet.create({
         borderRadius: 16,
         borderWidth: 1.5,
         borderStyle: 'dashed',
-        borderColor: '#f9a8b8',
-        backgroundColor: '#fff1f5',
+        borderColor: colors.border,
+        backgroundColor: colors.backgroundSecondary,
     },
-    addPromptText: { fontSize: 14, fontWeight: '900', color: '#e8546f' },
+    addPromptText: { fontSize: 14, fontWeight: '900', color: colors.primary },
 
     sheetBody: {
         flex: 1,
@@ -1572,35 +1619,35 @@ const pgStyles = StyleSheet.create({
         borderRadius: 18,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#f1f5f9',
+        backgroundColor: colors.backgroundSecondary,
     },
     sheetScrollContent: {
         gap: 10,
         paddingBottom: 22,
     },
-    sheetTitle: { fontSize: 20, fontWeight: '900', color: '#0f172a', marginBottom: 4 },
+    sheetTitle: { fontSize: 20, fontWeight: '900', color: colors.text, marginBottom: 4 },
     promptSheetCard: {
         gap: 10,
         paddingTop: 4,
     },
     promptPickerCard: {
         borderRadius: 18,
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderColor: colors.border,
         padding: 12,
         gap: 10,
     },
     promptSheetInput: {
         minHeight: 120,
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.backgroundSecondary,
         textAlignVertical: 'top',
         lineHeight: 20,
         paddingTop: 12,
     },
     sheetSaveBtn: {
         alignSelf: 'flex-end',
-        backgroundColor: '#e8546f',
+        backgroundColor: colors.primary,
         paddingHorizontal: 18,
         minHeight: 42,
         borderRadius: 999,
@@ -1612,27 +1659,27 @@ const pgStyles = StyleSheet.create({
     interestCategory: {
         borderRadius: 16,
         overflow: 'hidden',
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderColor: colors.border,
         padding: 12,
         gap: 10,
     },
     interestCategoryTitle: {
-        color: '#0f172a',
+        color: colors.text,
         fontSize: 15,
         fontWeight: '900',
     },
     pickerSectionCard: {
         borderRadius: 18,
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderColor: colors.border,
         padding: 12,
         gap: 10,
     },
     pickerSectionTitle: {
-        color: '#0f172a',
+        color: colors.text,
         fontSize: 15,
         fontWeight: '900',
     },
@@ -1642,9 +1689,9 @@ const pgStyles = StyleSheet.create({
     pickerOption: {
         minHeight: 50,
         borderRadius: 15,
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.backgroundSecondary,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderColor: colors.border,
         paddingHorizontal: 12,
         flexDirection: 'row',
         alignItems: 'center',
@@ -1652,17 +1699,18 @@ const pgStyles = StyleSheet.create({
         gap: 10,
     },
     pickerOptionSelected: {
-        backgroundColor: '#fff1f5',
-        borderColor: '#f9a8b8',
+        backgroundColor: colors.backgroundSecondary,
+        borderColor: colors.border,
     },
     pickerOptionText: {
         flex: 1,
-        color: '#334155',
+        color: colors.textSecondary,
         fontSize: 14,
         fontWeight: '800',
         textTransform: 'capitalize',
     },
     pickerOptionTextSelected: {
-        color: '#e8546f',
+        color: colors.primary,
     },
-});
+    });
+}

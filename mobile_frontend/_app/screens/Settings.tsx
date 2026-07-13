@@ -14,23 +14,14 @@ import { Toastx } from '../funcs/customNotification';
 import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
 import { bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import { useHeaderHeight } from '@react-navigation/elements';
-
-// Modern color palette
-const MODERN_COLORS = {
-  primary: '#FF3B6B', 
-  surface: '#FFFFFF',  
-  text: '#1F1F1F',
-  textSecondary: '#666666',
-  textTertiary: '#999999',
-  border: '#E8E9FF',
-  success: '#34C759', 
-  error: '#FF3B30',
-  premium: '#FFD166', 
-};
+import { useTheme, ThemeMode, ThemeColors } from '../funcs/theme';
 
 export function Screen_settings({ navigation }: { navigation: any }) {
   const [getProfile, setProfile] = useState<any>(null);
   const headerHeight = useHeaderHeight();
+  const { colors, mode, setMode } = useTheme();
+  const MODERN_COLORS = colors;
+  const modernStyles = useMemo(() => createModernStyles(colors), [colors]);
 
   const [getAllowOnlyVerified, setAllowOnlyVerified] = useState(getProfile?.messagefromonlyverified ?? false);
   const [privacyShowInDiscovery, setPrivacyShowInDiscovery] = useState(true);
@@ -230,7 +221,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
 
   // Profile header with modern design
   const ProfileHeader = () => (
-    <View style={{backgroundColor:"red",padding:10,marginTop:2, borderRadius:15, flexDirection: 'row',alignItems: 'center',flex: 1,}}> 
+    <View style={{backgroundColor:colors.primary,padding:10,marginTop:2, borderRadius:15, flexDirection: 'row',alignItems: 'center',flex: 1,}}>
            <View style={modernStyles.avatarContainer}>
             <View style={modernStyles.avatar}>
               <Text style={modernStyles.avatarText}>
@@ -399,12 +390,41 @@ export function Screen_settings({ navigation }: { navigation: any }) {
 
       <TouchableOpacity
         style={modernStyles.quickAction}
-      > 
+      >
           <Feather name="crown" size={20} color="#FFF" />
          <Text style={modernStyles.quickActionText}>Premium</Text>
       </TouchableOpacity>
     </View>
   );
+
+  // Appearance: Light / Dark / System switch
+  const AppearanceSwitcher = () => {
+    const options: { key: ThemeMode; label: string; icon: string }[] = [
+      { key: 'light', label: 'Light', icon: 'sunny-outline' },
+      { key: 'dark', label: 'Dark', icon: 'moon-outline' },
+      { key: 'system', label: 'System', icon: 'phone-portrait-outline' },
+    ];
+    return (
+      <View style={modernStyles.appearanceRow}>
+        {options.map((opt) => {
+          const active = mode === opt.key;
+          return (
+            <TouchableOpacity
+              key={opt.key}
+              onPress={() => setMode(opt.key)}
+              activeOpacity={0.8}
+              style={[modernStyles.appearanceOption, active && modernStyles.appearanceOptionActive]}
+            >
+              <IIcon name={opt.icon} size={20} color={active ? colors.onPrimary : colors.textSecondary} />
+              <Text style={[modernStyles.appearanceOptionText, active && modernStyles.appearanceOptionTextActive]}>
+                {opt.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  };
 
   // Email Change Flow Component - FIXED KeyboardAvoidingView position
   const EmailChangeFlow = ({ currentEmail, onComplete, onCancel }: { currentEmail: string, onComplete: () => void, onCancel: () => void }) => {
@@ -963,7 +983,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   // Main render
   return (
     <>
-      <SafeAreaView style={{ backgroundColor:"#fff" , flex:1, paddingTop: headerHeight}} edges={["bottom"]}>
+      <SafeAreaView style={{ backgroundColor:colors.background , flex:1, paddingTop: headerHeight}} edges={["bottom"]}>
         <ScrollView 
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.conainerScrollView}
@@ -993,6 +1013,11 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 }}
                 hr={false}
               />
+            </ModernSection>
+
+            {/* Appearance Section */}
+            <ModernSection title="Appearance" icon="color-palette-outline">
+              <AppearanceSwitcher />
             </ModernSection>
 
             {/* Billing Section */}
@@ -1263,35 +1288,36 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   );
 }
 
-const modernStyles = StyleSheet.create({
+function createModernStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   flowHeader: {
     marginBottom: 18,
   },
   flowTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: MODERN_COLORS.text,
+    color: colors.text,
     marginBottom: 6,
   },
   flowSubtitle: {
     fontSize: 16,
-    color: MODERN_COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   currentInfo: {
-    backgroundColor: MODERN_COLORS.border,
+    backgroundColor: colors.border,
     padding: 11,
     borderRadius: 12,
     marginBottom: 16,
   },
   currentLabel: {
     fontSize: 12,
-    color: MODERN_COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   currentValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: MODERN_COLORS.text,
+    color: colors.text,
   },
   inputGroup: {
     gap: 8,
@@ -1299,20 +1325,20 @@ const modernStyles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: MODERN_COLORS.text,
+    color: colors.text,
   },
   input: {
-    backgroundColor: MODERN_COLORS.surface,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: MODERN_COLORS.border,
+    borderColor: colors.border,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: MODERN_COLORS.text,
+    color: colors.text,
   },
   primaryButton: {
-    backgroundColor: MODERN_COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
@@ -1324,16 +1350,16 @@ const modernStyles = StyleSheet.create({
     fontWeight: '600',
   },
   secondaryButton: {
-    backgroundColor: MODERN_COLORS.surface,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: MODERN_COLORS.border,
+    borderColor: colors.border,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   secondaryButtonText: {
-    color: MODERN_COLORS.text,
+    color: colors.text,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -1341,13 +1367,13 @@ const modernStyles = StyleSheet.create({
     opacity: 0.5,
   },
   errorText: {
-    color: MODERN_COLORS.error,
+    color: colors.error,
     fontSize: 14,
     textAlign: 'center',
     marginTop: 8,
   },
   successText: {
-    color: MODERN_COLORS.success,
+    color: colors.success,
     fontSize: 14,
     textAlign: 'center',
     marginTop: 8,
@@ -1356,14 +1382,14 @@ const modernStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: MODERN_COLORS.border,
+    backgroundColor: colors.border,
     padding: 16,
     borderRadius: 12,
     marginBottom: 16,
   },
   infoText: {
     fontSize: 14,
-    color: MODERN_COLORS.text,
+    color: colors.text,
     flex: 1,
   },
   resendButton: {
@@ -1372,7 +1398,7 @@ const modernStyles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   resendButtonText: {
-    color: MODERN_COLORS.primary,
+    color: colors.primary,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -1392,10 +1418,10 @@ const modernStyles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: MODERN_COLORS.border,
+    backgroundColor: colors.border,
   },
   stepDotActive: {
-    backgroundColor: MODERN_COLORS.primary,
+    backgroundColor: colors.primary,
     width: 12,
   }, 
   avatarContainer: {
@@ -1420,7 +1446,7 @@ const modernStyles = StyleSheet.create({
     position: 'absolute',
     bottom: -2,
     right: -2,
-    backgroundColor: MODERN_COLORS.premium,
+    backgroundColor: colors.premium,
     width: 24,
     height: 24,
     borderRadius: 12,
@@ -1482,7 +1508,35 @@ const modernStyles = StyleSheet.create({
   quickActionText: {
     fontSize: 12,
     fontWeight: '600',
-    color: MODERN_COLORS.text,
+    color: colors.text,
+  },
+  appearanceRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 10,
+  },
+  appearanceOption: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: colors.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  appearanceOptionActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  appearanceOptionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  appearanceOptionTextActive: {
+    color: colors.onPrimary,
   },
   section: {
     marginBottom: 24,
@@ -1497,7 +1551,7 @@ const modernStyles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: MODERN_COLORS.border,
+    backgroundColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
@@ -1505,15 +1559,15 @@ const modernStyles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: MODERN_COLORS.text,
+    color: colors.text,
   },
   card: {
-    backgroundColor: MODERN_COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: 18,
     paddingHorizontal: 16, 
     ...Platform.select({
       ios: {
-        shadowColor: MODERN_COLORS.text,
+        shadowColor: colors.text,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.05,
         shadowRadius: 12,
@@ -1525,7 +1579,7 @@ const modernStyles = StyleSheet.create({
   }, 
   hr:{// Horizontal divider style
     height: 1,
-    backgroundColor: MODERN_COLORS.border,
+    backgroundColor: colors.border,
   },
   optionItem: {
     flexDirection: 'row',
@@ -1542,7 +1596,7 @@ const modernStyles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: MODERN_COLORS.border,
+    backgroundColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -1559,15 +1613,15 @@ const modernStyles = StyleSheet.create({
   optionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: MODERN_COLORS.text,
+    color: colors.text,
     marginBottom: 2,
   },
   optionTitleDanger: {
-    color: MODERN_COLORS.error,
+    color: colors.error,
   },
   optionSubtitle: {
     fontSize: 13,
-    color: MODERN_COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   switchItem: {
     flexDirection: 'row',
@@ -1584,7 +1638,7 @@ const modernStyles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: MODERN_COLORS.border,
+    backgroundColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -1595,32 +1649,32 @@ const modernStyles = StyleSheet.create({
   switchTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: MODERN_COLORS.text,
+    color: colors.text,
     marginBottom: 2,
   },
   switchSubtitle: {
     fontSize: 13,
-    color: MODERN_COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   switchTrack: {
     width: 52,
     height: 32,
     borderRadius: 16,
-    backgroundColor: MODERN_COLORS.border,
+    backgroundColor: colors.border,
     padding: 2,
     justifyContent: 'center',
   },
   switchTrackActive: {
-    backgroundColor: MODERN_COLORS.primary,
+    backgroundColor: colors.primary,
   },
   switchTrackDisabled: {
-    backgroundColor: MODERN_COLORS.textTertiary,
+    backgroundColor: colors.textTertiary,
   },
   switchThumb: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: MODERN_COLORS.surface,
+    backgroundColor: colors.surface,
   },
   switchThumbActive: {
     transform: [{ translateX: 20 }],
@@ -1635,13 +1689,14 @@ const modernStyles = StyleSheet.create({
   },
   versionText: {
     fontSize: 14,
-    color: MODERN_COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   buildText: {
     fontSize: 11,
-    color: MODERN_COLORS.textTertiary,
+    color: colors.textTertiary,
   },
-});
+  });
+}
 
 export default Screen_settings;

@@ -10,11 +10,14 @@ import { __init__app, _handle_Signin, cacheStorage, hostServer, screenWidth } fr
 import { Loaderx } from '../funcs/functions_stateful';
 import { namer } from '../funcs/static';
 import { Toastx } from '../funcs/customNotification';
+import { useTheme, ThemeColors } from '../funcs/theme';
 
 const CODE_LENGTH = 6;
 const INITIAL_RESEND_SECONDS = 80;
 
 export const Auth_Login = () => {
+  const { colors } = useTheme();
+  const stylesx = useMemo(() => createStylesx(colors), [colors]);
   const navigation = useNavigation<any>();
   const carouselRef = useRef<CarouselRef>(null);
   const codeInputRefs = useRef<Array<TextInput | null>>([]);
@@ -227,9 +230,9 @@ export const Auth_Login = () => {
   };
 
   const renderLoginPage = () => (
-    <AuthPage fadeAnim={fadeAnim} slideAnim={slideAnim}>
+    <AuthPage fadeAnim={fadeAnim} slideAnim={slideAnim} stylesx={stylesx}>
       <View style={stylesx.brandMark}>
-        <MaterialCommunityIcons name="heart-multiple" size={36} color="#ffffff" />
+        <MaterialCommunityIcons name="heart-multiple" size={36} color={'#fff'} />
       </View>
 
       <View style={stylesx.header}>
@@ -254,7 +257,7 @@ export const Auth_Login = () => {
           <TextInput
             style={stylesx.input}
             placeholder="555 000 1234"
-            placeholderTextColor="#a7959f"
+            placeholderTextColor={colors.placeholder}
             value={phoneNumber}
             onChangeText={value => setPhoneNumber(value.replace(/\D/g, ''))}
             keyboardType="number-pad"
@@ -267,6 +270,7 @@ export const Auth_Login = () => {
           label={isSubmitting ? 'Sending...' : 'Continue with Phone'}
           disabled={!isPhoneValid || isSubmitting}
           onPress={handleSendCode}
+          stylesx={stylesx}
         />
 
         <View style={stylesx.dividerRow}>
@@ -276,13 +280,13 @@ export const Auth_Login = () => {
         </View>
 
         <View style={stylesx.socialButtonsContainer}>
-          <SocialButton icon="google" label="Google" color="#db4437" />
-          <SocialButton icon="facebook" label="Facebook" color="#4267B2" />
+          <SocialButton icon="google" label="Google" color="#db4437" stylesx={stylesx} />
+          <SocialButton icon="facebook" label="Facebook" color="#4267B2" stylesx={stylesx} />
         </View>
-        {Platform.OS === 'ios' && <SocialButton icon="apple" label="Apple" color="#151515" />}
+        {Platform.OS === 'ios' && <SocialButton icon="apple" label="Apple" color="#151515" stylesx={stylesx} />}
       </KeyboardAvoidingView>
 
-      <TermsText onTerms={openTerms} onPrivacy={openPrivacy} />
+      <TermsText onTerms={openTerms} onPrivacy={openPrivacy} stylesx={stylesx} />
 
       {showCreateAccountPrompt && (
         <CreateAccountPrompt
@@ -292,6 +296,8 @@ export const Auth_Login = () => {
             setShowCreateAccountPrompt(false);
             navigation.navigate(namer.navigation.signup, { phone: fullPhoneNumber});
           }}
+          colors={colors}
+          stylesx={stylesx}
         />
       )}
     </AuthPage>
@@ -303,13 +309,13 @@ export const Auth_Login = () => {
       : '';
 
     return (
-      <AuthPage fadeAnim={fadeAnim} slideAnim={slideAnim}>
+      <AuthPage fadeAnim={fadeAnim} slideAnim={slideAnim} stylesx={stylesx}>
         <TouchableOpacity style={stylesx.backButton} onPress={editPhoneNumber}>
-          <MaterialCommunityIcons name="chevron-left" size={24} color="#2d2430" />
+          <MaterialCommunityIcons name="chevron-left" size={24} color={colors.text} />
         </TouchableOpacity>
 
         <View style={stylesx.verifyIcon}>
-          <MaterialCommunityIcons name="message-text-lock-outline" size={38} color="#e8546f" />
+          <MaterialCommunityIcons name="message-text-lock-outline" size={38} color={colors.primary} />
         </View>
 
         <View style={stylesx.header}>
@@ -330,7 +336,7 @@ export const Auth_Login = () => {
                 onChangeText={text => applyCodeInput(text, index)}
                 onKeyPress={event => handleCodeKeyPress(event, index)}
                 placeholder="0"
-                placeholderTextColor="#d1c3ca"
+                placeholderTextColor={colors.placeholder}
                 keyboardType="number-pad"
                 maxLength={CODE_LENGTH}
                 selectTextOnFocus
@@ -343,6 +349,7 @@ export const Auth_Login = () => {
             label={isSubmitting ? 'Verifying...' : 'Verify & Continue'}
             disabled={verificationValue.length < CODE_LENGTH || isSubmitting}
             onPress={handleVerifyAndContinue}
+            stylesx={stylesx}
           />
 
           <View style={stylesx.resendRow}>
@@ -374,10 +381,12 @@ const AuthPage = ({
   children,
   fadeAnim,
   slideAnim,
+  stylesx,
 }: {
   children: React.ReactNode;
   fadeAnim: Animated.Value;
   slideAnim: Animated.Value;
+  stylesx: any;
 }) => (
   <Animated.ScrollView
     style={stylesx.page}
@@ -390,7 +399,7 @@ const AuthPage = ({
   </Animated.ScrollView>
 );
 
-const PrimaryButton = ({ label, disabled, onPress }: { label: string; disabled?: boolean; onPress: () => void }) => (
+const PrimaryButton = ({ label, disabled, onPress, stylesx }: { label: string; disabled?: boolean; onPress: () => void; stylesx: any }) => (
   <TouchableOpacity
     style={[stylesx.primaryButton, disabled && stylesx.primaryButtonDisabled]}
     disabled={disabled}
@@ -399,14 +408,14 @@ const PrimaryButton = ({ label, disabled, onPress }: { label: string; disabled?:
   </TouchableOpacity>
 );
 
-const SocialButton = ({ icon, label, color }: { icon: string; label: string; color: string }) => (
+const SocialButton = ({ icon, label, color, stylesx }: { icon: string; label: string; color: string; stylesx: any }) => (
   <Pressable style={[stylesx.socialButton, { backgroundColor: color }]} onPress={() => {}}>
-    <MaterialCommunityIcons name={icon} size={20} color="#ffffff" />
+    <MaterialCommunityIcons name={icon} size={20} color={'#fff'} />
     <Text style={stylesx.socialButtonText}>{label}</Text>
   </Pressable>
 );
 
-const TermsText = ({ onTerms, onPrivacy }: { onTerms: () => void; onPrivacy: () => void }) => (
+const TermsText = ({ onTerms, onPrivacy, stylesx }: { onTerms: () => void; onPrivacy: () => void; stylesx: any }) => (
   <View style={stylesx.termsWrap}>
     <Text style={stylesx.termsText}>By continuing, you agree to our </Text>
     <Pressable onPress={onTerms}>
@@ -424,15 +433,19 @@ const CreateAccountPrompt = ({
   phoneLabel,
   onCancel,
   onCreate,
+  colors,
+  stylesx,
 }: {
   phoneLabel: string;
   onCancel: () => void;
   onCreate: () => void;
+  colors: ThemeColors;
+  stylesx: any;
 }) => (
   <View style={stylesx.promptBackdrop}>
     <View style={stylesx.promptCard}>
       <View style={stylesx.promptIcon}>
-        <MaterialCommunityIcons name="account-plus-outline" size={28} color="#e8546f" />
+        <MaterialCommunityIcons name="account-plus-outline" size={28} color={colors.primary} />
       </View>
       <Text style={stylesx.promptTitle}>No account yet</Text>
       <Text style={stylesx.promptText}>{phoneLabel}</Text>
@@ -449,10 +462,11 @@ const CreateAccountPrompt = ({
   </View>
 );
 
-const stylesx = StyleSheet.create({
+function createStylesx(colors: ThemeColors) {
+  return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff8fa',
+    backgroundColor: colors.background,
   },
   page: {
     width: screenWidth,
@@ -471,8 +485,8 @@ const stylesx = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
-    backgroundColor: '#e8546f',
-    shadowColor: '#e8546f',
+    backgroundColor: colors.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 0.25,
     shadowRadius: 20,
@@ -485,8 +499,8 @@ const stylesx = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
-    backgroundColor: '#ffffff',
-    shadowColor: '#2b1020',
+    backgroundColor: colors.surface,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.1,
     shadowRadius: 22,
@@ -498,8 +512,8 @@ const stylesx = StyleSheet.create({
     borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ffffff',
-    shadowColor: '#2b1020',
+    backgroundColor: colors.surface,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -513,14 +527,14 @@ const stylesx = StyleSheet.create({
     gap: 10,
   },
   title: {
-    color: '#2d2430',
+    color: colors.text,
     fontSize: 34,
     lineHeight: 39,
     fontWeight: '900',
     textAlign: 'center',
   },
   subtitle: {
-    color: '#74636b',
+    color: colors.textSecondary,
     fontSize: 16,
     lineHeight: 23,
     textAlign: 'center',
@@ -529,18 +543,18 @@ const stylesx = StyleSheet.create({
   formCard: {
     width: '100%',
     borderRadius: 20,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     paddingHorizontal: 10,
     paddingVertical: 30,
     gap: 14,
-    shadowColor: '#2b1020',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.1,
     shadowRadius: 22,
     elevation: 5,
   },
   fieldLabel: {
-    color: '#2d2430',
+    color: colors.text,
     fontSize: 13,
     fontWeight: '900',
     textTransform: 'uppercase',
@@ -548,16 +562,16 @@ const stylesx = StyleSheet.create({
   phoneInput: {
     minHeight: 50,
     borderRadius: 16,
-    backgroundColor: '#fbf5f7',
+    backgroundColor: colors.backgroundSecondary,
     borderWidth: 1,
-    borderColor: '#efdbe2',
+    borderColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
   },
   phoneInputActive: {
-    borderColor: '#e8546f',
-    backgroundColor: '#fff1f5',
+    borderColor: colors.primary,
+    backgroundColor: colors.backgroundSecondary,
   },
   countryPickerButton: {
     height: 38,
@@ -567,18 +581,18 @@ const stylesx = StyleSheet.create({
   inputDivider: {
     width: 1,
     height: 30,
-    backgroundColor: '#e8d6dd',
+    backgroundColor: colors.border,
     marginHorizontal: 10,
   },
   input: {
     flex: 1,
     minHeight: 45,
-    color: '#2d2430',
+    color: colors.text,
     fontSize: 16,
     fontWeight: '700',
   },
   helperText: {
-    color: '#8c7882',
+    color: colors.textSecondary,
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '600',
@@ -587,22 +601,22 @@ const stylesx = StyleSheet.create({
     width: '100%',
     minHeight: 45,
     borderRadius: 18,
-    backgroundColor: '#e8546f',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#e8546f',
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.24,
     shadowRadius: 18,
     elevation: 5,
   },
   primaryButtonDisabled: {
-    backgroundColor: '#d8c9cf',
+    backgroundColor: colors.disabled,
     shadowOpacity: 0,
     elevation: 0,
   },
   primaryButtonText: {
-    color: '#ffffff',
+    color: '#fff',
     fontSize: 16,
     fontWeight: '900',
   },
@@ -614,10 +628,10 @@ const stylesx = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#efdbe2',
+    backgroundColor: colors.border,
   },
   dividerText: {
-    color: '#9b8790',
+    color: colors.textTertiary,
     fontSize: 13,
     fontWeight: '800',
   },
@@ -635,7 +649,7 @@ const stylesx = StyleSheet.create({
     gap: 8,
   },
   socialButtonText: {
-    color: '#ffffff',
+    color: '#fff',
     fontSize: 15,
     fontWeight: '900',
   },
@@ -647,13 +661,13 @@ const stylesx = StyleSheet.create({
     justifyContent: 'center',
   },
   termsText: {
-    color: '#9b8790',
+    color: colors.textTertiary,
     fontSize: 12,
     lineHeight: 18,
     textAlign: 'center',
   },
   termsLink: {
-    color: '#e8546f',
+    color: colors.primary,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: '900',
@@ -666,17 +680,17 @@ const stylesx = StyleSheet.create({
     flex: 1,
     minHeight: 56,
     borderWidth: 1,
-    borderColor: '#efdbe2',
+    borderColor: colors.border,
     borderRadius: 14,
     textAlign: 'center',
     fontSize: 20,
     fontWeight: '900',
-    backgroundColor: '#fbf5f7',
-    color: '#2d2430',
+    backgroundColor: colors.backgroundSecondary,
+    color: colors.text,
   },
   codeInputActive: {
-    borderColor: '#e8546f',
-    backgroundColor: '#fff1f5',
+    borderColor: colors.primary,
+    backgroundColor: colors.backgroundSecondary,
   },
   resendRow: {
     flexDirection: 'row',
@@ -688,21 +702,21 @@ const stylesx = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 13,
     paddingVertical: 9,
-    backgroundColor: '#fff1f5',
+    backgroundColor: colors.backgroundSecondary,
     borderWidth: 1,
-    borderColor: '#f2c9d4',
+    borderColor: colors.border,
   },
   resendButtonDisabled: {
     opacity: 0.55,
   },
   resendButtonText: {
-    color: '#e8546f',
+    color: colors.primary,
     fontSize: 13,
     fontWeight: '900',
   },
   promptBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(45, 36, 48, 0.42)',
+    backgroundColor: colors.overlay,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 20,
@@ -710,9 +724,9 @@ const stylesx = StyleSheet.create({
   promptCard: {
     width: '100%',
     borderRadius: 22,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     padding: 20,
-    shadowColor: '#2b1020',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 0.18,
     shadowRadius: 26,
@@ -724,17 +738,17 @@ const stylesx = StyleSheet.create({
     borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff1f5',
+    backgroundColor: colors.backgroundSecondary,
     marginBottom: 14,
   },
   promptTitle: {
-    color: '#2d2430',
+    color: colors.text,
     fontSize: 22,
     fontWeight: '900',
   },
   promptText: {
     marginTop: 9,
-    color: '#74636b',
+    color: colors.textSecondary,
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '600',
@@ -753,20 +767,21 @@ const stylesx = StyleSheet.create({
   },
   promptButtonCancel: {
     borderWidth: 1,
-    borderColor: '#efdbe2',
-    backgroundColor: '#fbf5f7',
+    borderColor: colors.border,
+    backgroundColor: colors.backgroundSecondary,
   },
   promptButtonPrimary: {
-    backgroundColor: '#e8546f',
+    backgroundColor: colors.primary,
   },
   promptButtonCancelText: {
-    color: '#5c4c54',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '900',
   },
   promptButtonPrimaryText: {
-    color: '#ffffff',
+    color: '#fff',
     fontSize: 14,
     fontWeight: '900',
   },
-});
+  });
+}

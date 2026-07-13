@@ -6,18 +6,41 @@ Last updated: 2026-07-12
 [1] = do task
 [3] = completed
 
+
+================- Questions
+
+[0] Remove socket message/session payloads from production frontend logs; keep only redacted lifecycle diagnostics behind a development flag.
+[1] Show a small reconnecting/offline (green,red,yellow) state in conversation UI when the socket disconnects, and clear it after reconnection.
+[1] Handle socket authentication failure in the UI: stop automatic reconnect loops, clear an expired session, and route the user to login with an understandable message.
+[1] Add message delivery states to optimistic chat bubbles (sending, sent, failed, resend) with a retry action for failed sends.
+[1] Refresh the active conversation/chat list after socket reconnection so notifications missed while offline do not leave the UI stale.
+[1] Prevent duplicate socket listeners/callbacks when the app resumes, the user changes, or SocketClient.connect() is called repeatedly.
+[0] Treat realtime payloads as hints only: refetch authoritative conversation data instead of rendering unverified notification text as a trusted message.
+[1] Add a user-facing cooldown message for HTTP 429 responses, using Retry-After where available, on login/signup and verification-code screens.
+
+
+
+================- move ignored here
 [0] remove condition sending communications code
- 
+[0] Verify match uniqueness constraints and prevent reverse duplicate matches.
+
+
+
+
+
+
+
+
+================- move completed here
 [3] Add rate limits for login, signup, verification, profile updates, matches, messages, uploads, and log reports. maybe with redis
     -> done for login, signup, phone/email change verification (Redis fixed-window, api_v1/global/rateLimit.js). profile updates/matches/messages/uploads/log reports deferred to a follow-up pass.
     -> also fixed a bug found along the way: signup.js stored the OTP under key "signup:<phone>" but verified against "verify:code:<phone>", so signup verification could never succeed.
     -> post-review hardening (2026-07-12): INCR+EXPIRE now run as one atomic Lua script (client crash between the two could previously leave a counter with no TTL, i.e. a permanent lock); added app.set('trust proxy', 1) in index.js -- suyoapp_com_api has no public port mapping in prod and sits behind the shared reverse proxy, so req.ip was resolving to the proxy for every user, collapsing everyone onto one shared IP rate-limit bucket; namespaced the phone-change vs email-change Redis verification-code keys (they previously shared one key per user, so requesting one code silently invalidated the other); removed the unused rateLimitMiddleware helper (dead code -- the two-phase OTP flows didn't fit a single per-route middleware, so it was never called).
     -> KNOWN, NOT FIXED (flagged 2026-07-12, needs explicit sign-off, large blast radius): sessions.currentUserID in api_v1/global/functions.js is a module-level static field, set synchronously at the top of every authenticated request and read later after `await` points inside handlers (getProfile, pushConversation, pushPeopleToMatch, pay.js, the rate-limit keys added here, etc). Under concurrent requests, Node's event loop can interleave two requests between that set and that later read, so request A can end up reading request B's user id. This predates this session's changes and affects most of the app's authenticated endpoints, not just rate limiting -- fixing it properly means switching that per-request identity to Node's AsyncLocalStorage (or threading userId explicitly through every call) and touching most of api_v1/routers/core/*.js. Not attempted here since it's a big, sensitive refactor that deserves its own reviewed pass, not a drive-by fix.
-
-
-=========== Matching And Discovery
-
-[0] Verify match uniqueness constraints and prevent reverse duplicate matches.
+[3] Verify Stripe webhook signature validation and failure logging.
+    -> confirmed in api_v1/routers/payments/router_hook.js: stripe_gateway.webhooks.constructEvent validates the signature before any processing, bad/missing signature returns 400, all failure paths call tools.serverLog. Already correct, no change needed.
+[3] Make webhook handlers idempotent for duplicate Stripe events.
+    -> confirmed: every event first INSERTs into stripe_events(event_id PK); a duplicate key error short-circuits processing and returns {duplicate:true}. Already correct, no change needed.
 [3]  Ensure deleted/blocked matches cannot continue receiving messages.
     -> pushConversation.js now checks match_status (blocks status 2/3/4: notinterested/block/reported) and participant membership before inserting a message.
     -> also fixed: pushPeopleToMatch.js's update path had no ownership check at all (any authenticated user could flip any match_id's status by guessing the id) -- added a match_user_id_from/to = currentUser guard, since without it the new block-enforcement above could be bypassed by just un-blocking someone else's match.
@@ -29,24 +52,6 @@ Last updated: 2026-07-12
     -> verified end-to-end against the running dev containers with a real socket.io-client test (minted real session tokens for two DB users, a real matches row): unauthenticated connect is rejected, a spoofed query userID is ignored in favor of the verified session identity, pushUser without auth is rejected, pushUser against a nonexistent/foreign match is rejected, and a legitimate match-partner relay actually reaches the target user's socket. /broadcast and /pull* now 404, /status still works.
     -> follow-up bug found via real 2-device testing (2026-07-13): after the fix above, the pushUser HTTP relay worked (200, correctly authorized) but the recipient's socket never received anything -- server logs showed liveSocketsInRoom=0 on every relay, and zero socket handshake attempts EVER from either real device. Root cause: mobile_frontend/_app/funcs/functions.ts read `getProfile?.user_id` to get the current user's id before calling SocketClient.connect(), but cacheStorage.getCurrentUserProfile() resolves to getProfile.js's `currentUser` shape, where the id actually lives at `.profile.id` (confirmed against the same pattern used correctly in ProfileEdit.tsx/zz_devv.tsx). So userId was always undefined and SocketClient.connect() silently never ran on either device -- a pre-existing bug, not caused by the auth work above, but it's the reason realtime never worked even before that. Fixed to `getProfile?.profile?.id`.
     -> also added verbose socket lifecycle/event logging on both sides (api_v1/routers/realtimedata.js and mobile_frontend/_app/funcs/socket_realtimeData.ts) to make the next issue (if any) visible immediately instead of needing another debugging round -- logs cover handshake attempts/rejections, connect/disconnect, every event in, and the pushUser HTTP relay's authorization result + live-socket count in the target room.
-
-=========== Mobile UI / Realtime
-
-[1] Remove socket message/session payloads from production frontend logs; keep only redacted lifecycle diagnostics behind a development flag.
-[1] Show a small reconnecting/offline state in conversation UI when the socket disconnects, and clear it after reconnection.
-[1] Handle socket authentication failure in the UI: stop automatic reconnect loops, clear an expired session, and route the user to login with an understandable message.
-[1] Add message delivery states to optimistic chat bubbles (sending, sent, failed) with a retry action for failed sends.
-[1] Refresh the active conversation/chat list after socket reconnection so notifications missed while offline do not leave the UI stale.
-[1] Prevent duplicate socket listeners/callbacks when the app resumes, the user changes, or SocketClient.connect() is called repeatedly.
-[1] Treat realtime payloads as hints only: refetch authoritative conversation data instead of rendering unverified notification text as a trusted message.
-[1] Add a user-facing cooldown message for HTTP 429 responses, using Retry-After where available, on login/signup and verification-code screens.
-
-
-[3] Verify Stripe webhook signature validation and failure logging.
-    -> confirmed in api_v1/routers/payments/router_hook.js: stripe_gateway.webhooks.constructEvent validates the signature before any processing, bad/missing signature returns 400, all failure paths call tools.serverLog. Already correct, no change needed.
-[3] Make webhook handlers idempotent for duplicate Stripe events.
-    -> confirmed: every event first INSERTs into stripe_events(event_id PK); a duplicate key error short-circuits processing and returns {duplicate:true}. Already correct, no change needed.
-
 [0] Confirm consumable purchase credits are granted exactly once.
     -> N/A: no consumable/coin/boost purchase feature exists in the backend at all (only subscriptions + generic one-time payments). Nothing to verify yet; revisit once that feature is built.
 [3] Add entitlement refresh endpoint used by frontend after purchase/deep link.

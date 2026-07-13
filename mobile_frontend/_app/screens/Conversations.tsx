@@ -17,6 +17,7 @@ import FastImage from 'react-native-fast-image';
 import { SocketClient } from '../funcs/socket_realtimeData';
 import ImageViewing from 'react-native-image-viewing';
 import { useHeaderHeight } from '@react-navigation/elements';
+import { useTheme } from '../funcs/theme';
 
 const CONFIG = {
     imgSelectUploadLimit: 4,
@@ -67,6 +68,7 @@ interface convoInterface {
 
 export function Screen_conversation({ navigation, route }: { navigation: any, route: any }) {
     const ajjj=useCallback(bottomsheet_renderBackdrop,[]);
+    const { colors } = useTheme();
 
     const headerHeight = useHeaderHeight();
     const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
@@ -452,14 +454,14 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                     bottomSheet_convotools?.ref?.current?.close();
                     handleInsertPrompt("Let's plan a quick coffee this week? What day works for you.");
                 }} style={{ paddingHorizontal: 10, paddingVertical: 15, flexDirection: "row", alignItems: "center" }}>
-                    <IonIcon name="sparkles-outline" size={20} color="#4F8EF7" />
+                    <IonIcon name="sparkles-outline" size={20} color={colors.accent} />
                     <Text style={{ fontSize: 16, marginLeft: 10 }}>Plan a date idea</Text>
                 </Pressable>
                 <Pressable onPress={() => {
                     bottomSheet_convotools?.ref?.current?.close();
                     navigation.push(namer.navigation.peoplesOnePerson, { alreadyLiked: true, likedMatchedId: funt.matchId, getOnePersonId: getUser2Deets?.uid, });
                 }} style={{ paddingHorizontal: 10, paddingVertical: 15, flexDirection: "row", alignItems: "center" }}>
-                    <IonIcon name="person-outline" size={20} color="#4F8EF7" />
+                    <IonIcon name="person-outline" size={20} color={colors.accent} />
                     <Text style={{ fontSize: 16, marginLeft: 10 }}>View Profile</Text>
                 </Pressable>
                 <Pressable onPress={async () => {
@@ -491,12 +493,12 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                         });
                     }
                 }} style={{ paddingHorizontal: 10, paddingVertical: 15, flexDirection: "row", alignItems: "center" }}>
-                    <IonIcon name="ban-outline" size={20} color="#4F8EF7" />
+                    <IonIcon name="ban-outline" size={20} color={colors.accent} />
                     <Text style={{ fontSize: 16, marginLeft: 10 }}>Block User</Text>
                 </Pressable>
                 {/*<Pressable onPress={() => { bottomSheetRef_convotools.current?.close(); navigation.navigate("ReportUser", { userId: getUser2Deets?.u2id }); }}
                     style={{ paddingHorizontal: 10, paddingVertical: 15, flexDirection: "row", alignItems: "center" }}>
-                    <IonIcon name="warning-outline" size={20} color="#4F8EF7" />
+                    <IonIcon name="warning-outline" size={20} color={colors.accent} />
                     <Text style={{ fontSize: 16, marginLeft: 10 }}>Report User</Text>
                 </Pressable>*/}
             </View></>),
@@ -805,7 +807,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             headerTitleAlign: 'left',
             headerTitle: () => <View style={{ alignItems: "center", flexDirection: "row", gap: 5 }}>
                 <Text style={{ fontSize: 18, fontWeight: 'bold', textTransform: "capitalize" }}>{getUser2Deets?.fullname}</Text>
-                {getUser2Deets?.verified ? <IonIcon name="checkmark-done-circle-sharp" size={20} color="#4F8EF7" /> : <></>}
+                {getUser2Deets?.verified ? <IonIcon name="checkmark-done-circle-sharp" size={20} color={colors.accent} /> : <></>}
             </View>,
 
             headerRight: () => <View style={{ paddingRight: 5, flexDirection: "row", alignItems: "center", gap: 18 }}>
@@ -816,7 +818,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                     onPress={() => {
                         Toastx.show({ message: "voice call coming soon", type: "success" });
                     }} >
-                    <IonIcon name="call-outline" size={25} color="#4F8EF7" />
+                    <IonIcon name="call-outline" size={25} color={colors.accent} />
                 </Pressable>
 
                 {/* Video Call */}
@@ -825,7 +827,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                     onPress={() => {
                         Toastx.show({ message: "Video call coming soon", type: "success" });
                     }} >
-                    <IonIcon name="videocam-outline" size={26} color="#4F8EF7" />
+                    <IonIcon name="videocam-outline" size={26} color={colors.accent} />
                 </Pressable>
 
                 {/* More Options */}
@@ -835,7 +837,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                         bottomSheet_convotools.ref.current?.expand();
                     }}
                 >
-                    <IonIcon name="ellipsis-horizontal" size={25} color="#4F8EF7" />
+                    <IonIcon name="ellipsis-horizontal" size={25} color={colors.accent} />
                 </Pressable>
 
             </View>
@@ -1101,10 +1103,10 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                 <View style={[styles.conversation_messageBubble, {
                     borderBottomRightRadius: (item.fromMe) ? 0 : 10,
                     borderBottomLeftRadius: (item.fromMe) ? 10 : 0,
-                    backgroundColor: (isImage || isVideo) ? "#a1a1a111" : ((item.fromMe) ? '#E5E5EA' : '#0078fe')
+                    backgroundColor: (isImage || isVideo) ? "#a1a1a111" : ((item.fromMe) ? colors.surfaceElevated : '#0078fe')
                 }]}>
                     {isText && <Text style={[styles.conversation_messageText, {
-                        color: (item.fromMe) ? "#000" : "#fff"
+                        color: (item.fromMe) ? colors.text : "#fff"
                     }]}>{item?.message}</Text>}
 
                     {isVideo && (
@@ -1112,9 +1114,9 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                             <TouchableOpacity disabled={item.isUploading} onPress={() => {
                                 const vidUri = resolveMediaUri(firstSrc);
                                 if (vidUri) Linking.openURL(vidUri);
-                            }} style={{ backgroundColor: item.fromMe ? '#fff' : '#1b5ec766', padding: 10, borderRadius: 12, flexDirection: "row", alignItems: "center", gap: 8 }}>
-                                <MaterialCommunityIcons name="play-circle" size={22} color={item.fromMe ? "#000" : "#fff"} />
-                                <Text style={{ color: item.fromMe ? "#000" : "#fff" }}>
+                            }} style={{ backgroundColor: item.fromMe ? colors.surfaceElevated : '#1b5ec766', padding: 10, borderRadius: 12, flexDirection: "row", alignItems: "center", gap: 8 }}>
+                                <MaterialCommunityIcons name="play-circle" size={22} color={item.fromMe ? colors.text : "#fff"} />
+                                <Text style={{ color: item.fromMe ? colors.text : "#fff" }}>
                                     {item.isUploading ? 'Uploading Video...' : `Video${fileSizeLabel ? ` | ${fileSizeLabel}` : ''}${durationFormatted ? ` | ${durationFormatted}` : ''}`}
                                 </Text>
                             </TouchableOpacity>
@@ -1126,9 +1128,9 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                             <TouchableOpacity onPress={() => {
                                 const fileUri = resolveMediaUri(firstSrc);
                                 if (fileUri) Linking.openURL(fileUri);
-                            }} style={{ backgroundColor: item.fromMe ? '#fff' : '#1b5ec766', padding: 10, borderRadius: 12, flexDirection: "row", alignItems: "center", gap: 8 }}>
-                                <MaterialCommunityIcons name="file" size={20} color={item.fromMe ? "#000" : "#fff"} />
-                                <Text style={{ color: item.fromMe ? "#000" : "#fff" }}>
+                            }} style={{ backgroundColor: item.fromMe ? colors.surfaceElevated : '#1b5ec766', padding: 10, borderRadius: 12, flexDirection: "row", alignItems: "center", gap: 8 }}>
+                                <MaterialCommunityIcons name="file" size={20} color={item.fromMe ? colors.text : "#fff"} />
+                                <Text style={{ color: item.fromMe ? colors.text : "#fff" }}>
                                     {fileOriginalName ?? 'File'}{fileSizeLabel ? ` | ${fileSizeLabel}` : ''}
                                 </Text>
                             </TouchableOpacity>
@@ -1140,11 +1142,11 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                                 <TouchableOpacity disabled={item.isUploading} onPress={() => { handleAudioPress(item.messageId, audioUri) }}
                                     style={{
-                                        backgroundColor: item.fromMe ? '#fff' : 'rgba(255,255,255,0.22)',
+                                        backgroundColor: item.fromMe ? colors.surfaceElevated : 'rgba(255,255,255,0.22)',
                                         width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center",
                                     }}>
                                     <IonIcon name={item.isUploading ? "hourglass" : ((isCurrentAudio && audioPlayback.isPlaying) ? "pause" : "play")}
-                                        size={16} color={item.fromMe ? "#0078fe" : "#fff"} style={{ marginLeft: (isCurrentAudio && audioPlayback.isPlaying) ? 0 : 1 }} />
+                                        size={16} color={item.fromMe ? colors.accent : "#fff"} style={{ marginLeft: (isCurrentAudio && audioPlayback.isPlaying) ? 0 : 1 }} />
                                 </TouchableOpacity>
                                 <View style={{ flexDirection: "row", alignItems: "center", gap: 1.5, height: 24, flex: 1 }}>
                                     {audioWaveBars.map((bar) => (
@@ -1154,12 +1156,12 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                                             borderRadius: 2,
                                             height: bar.height,
                                             backgroundColor: bar.active
-                                                ? (item.fromMe ? '#0078fe' : '#fff')
-                                                : (item.fromMe ? '#c7ccd1' : 'rgba(255,255,255,0.4)')
+                                                ? (item.fromMe ? colors.accent : '#fff')
+                                                : (item.fromMe ? colors.border : 'rgba(255,255,255,0.4)')
                                         }} />
                                     ))}
                                 </View>
-                                <Text style={{ color: (item.fromMe) ? "#5b5b5e" : "#e7f0ff", fontSize: 12, fontVariant: ['tabular-nums'], minWidth: 32, textAlign: 'right' }}>
+                                <Text style={{ color: (item.fromMe) ? colors.textSecondary : "#e7f0ff", fontSize: 12, fontVariant: ['tabular-nums'], minWidth: 32, textAlign: 'right' }}>
                                     {item.isUploading ? '...' : audioDisplayLabel}
                                 </Text>
                             </View>
@@ -1218,7 +1220,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     }));
 
     return (<>
-        <SafeAreaView style={[styles.container, { paddingTop: headerHeight}]} edges={['bottom']}>
+        <SafeAreaView style={[styles.container, { paddingTop: headerHeight, backgroundColor: colors.background }]} edges={['bottom']}>
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
@@ -1226,21 +1228,21 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
 
                 <View style={{ paddingVertical: 5 }}>
                     <Pressable onPress={() => { navigation.push(namer.navigation.peoplesOnePerson, { alreadyLiked: true, likedMatchedId: funt.matchId, getOnePersonId: getUser2Deets?.uid }); }}
-                        style={{ backgroundColor: '#f3f6ff', borderRadius: 14, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        style={{ backgroundColor: colors.backgroundSecondary, borderRadius: 14, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                         {getUser2Deets?.image?.p ? <FastImage source={{ uri: imageDomain + getUser2Deets?.image?.p, cache: FastImage.cacheControl.immutable }}
-                            style={{ width: 80, height: 80, borderRadius: 50 }} /> : <View style={{ width: 52, height: 52, borderRadius: 12, backgroundColor: '#d7def5' }} />}
+                            style={{ width: 80, height: 80, borderRadius: 50 }} /> : <View style={{ width: 52, height: 52, borderRadius: 12, backgroundColor: colors.border }} />}
                         <View style={{ flex: 1, gap: 4 }}>
                             <Text style={{ fontSize: 16, fontWeight: 'bold', textTransform: "capitalize" }}>{getUser2Deets?.fullname || "Your match"}</Text>
                             <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                                {getUser2Deets?.city && <Text style={{ color: "#444" }}><IonIcon name="location-outline" size={14} color="#4F8EF7" /> {getUser2Deets?.city}</Text>}
-                                {getUser2Deets?.verified && <View style={{ backgroundColor: "#e8f1ff", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, flexDirection: "row", alignItems: "center", gap: 4 }}>
-                                    <IonIcon name="shield-checkmark" size={14} color="#4F8EF7" />
-                                    <Text style={{ fontSize: 12, color: "#4F8EF7" }}>Verified</Text>
+                                {getUser2Deets?.city && <Text style={{ color: colors.textSecondary }}><IonIcon name="location-outline" size={14} color={colors.accent} /> {getUser2Deets?.city}</Text>}
+                                {getUser2Deets?.verified && <View style={{ backgroundColor: colors.backgroundSecondary, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, flexDirection: "row", alignItems: "center", gap: 4 }}>
+                                    <IonIcon name="shield-checkmark" size={14} color={colors.accent} />
+                                    <Text style={{ fontSize: 12, color: colors.accent }}>Verified</Text>
                                 </View>}
                             </View>
-                            <Text style={{ color: "#555", fontSize: 12 }}>Tap to view profile or read bio for conversation idea.</Text>
+                            <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Tap to view profile or read bio for conversation idea.</Text>
                         </View>
-                        <IonIcon name="chevron-forward" size={20} color="#4F8EF7" />
+                        <IonIcon name="chevron-forward" size={20} color={colors.accent} />
                     </Pressable>
 
 
@@ -1296,7 +1298,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                                         width: 8,
                                         height: 8,
                                         borderRadius: 4,
-                                        backgroundColor: idx === starterIndex ? '#0ea5e9' : '#e2e8f0'
+                                        backgroundColor: idx === starterIndex ? colors.accent : colors.border
                                     }} />
                                 ))}
                             </View>
@@ -1371,13 +1373,13 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                 {(isRecording || getInputAudio) &&
                     <View style={{
                         marginHorizontal: 6, marginBottom: 8, paddingHorizontal: 10, paddingVertical: 8,
-                        borderRadius: 22, backgroundColor: isRecording ? '#fff' : '#f2f4f7',
+                        borderRadius: 22, backgroundColor: isRecording ? colors.surface : colors.backgroundSecondary,
                         borderWidth: isRecording ? 1 : 0, borderColor: '#ffd6d6',
                         flexDirection: 'row', alignItems: 'center', gap: 10,
                         shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1,
                     }}>
-                        <TouchableOpacity onPress={clearVoiceNote} style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: '#e5e7eb', alignItems: 'center', justifyContent: 'center' }}>
-                            <Icon name="close" size={16} color="#4b5563" />
+                        <TouchableOpacity onPress={clearVoiceNote} style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: colors.backgroundSecondary, alignItems: 'center', justifyContent: 'center' }}>
+                            <Icon name="close" size={16} color={colors.textSecondary} />
                         </TouchableOpacity>
 
                         {isRecording ? (
@@ -1401,13 +1403,13 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                                     maxWidth: 3,
                                     borderRadius: 2,
                                     height: bar.height,
-                                    backgroundColor: isRecording ? '#ff3b30' : (bar.active ? '#0078fe' : '#c7ccd1')
+                                    backgroundColor: isRecording ? '#ff3b30' : (bar.active ? '#0078fe' : colors.border)
                                 }} />
                             ))}
                         </View>
 
                         {!isRecording &&
-                            <Text style={{ color: '#6b7280', fontSize: 12, fontVariant: ['tabular-nums'] }}>{pendingTimeLabel}</Text>
+                            <Text style={{ color: colors.textSecondary, fontSize: 12, fontVariant: ['tabular-nums'] }}>{pendingTimeLabel}</Text>
                         }
 
                         {isRecording &&
@@ -1441,10 +1443,10 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                             }
                         }
                     }} style={{ paddingHorizontal: 6 }}>
-                        <MaterialCommunityIcons name="camera" size={25} color="#4F8EF7" />
+                        <MaterialCommunityIcons name="camera" size={25} color={colors.accent} />
                     </TouchableOpacity>
                     <TouchableOpacity disabled={voiceNoteLoading} onPress={() => toggleVoiceNote()} style={{ paddingHorizontal: 6, opacity: voiceNoteLoading ? 0.5 : 1 }}>
-                        <MaterialCommunityIcons name={voiceNoteLoading ? "timer-sand" : (isRecording ? "stop-circle" : "microphone")} size={25} color={isRecording ? "#d00" : "#4F8EF7"} />
+                        <MaterialCommunityIcons name={voiceNoteLoading ? "timer-sand" : (isRecording ? "stop-circle" : "microphone")} size={25} color={isRecording ? "#d00" : colors.accent} />
                     </TouchableOpacity>
                     <TextInput
                         ref={inputTextRef}
@@ -1452,12 +1454,12 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                         value={inputText}
                         onChangeText={setInputText}
                         placeholder="Send a message"
-                        placeholderTextColor="#aaa"
+                        placeholderTextColor={colors.placeholder}
                         multiline
                         textAlignVertical="center"
                     />
                     <TouchableOpacity disabled={(inputText.trim() || (getInputImageVideo.length > 0) || getInputAudio) ? false : true} onPress={() => sendMessage()} style={{ paddingHorizontal: 6, justifyContent: 'center' }}>
-                        <MaterialCommunityIcons name="send" size={25} color="#4F8EF7" style={{ opacity: (inputText.trim() || (getInputImageVideo.length > 0) || getInputAudio) ? 1 : 0.4 }} />
+                        <MaterialCommunityIcons name="send" size={25} color={colors.accent} style={{ opacity: (inputText.trim() || (getInputImageVideo.length > 0) || getInputAudio) ? 1 : 0.4 }} />
                     </TouchableOpacity>
                 </View>
             </KeyboardAvoidingView>

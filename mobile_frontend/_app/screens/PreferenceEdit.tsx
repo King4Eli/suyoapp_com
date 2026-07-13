@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import { Loaderx } from '../funcs/functions_stateful';
@@ -10,6 +10,7 @@ import { AccordionItem } from '../funcs/customAccordion';
 import { Toastx } from '../funcs/customNotification';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme, ThemeColors } from '../funcs/theme';
 
 type TabMode = 'basics' | 'more';
 
@@ -31,6 +32,8 @@ const defaultPreferences = {
 };
 
 export function Screen_editpreference({ navigation }: { navigation: any }) {
+    const { colors } = useTheme();
+    const localStyles = useMemo(() => createLocalStyles(colors), [colors]);
     const headerHeight = useHeaderHeight();
     const [getProfile, setProfile] = useState<any>(null);
 
@@ -174,7 +177,7 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
             headerTitle: () => <Text style={{ fontSize: 18, fontWeight: '700' }}>Edit Preferences</Text>,
             headerRight: () => (
                 <Pressable style={{ gap: 3, paddingRight: 10 }} onPress={savePreferences}>
-                    <Text style={[styles.pressableButtonText, { fontSize: 14, fontWeight: '500', color: '#0369a1' }]}>Save</Text>
+                    <Text style={[styles.pressableButtonText, { fontSize: 14, fontWeight: '500', color: colors.accent }]}>Save</Text>
                 </Pressable>
             ),
         });
@@ -215,7 +218,7 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
                     </Pressable>
                     <Pressable style={[localStyles.tabBtn, activeTab === 'more' && localStyles.tabBtnActive]} onPress={() => setActiveTab('more')}>
                         <Text style={[localStyles.tabText, activeTab === 'more' && localStyles.tabTextActive]}>More</Text>
-                        {!hasPremium && <IIcon name="lock-closed" size={13} color="#64748b" />}
+                        {!hasPremium && <IIcon name="lock-closed" size={13} color={colors.textSecondary} />}
                     </Pressable>
                 </View>
 
@@ -305,10 +308,11 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
     );
 }
 
-const localStyles = StyleSheet.create({
+function createLocalStyles(colors: ThemeColors) {
+    return StyleSheet.create({
     root: {
         paddingHorizontal: 0,
-        backgroundColor: '#f3f7fb',
+        backgroundColor: colors.background,
     },
     contentContainer: {
         gap: 12,
@@ -354,7 +358,7 @@ const localStyles = StyleSheet.create({
     },
     tabWrap: {
         flexDirection: 'row',
-        backgroundColor: '#e2e8f0',
+        backgroundColor: colors.backgroundSecondary,
         borderRadius: 14, 
         padding: 4,
         gap: 4,
@@ -369,15 +373,15 @@ const localStyles = StyleSheet.create({
         paddingVertical: 10,
     },
     tabBtnActive: {
-        backgroundColor: '#ffffff',
+        backgroundColor: colors.surface,
     },
     tabText: {
-        color: '#475569',
+        color: colors.textSecondary,
         fontSize: 15,
         fontWeight: '700',
     },
     tabTextActive: {
-        color: '#0f172a',
+        color: colors.text,
     },
     card: {
         marginHorizontal: 0,
@@ -388,14 +392,14 @@ const localStyles = StyleSheet.create({
         marginTop: 10,
         fontWeight: '700',
         textTransform: 'capitalize',
-        color: '#0f172a',
+        color: colors.text,
     },
     inputSubTitle: {
         fontSize: 13,
         marginTop: 5,
         marginBottom: 10,
         textTransform: 'capitalize',
-        color: '#475569',
+        color: colors.textSecondary,
     },
     paywallCard: {
         marginHorizontal: 10,
@@ -442,4 +446,5 @@ const localStyles = StyleSheet.create({
         fontSize: 15,
         fontWeight: '800',
     },
-});
+    });
+}

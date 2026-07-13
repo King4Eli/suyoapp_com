@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
     View, Text, TextInput, Pressable,
     StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,
@@ -8,8 +8,11 @@ import IIcon from 'react-native-vector-icons/Ionicons';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { _http_request, hostServer } from '../funcs/functions';
 import { MAX_PROMPTS, PromptEntry } from './ProfileEdit';
+import { useTheme, ThemeColors } from '../funcs/theme';
 
 export function Screen_editProfilePrompts({ navigation, route }: { navigation: any; route: any }) {
+    const { colors } = useTheme();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const headerHeight = useHeaderHeight();
     const existingPrompts: PromptEntry[] = route.params?.existingPrompts ?? [];
     const onSave: ((updated: PromptEntry[]) => void) | undefined = route.params?.onSave;
@@ -29,7 +32,7 @@ export function Screen_editProfilePrompts({ navigation, route }: { navigation: a
             headerTitle: () => <Text style={styles.headerTitle}>Prompts</Text>,
             headerLeft: () => (
                 <Pressable style={styles.headerButton} onPress={returnWithUpdates} hitSlop={10}>
-                    <IIcon name="chevron-back" size={24} color="#0f172a" />
+                    <IIcon name="chevron-back" size={24} color={colors.text} />
                 </Pressable>
             ),
             headerRight: () => (
@@ -98,14 +101,14 @@ export function Screen_editProfilePrompts({ navigation, route }: { navigation: a
                                         onPress={() => removePrompt(index)}
                                         hitSlop={6}
                                     >
-                                        <IIcon name="close-circle" size={20} color="#ff4444" />
+                                        <IIcon name="close-circle" size={20} color={colors.danger} />
                                     </Pressable>
                                     <Text style={styles.promptQuestion}>{item.question}</Text>
                                     <TextInput
                                         style={[styles.textInput, styles.promptAnswer]}
                                         value={item.answer}
                                         placeholder={item.question}
-                                        placeholderTextColor="#94a3b8"
+                                        placeholderTextColor={colors.textTertiary}
                                         multiline
                                         maxLength={140}
                                         onChangeText={(text) => {
@@ -125,10 +128,10 @@ export function Screen_editProfilePrompts({ navigation, route }: { navigation: a
                         <View style={styles.section}>
                             <Text style={styles.sectionLabel}>Add a Prompt</Text>
                             {remainingPrompts.map((question) => (
-                                <PromptDraft key={question.id_ai} prompt={question.question} onSave={(answer) => savePrompt(question, answer)} />
+                                <PromptDraft key={question.id_ai} prompt={question.question} onSave={(answer) => savePrompt(question, answer)} colors={colors} styles={styles} />
                             ))}
 
-                            {isLoading && <ActivityIndicator style={{ marginTop: 12 }} color="#e8546f" />}
+                            {isLoading && <ActivityIndicator style={{ marginTop: 12 }} color={colors.primary} />}
 
                             {!isLoading && hasMore && (
                                 <Pressable
@@ -146,7 +149,7 @@ export function Screen_editProfilePrompts({ navigation, route }: { navigation: a
     );
 }
 
-const PromptDraft = ({ prompt, onSave }: { prompt: string; onSave: (answer: string) => void }) => {
+const PromptDraft = ({ prompt, onSave, colors, styles }: { prompt: string; onSave: (answer: string) => void; colors: ThemeColors; styles: any }) => {
     const [text, setText] = useState('');
 
     return (
@@ -157,7 +160,7 @@ const PromptDraft = ({ prompt, onSave }: { prompt: string; onSave: (answer: stri
                 value={text}
                 onChangeText={setText}
                 placeholder={prompt}
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={colors.textTertiary}
                 maxLength={140}
                 multiline
             />
@@ -172,62 +175,63 @@ const PromptDraft = ({ prompt, onSave }: { prompt: string; onSave: (answer: stri
     );
 };
 
-const styles = StyleSheet.create({
-    screen: { flex: 1, backgroundColor: '#f8fafc' },
+function createStyles(colors: ThemeColors) {
+    return StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.backgroundSecondary },
     scrollContent: { padding: 18, gap: 18, paddingBottom: 40 },
-    headerTitle: { fontSize: 18, fontWeight: '900', color: '#0f172a' },
+    headerTitle: { fontSize: 18, fontWeight: '900', color: colors.text },
     headerButton: { paddingHorizontal: 12, paddingVertical: 6 },
-    doneText: { fontSize: 15, fontWeight: '900', color: '#e8546f' },
+    doneText: { fontSize: 15, fontWeight: '900', color: colors.primary },
     section: { gap: 10 },
-    sectionLabel: { color: '#334155', fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
-    countBadge: { color: '#94a3b8', fontSize: 12, fontWeight: '800' },
+    sectionLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
+    countBadge: { color: colors.textTertiary, fontSize: 12, fontWeight: '800' },
     textInput: {
         minHeight: 44,
         borderRadius: 14,
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.backgroundSecondary,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
-        color: '#0f172a',
+        borderColor: colors.border,
+        color: colors.text,
         paddingHorizontal: 12,
         fontSize: 14,
     },
     promptCard: {
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
-        backgroundColor: '#fff',
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
         padding: 12,
         gap: 9,
         position: 'relative',
     },
     promptRemove: { position: 'absolute', top: 8, right: 8, zIndex: 10 },
-    promptQuestion: { fontSize: 12, fontWeight: '900', textTransform: 'uppercase', color: '#475569', paddingRight: 28 },
+    promptQuestion: { fontSize: 12, fontWeight: '900', textTransform: 'uppercase', color: colors.textSecondary, paddingRight: 28 },
     promptAnswer: {
         minHeight: 92,
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
         textAlignVertical: 'top',
         lineHeight: 20,
         paddingTop: 12,
     },
     promptPickerCard: {
         borderRadius: 18,
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderColor: colors.border,
         padding: 12,
         gap: 10,
         marginBottom: 10,
     },
     promptSheetInput: {
         minHeight: 90,
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.backgroundSecondary,
         textAlignVertical: 'top',
         lineHeight: 20,
         paddingTop: 12,
     },
     saveBtn: {
         alignSelf: 'flex-end',
-        backgroundColor: '#e8546f',
+        backgroundColor: colors.primary,
         paddingHorizontal: 18,
         minHeight: 42,
         borderRadius: 999,
@@ -245,7 +249,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
-        borderColor: '#e8546f',
+        borderColor: colors.primary,
     },
-    loadMoreText: { color: '#e8546f', fontWeight: '900', fontSize: 14 },
-});
+    loadMoreText: { color: colors.primary, fontWeight: '900', fontSize: 14 },
+    });
+}
