@@ -41,8 +41,8 @@ export default async function pushNewEmail(oldEmail, newEmail, requestNewCode, v
                 const genPinCode = Math.floor(Math.random() * 900000) + 100000;
                 await communicateWith.sendEmail("1", newEmail, `<p>Your verification code is <strong>${genPinCode}</strong>. Do not share this code with anyone. It expires in 5 minutes.</p>`);
                 await redisDo(async (client) => {
-                    await client.set(`${namer.redis.verifyCode}${sessions.currentUserID}`, genPinCode);
-                    await client.expire(`${namer.redis.verifyCode}${sessions.currentUserID}`, 300); // 5 minutes
+                    await client.set(`${namer.redis.verifyCode}email:${sessions.currentUserID}`, genPinCode);
+                    await client.expire(`${namer.redis.verifyCode}email:${sessions.currentUserID}`, 300); // 5 minutes
                 });
 
                 response.code = 200;
@@ -58,10 +58,10 @@ export default async function pushNewEmail(oldEmail, newEmail, requestNewCode, v
             }
 
             const codeIsValid = await redisDo(async (client) => {
-                const code = await client.get(`${namer.redis.verifyCode}${sessions.currentUserID}`);
+                const code = await client.get(`${namer.redis.verifyCode}email:${sessions.currentUserID}`);
                 const isValid = code === verificationCode;
                 if (isValid) {
-                    await client.del(`${namer.redis.verifyCode}${sessions.currentUserID}`);
+                    await client.del(`${namer.redis.verifyCode}email:${sessions.currentUserID}`);
                 }
                 return isValid;
             });

@@ -13,6 +13,12 @@ import { startExpirePendingPaymentsJob } from './global/expirePendingPayments.js
 const http_port = 80;
 const app = express();
 
+// This container has no public port mapping in production (see docker-compose.yml) --
+// it's only reachable through the shared reverse proxy on shared-global-network. Without
+// this, req.ip resolves to the proxy's address for every request, which would collapse
+// all users onto a single IP-based rate-limit bucket. Trusts exactly one hop; if another
+// proxy/CDN sits in front of that one, bump this to match the real hop count.
+app.set('trust proxy', 1);
 
 app.use('/api/secure/stripe/webhook', express.raw({ type: "application/json" }), webhook_router);
 app.use(express.json());
