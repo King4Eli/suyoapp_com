@@ -1,6 +1,5 @@
 import express from 'express';
 import { sessions } from '../global/functions.js';
-import crypto from 'crypto';
 import getChatsListings from './core/getChatLists.js';
 import getConversation from './core/getConversation.js';
 import getProfile from './core/getProfile.js';
@@ -21,7 +20,6 @@ import getPrompts from './core/getPrompts.js';
 import getReligions from './core/getReligions.js';
 import getMapper from './core/getMapper.js';
 import getEntitlement from './core/getEntitlement.js';
-import rewindMatch from './core/rewindMatch.js';
 
 const core_router = express.Router();
 core_router.post('/:action', async (req, res) => {
@@ -111,9 +109,6 @@ core_router.post('/:action', async (req, res) => {
                 matchId: matchid
             });
             return res.json(upeople);
-        case 'rewindMatch':
-            const rewindResult = await rewindMatch(req.body?.matchId);
-            return res.json(rewindResult);
         case 'pushLocation':
             const location_coords = req.body?.longlatd;
             const location = await pushLocation(location_coords);

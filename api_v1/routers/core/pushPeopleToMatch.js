@@ -3,10 +3,8 @@ import { namer, sessions, tools } from "../../global/functions.js";
 import { checkRateLimit } from "../../global/rateLimit.js";
 import { getSubscriptionTier, spendRose } from "../../global/entitlements.js";
 
-// Free-tier likes are capped on a rolling 24h window (from the user's first like in the
-// window); Plus/VIP are unlimited. Superlikes are separately gated by the rose balance.
-const FREE_LIKE_LIMIT = 15;
-const FREE_LIKE_WINDOW_SECONDS = 24 * 60 * 60;
+const FREE_LIKE_LIMIT = 20;
+const FREE_LIKE_WINDOW_SECONDS = 24 * 60 * 60; // 24HRS
 
 /**
  * @param {{ user_id2: any; match_status: any; matchId: any; }} data
@@ -32,7 +30,7 @@ export default async function pushPeopleToMatch(data) {
                 );
                 if (!limitCheck.allowed) {
                     response.code = 429;
-                    response.message = "You've reached today's limit of 15 likes. Upgrade to Plus or VIP for unlimited likes, or check back later.";
+                    response.message = "You've reached today's FREE limit.\nUpgrade to get unlimited likes and features.";
                     response.retryAfterSeconds = limitCheck.retryAfterSeconds;
                     response.likesRemainingToday = 0;
                     return response;

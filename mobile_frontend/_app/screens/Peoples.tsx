@@ -41,8 +41,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
     const [getActionBurst, setActionBurst] = useState<{ kind: ActionBurstKind; key: number } | null>(null);
     const [entitlements, setEntitlements] = useState<{
         roses: { remainingToday: number; balance: number } | null;
-        rewind: { freeForTier: boolean } | null;
-    }>({ roses: null, rewind: null });
+    }>({ roses: null });
 
     const carouselRef = useRef<CarouselRef>(null);
     const insets = useSafeAreaInsets(); 
@@ -102,9 +101,6 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                     setEntitlements({
                         roses: profile?.roses
                             ? { remainingToday: profile.roses.remainingToday, balance: profile.roses.balance }
-                            : null,
-                        rewind: profile?.rewind
-                            ? { freeForTier: profile.rewind.freeForTier }
                             : null,
                     });
                 }
@@ -409,49 +405,25 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
         }
     }
 
-    async function handleRewind() {
-        const matchId = getSkippedLastPerson?.match_id;
-        if (!matchId) return;
-        Loaderx.show();
-        try {
-            const response = await _http_request({
-                reqType: 'POST',
-                customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/rewindMatch",
-                bodyArray: { matchId }
-            });
-            if (response?.code === 200) {
-                setShowDislikedMatchModal(false);
-                setPeopleToMatch((prev) => [getSkippedLastPerson, ...(prev ?? [])]);
-                setSkippedLastPerson(null);
-                Toastx.show({ type: 'success', message: response?.message ?? 'Match recovered!' });
-            } else {
-                Toastx.show({ type: 'info', message: response?.message ?? 'Unable to rewind this match.' });
-            }
-        } catch (e) {
-            Toastx.show({ type: 'error', message: 'Unable to rewind this match.' });
-        } finally {
-            Loaderx.hide();
-        }
-    }
-
     // Shared entry point for "undo last dislike" — used by both the header's restore
     // icon and the missed-match modal, so neither can bypass the other's gating.
     // A skipped person with no match_id was never a mutual-interest match, so undoing
-    // that is a free convenience action; recovering a real missed match (match_id
-    // present, meaning they'd already liked or superliked/rose'd you) is gated by
-    // subscription tier via handleRewind/the paywall modal.
+    // that is a free convenience action for subscribers only — non-subscribers see the
+    // same upsell modal recovering a real missed match uses. Recovering a real missed
+    // match (match_id present, meaning they'd already liked or superliked/rose'd you)
+    // always goes through that modal, which offers the one-time paid rewind / subscribe upsell.
     function attemptRestore() {
+        setPeopleToMatch((prev) => [getSkippedLastPerson, ...(prev ?? [])]);
         if (!getSkippedLastPerson) return;
         if (!getSkippedLastPerson?.match_id) {
-            setPeopleToMatch((prev) => [getSkippedLastPerson, ...(prev ?? [])]);
+            if (!help.getSubscriptionState(getProfile).hasActive) {
+                setShowDislikedMatchModal(true);
+                return;
+            }
             setSkippedLastPerson(null);
             return;
         }
-        if (entitlements.rewind?.freeForTier) {
-            handleRewind();
-        } else {
-            setShowDislikedMatchModal(true);
-        }
+        setShowDislikedMatchModal(true);
     }
 
 
@@ -788,10 +760,14 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
             <Modal visible={getShowDislikedMatchModal} transparent animationType="fade"
                 onRequestClose={() => {
                     setShowDislikedMatchModal(false);
+                    functs.refreshPeoples();
                 }}>
                 <View style={matchStyles.backdrop}>
                     <Animated.View style={[matchStyles.card, passedShakeStyle]}>
-                        <Pressable style={matchStyles.closeButton} onPress={() => {setShowDislikedMatchModal(false);  }}>
+                        <Pressable style={matchStyles.closeButton} onPress={() => {
+                            setShowDislikedMatchModal(false); 
+                            functs.refreshPeoples();
+                        }}>
                             <IIcon name="close" size={24} color="#cbd5e1" />
                         </Pressable>
                         <View style={styles.zcircle1} />
@@ -799,7 +775,11 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                         <View style={styles.zcircle3} />
 
                         <Text style={matchStyles.title}>💔 You passed!</Text>
-                        <Text style={matchStyles.subtitle}>but {getSkippedLastPerson?.user_fullname || "They"} already likes you.</Text>
+                        <Text style={matchStyles.subtitle}>
+                            {getSkippedLastPerson?.match_id
+                                ? `but ${getSkippedLastPerson?.user_fullname || "They"} already likes you.`
+                                : `Undo your last swipe on ${getSkippedLastPerson?.user_fullname || "them"}.`}
+                        </Text>
 
                         <View style={[matchStyles.photoRow, { marginVertical: 10 }]}>
                             <View style={[matchStyles.photoCard, { transform: [], borderColor: '#f43f5e', marginRight: 0, marginLeft: 0 }]}>
@@ -809,35 +789,42 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                         </View>
 
                         <Text style={[matchStyles.subtitle, { color: '#fbbf24', fontWeight: '600' }]}>
-                            Rewind to recover this match!
+                            {getSkippedLastPerson?.match_id ? "Rewind to recover this match!" : "Subscribe to rewind unlimited swipes!"}
                         </Text>
 
-                        {entitlements.rewind?.freeForTier ? (
-                            <Pressable style={[matchStyles.primaryBtn, { backgroundColor: '#f59e0b' }]} onPress={handleRewind}>
-                                <Text style={matchStyles.primaryBtnText}>Rewind (Free)</Text>
+                        {getSkippedLastPerson?.match_id && (
+                            <Pressable style={[matchStyles.primaryBtn, { backgroundColor: '#f59e0b' }]} onPress={() => {
+                                setShowDislikedMatchModal(false);
+                                functs.refreshPeoples();
+                                navigation.navigate(namer.navigation.consumables, {
+                                    productcategory: namer.productCategoryName.rewind,
+                                    matchId: getSkippedLastPerson?.match_id,
+                                });
+                            }}>
+                                <Text style={matchStyles.primaryBtnText}>Buy Rewind – $1.45</Text>
+                            </Pressable>
+                        )}
+                        {getSkippedLastPerson?.match_id ? (
+                            <Pressable onPress={() => {
+                                setShowDislikedMatchModal(false);
+                                functs.refreshPeoples();
+                                navigation.navigate(namer.navigation.subscription);
+                            }}>
+                                <Text style={[matchStyles.secondaryBtnText, { textDecorationLine: 'underline' }]}>Or subscribe for unlimited rewinds</Text>
                             </Pressable>
                         ) : (
-                            <>
-                                <Pressable style={[matchStyles.primaryBtn, { backgroundColor: '#f59e0b' }]} onPress={() => {
-                                    setShowDislikedMatchModal(false);
-                                    navigation.navigate(namer.navigation.consumables, {
-                                        productcategory: namer.productCategoryName.rewind,
-                                        matchId: getSkippedLastPerson?.match_id,
-                                    });
-                                }}>
-                                    <Text style={matchStyles.primaryBtnText}>Buy Rewind – $1.45</Text>
-                                </Pressable>
-                                <Pressable onPress={() => {
-                                    setShowDislikedMatchModal(false);
-                                    navigation.navigate(namer.navigation.subscription);
-                                }}>
-                                    <Text style={[matchStyles.secondaryBtnText, { textDecorationLine: 'underline' }]}>Or subscribe for unlimited rewinds</Text>
-                                </Pressable>
-                            </>
+                            <Pressable style={[matchStyles.primaryBtn, { backgroundColor: '#f59e0b' }]} onPress={() => {
+                                setShowDislikedMatchModal(false);
+                                functs.refreshPeoples();
+                                navigation.navigate(namer.navigation.subscription);
+                            }}>
+                                <Text style={matchStyles.primaryBtnText}>Subscribe</Text>
+                            </Pressable>
                         )}
 
                         <Pressable style={matchStyles.secondaryBtn} onPress={() => {
                             setShowDislikedMatchModal(false);
+                            functs.refreshPeoples();
                         }}>
                             <Text style={matchStyles.secondaryBtnText}>Keep swiping</Text>
                         </Pressable>
