@@ -255,8 +255,8 @@ try {
                                 <td><span
                                         class="badge text-bg-<?php echo $status_color; ?>"><?php echo htmlspecialchars($status_label); ?></span>
                                 </td>
-                                <td><?php echo htmlspecialchars((string) $created_at  ); ?></td>
-                                <td><?php echo htmlspecialchars((string) $last_updated  ); ?></td>
+                                <td><?php echo $created_at !== '' ? htmlspecialchars(date('Y-m-d H:i:s', (int) $created_at)) : ''; ?></td>
+                                <td><?php echo $last_updated !== '' ? htmlspecialchars(date('Y-m-d H:i:s', (int) $last_updated)) : ''; ?></td>
                                 <td class="text-end">
                                     <div class="btn-group">
                                         <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse"

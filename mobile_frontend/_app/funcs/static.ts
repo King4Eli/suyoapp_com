@@ -300,4 +300,4 @@ export const __CONFIG__ = [
     SUPPORT_EMAIL: "support@suyoapp.com",
     SAFETY_EMAIL: "safety@suyoapp.com",
   }
-][1];
+][0];

@@ -21,7 +21,7 @@ export default async function pushPeopleToMatch(data) {
         const matchId = data.matchId ?? "";
 
         if (matchStatus === "0") {
-            const tier = await getSubscriptionTier(sessions.currentUserID);
+            const tier = await getSubscriptionTier(sessions.currentUserID ?? "-");
             if (tier === "free") {
                 const limitCheck = await checkRateLimit(
                     `${namer.ratelimit.likes_daily}${sessions.currentUserID}`,
@@ -40,7 +40,7 @@ export default async function pushPeopleToMatch(data) {
         }
 
         if (matchStatus === "5") {
-            const roseResult = await spendRose(sessions.currentUserID);
+            const roseResult = await spendRose(sessions?.currentUserID+"-");
             if (!roseResult.spent) {
                 response.code = 402;
                 response.message = "You're out of roses. Buy more to keep sending super likes.";
