@@ -122,7 +122,7 @@ pay_router.post('/:division', async (req, res) => {
                 }
 
             case 'onetime':
-                const { ot_duration, sku } = req.body;
+                const { ot_duration, sku, matchId: onetimeMatchId } = req.body;
 
                 // Validate required parameters
                 if (!ot_duration || !sku) {
@@ -174,6 +174,12 @@ pay_router.post('/:division', async (req, res) => {
                     return res.status(400).json({ code: 400, message: "Invalid product price." });
                 }
 
+                // Rewind is "buy once, rewind once" — the purchase must say which match it applies
+                // to so the webhook can perform the rewind directly on payment completion.
+                if (onetimeProduct.category === 'rewind' && !onetimeMatchId) {
+                    return res.status(400).json({ code: 400, message: "Missing matchId for rewind purchase." });
+                }
+
                 // Generate payment ID
                 const onetimePaymentId = `pay${tools.generateAlphanumeric(10, tools.randomInt(15, 46))}`;
 
@@ -199,7 +205,8 @@ pay_router.post('/:division', async (req, res) => {
                         onetimeProduct.pl_name,
                         onetimeProduct.billing_cycle,
                         onetimePrice,
-                        onetimePaymentId
+                        onetimePaymentId,
+                        onetimeMatchId
                     );
 
                     if (onetimeResult.code === 301) {

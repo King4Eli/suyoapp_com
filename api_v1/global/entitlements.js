@@ -70,3 +70,108 @@ export async function getActiveSubscription(userId) {
         days_remaining: Math.max(0, Math.ceil((new Date(subData.end_date)?.getTime() - new Date()?.getTime()) / (1000 * 60 * 60 * 24)))
     };
 }
+
+/**
+ * 'free' | 'plus' | 'vip', derived from the caller's active subscription product name.
+ * @param {string} userId
+ */
+export async function getSubscriptionTier(userId) {
+    const subscription = await getActiveSubscription(userId);
+    const tier = String(subscription?.product_name ?? '').trim().toLowerCase();
+    return tier === 'plus' || tier === 'vip' ? tier : 'free';
+}
+
+// Free-tier daily allowance of roses (spent on super likes); resets at UTC midnight.
+export const ROSE_DAILY_ALLOWANCE = { free: 2, plus: 5, vip: 10 };
+
+/**
+ * Today's rose usage/allowance/balance snapshot for display purposes (does not spend anything).
+ * `user_rose_usage` has one row per user; `daily_used` only counts if `daily_reset_date`
+ * is today, since nothing proactively zeroes it out overnight.
+ * @param {string} userId
+ */
+export async function getRoseStatus(userId) {
+    const tier = await getSubscriptionTier(userId);
+    const dailyAllowance = ROSE_DAILY_ALLOWANCE[tier] ?? ROSE_DAILY_ALLOWANCE.free;
+
+    /** @type {[any[], any]} */
+    const [rows] = await db_pool.query(
+        `SELECT rose_balance,
+                IF(daily_reset_date = CURRENT_DATE, daily_used, 0) AS effective_daily_used
+         FROM user_rose_usage WHERE user_id = ?`,
+        [userId]
+    );
+    const row = rows?.[0];
+    const balance = Number(row?.rose_balance ?? 0);
+    const usedToday = Number(row?.effective_daily_used ?? 0);
+
+    return {
+        tier,
+        dailyAllowance,
+        usedToday,
+        remainingToday: Math.max(0, dailyAllowance - usedToday),
+        balance,
+    };
+}
+
+/**
+ * Atomically spends one rose: draws from today's free tier allowance first, then
+ * falls back to the purchased balance. Returns spent:false if both are exhausted.
+ * @param {string} userId
+ */
+export async function spendRose(userId) {
+    const tier = await getSubscriptionTier(userId);
+    const dailyAllowance = ROSE_DAILY_ALLOWANCE[tier] ?? ROSE_DAILY_ALLOWANCE.free;
+
+    const connection = await db_pool.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        await connection.query(
+            `INSERT INTO user_rose_usage (user_id, rose_balance, daily_used, daily_reset_date)
+             VALUES (?, 0, 0, CURRENT_DATE)
+             ON DUPLICATE KEY UPDATE user_id = user_id`,
+            [userId]
+        );
+        /** @type {[any[], any]} */
+        const [rows] = await connection.query(
+            `SELECT rose_balance,
+                    IF(daily_reset_date = CURRENT_DATE, daily_used, 0) AS effective_daily_used
+             FROM user_rose_usage WHERE user_id = ? FOR UPDATE`,
+            [userId]
+        );
+        const row = rows?.[0];
+        const usedToday = Number(row?.effective_daily_used ?? 0);
+        const balance = Number(row?.rose_balance ?? 0);
+
+        if (usedToday < dailyAllowance) {
+            // If daily_reset_date was stale this also resets the counter to 1 instead of incrementing it.
+            await connection.query(
+                `UPDATE user_rose_usage
+                 SET daily_used = IF(daily_reset_date = CURRENT_DATE, daily_used + 1, 1),
+                     daily_reset_date = CURRENT_DATE
+                 WHERE user_id = ?`,
+                [userId]
+            );
+            await connection.commit();
+            return { spent: true, source: 'daily', remainingToday: dailyAllowance - usedToday - 1, balance };
+        }
+
+        if (balance > 0) {
+            await connection.query(
+                `UPDATE user_rose_usage SET rose_balance = rose_balance - 1 WHERE user_id = ?`,
+                [userId]
+            );
+            await connection.commit();
+            return { spent: true, source: 'balance', remainingToday: 0, balance: balance - 1 };
+        }
+
+        await connection.rollback();
+        return { spent: false, source: null, remainingToday: 0, balance: 0 };
+    } catch (err) {
+        await connection.rollback();
+        throw err;
+    } finally {
+        connection.release();
+    }
+}

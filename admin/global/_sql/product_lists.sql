@@ -43,9 +43,10 @@ CREATE TABLE `product_lists` (
 
 INSERT INTO `product_lists` (`pl_sku`, `pl_name`, `pl_description`, `category`, `pl_is_active`, `pl_created`, `pl_updated`) VALUES
 ('instantmessage_wu8yyur5mmmtua', 'Instant Message', '{\"features\": [{\"d\": \"\", \"e\": true}]}', 'instantmessage', '1', '2026-02-11 22:14:39', '2026-03-12 00:17:05'),
-('plus_kywhm9u6ymw8ym3u69meno', 'plus', '{\"features\": [{\"d\": \"2 super likes per day\", \"e\": true}, {\"d\": \"See who liked you\", \"e\": true}, {\"d\": \"Unlimited matches\", \"e\": true}, {\"d\": \"Weekly profile boost\", \"e\": true}]}', 'mainsub', '1', '2026-01-09 22:31:25', '2026-03-12 00:19:24'),
-('superlikes_4pqojouyyyur5uyihgj898', 'super likes', '{\"features\": [{\"d\": \"\", \"e\": true}]}', 'superlike', '1', '2026-01-10 23:45:04', '2026-03-12 00:20:56'),
-('vip_91n46w586u0m4eomircybdvsz', 'vip', '{\"features\": [{\"d\": \"Unlimited Phone/Video calls\", \"e\": true}, {\"d\": \"Unlimited super likes\", \"e\": true}, {\"d\": \"Travel mode\", \"e\": true}, {\"d\": \"Priority customer support\", \"e\": true}]}', 'mainsub', '1', '2026-01-09 22:33:02', '2026-05-21 01:02:57');
+('plus_kywhm9u6ymw8ym3u69meno', 'plus', '{\"features\": [{\"d\": \"5 roses per day\", \"e\": true}, {\"d\": \"See who liked you\", \"e\": true}, {\"d\": \"Unlimited likes\", \"e\": true}, {\"d\": \"Rewind missed matches\", \"e\": true}, {\"d\": \"Weekly profile boost\", \"e\": true}]}', 'mainsub', '1', '2026-01-09 22:31:25', '2026-03-12 00:19:24'),
+('superlikes_4pqojouyyyur5uyihgj898', 'Roses', '{\"features\": [{\"d\": \"Roses are spent on super likes\", \"e\": true}]}', 'superlike', '1', '2026-01-10 23:45:04', '2026-03-12 00:20:56'),
+('rewind_7hqm3xk9pzalvbnw2e', 'Rewind', '{\"features\": [{\"d\": \"Recover a match you passed on\", \"e\": true}]}', 'rewind', '1', '2026-07-13 00:00:00', '2026-07-13 00:00:00'),
+('vip_91n46w586u0m4eomircybdvsz', 'vip', '{\"features\": [{\"d\": \"Unlimited Phone/Video calls\", \"e\": true}, {\"d\": \"10 roses per day\", \"e\": true}, {\"d\": \"Rewind missed matches\", \"e\": true}, {\"d\": \"Travel mode\", \"e\": true}, {\"d\": \"Priority customer support\", \"e\": true}]}', 'mainsub', '1', '2026-01-09 22:33:02', '2026-05-21 01:02:57');
 
 --
 -- Indexes for dumped tables

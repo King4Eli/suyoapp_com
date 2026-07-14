@@ -91,7 +91,7 @@ type BurstConfig = { icon: string; color: string };
 const BURST_CONFIG: Record<ActionBurstKind, BurstConfig> = {
     like: { icon: 'heart', color: '#22c55e' },
     dislike: { icon: 'close', color: '#f43f5e' },
-    superlike: { icon: 'diamond', color: '#0ea5e9' },
+    superlike: { icon: 'rose', color: '#e11d48' },
 };
 
 function BurstParticle({ angle, color, iconName, delay }: { angle: number; color: string; iconName: string; delay: number }) {

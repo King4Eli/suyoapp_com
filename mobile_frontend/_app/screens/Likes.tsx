@@ -288,7 +288,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                                         <View style={stylesoy.topChips}>
                                             {isSuperlike(item) && (
                                                 <View style={[stylesoy.pill, { backgroundColor: '#e11d48', opacity: 0.9 }]}>
-                                                    <IIcon name="diamond" size={17} color="#fff" />
+                                                    <IIcon name="rose" size={17} color="#fff" />
                                                     <Text style={[stylesoy.pillText, { color: '#fff' }]}>Super Like</Text>
                                                 </View>
                                             )}

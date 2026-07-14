@@ -35,7 +35,8 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
-  
+  const [currentRoses, setCurrentRoses] = useState<number | null>(null);
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
 
@@ -43,6 +44,9 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
   const productCategory = (!requestedCategory || requestedCategory === namer.productCategoryName.mainsub)
     ? namer.productCategoryName.superlike
     : requestedCategory;
+  const isRoseCategory = productCategory === namer.productCategoryName.superlike;
+  const requestedMatchId = route?.params?.matchId;
+  const isRewindCategory = productCategory === namer.productCategoryName.rewind;
 
   // Load products with animation
   useEffect(() => {
@@ -62,7 +66,7 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
           const initial = productList[0] ?? null;
           setSelectedProduct(initial);
           setSelectedVariantId(initial?.variants?.[0]?.id ?? null);
-          
+
           Animated.parallel([
             Animated.timing(fadeAnim, {
               toValue: 1,
@@ -83,6 +87,17 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
     return () => { mounted = false; };
   }, [productCategory]);
 
+  useEffect(() => {
+    if (!isRoseCategory) return;
+    let mounted = true;
+    cacheStorage.getCurrentUserProfile().then((profile: any) => {
+      if (!mounted) return;
+      const roses = profile?.roses;
+      if (roses) setCurrentRoses(roses.remainingToday + roses.balance);
+    }).catch(() => {});
+    return () => { mounted = false; };
+  }, [isRoseCategory]);
+
   const handlePurchase = () => {
     if (!selectedProduct) return;
 
@@ -97,6 +112,7 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
         sku: selectedProduct.sku,
         ot_duration: variantId,
         quantity: 1,
+        ...(requestedMatchId ? { matchId: requestedMatchId } : {}),
       }
     }).then((res: any) => {
       Loaderx.hide();
@@ -212,12 +228,12 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
             colors={['#8B5CF6', '#6D28D9']}
             style={styles.productIconContainer}
           >
-            <Icon name="flash" size={24} color="#FFF" />
+            <Icon name={isRoseCategory ? "rose" : isRewindCategory ? "arrow-undo" : "flash"} size={24} color="#FFF" />
           </LinearGradient>
           <View style={styles.productInfo}>
             <Text style={styles.productName}>{product.name}</Text>
             <Text style={styles.productDescription}>
-              {product?.description?.short || 'Boost your profile visibility'}
+              {product?.description?.short || (isRoseCategory ? 'Spend roses on Super Likes' : isRewindCategory ? 'Recover a match you passed on' : 'Boost your profile visibility')}
             </Text>
           </View>
           {features.length > 0 && (
@@ -313,12 +329,26 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
             colors={['#8B5CF6', '#6D28D9']}
             style={styles.headerIconContainer}
           >
-            <Icon name="flash" size={48} color="#FFF" />
+            <Icon name={isRoseCategory ? "rose" : isRewindCategory ? "arrow-undo" : "flash"} size={48} color="#FFF" />
           </LinearGradient>
-          <Text style={styles.title}>Super Likes</Text>
-          <Text style={styles.subtitle}>Get noticed instantly by more people</Text>
-          
+          <Text style={styles.title}>{isRoseCategory ? "Roses" : isRewindCategory ? "Rewind" : "Super Likes"}</Text>
+          <Text style={styles.subtitle}>
+            {isRoseCategory
+              ? "Roses are spent on Super Likes to get noticed instantly"
+              : isRewindCategory
+                ? "Recover a match you accidentally passed on"
+                : "Get noticed instantly by more people"}
+          </Text>
+
+          {isRoseCategory && currentRoses !== null && (
+            <View style={styles.balanceRow}>
+              <Icon name="rose" size={14} color="#e11d48" />
+              <Text style={styles.balanceText}>You have {currentRoses} rose{currentRoses === 1 ? '' : 's'}</Text>
+            </View>
+          )}
+
           {/* Stats Row */}
+          {!isRewindCategory && (
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Icon name="people" size={16} color="#8B5CF6" />
@@ -330,6 +360,7 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
               <Text style={styles.statText}>3x more matches</Text>
             </View>
           </View>
+          )}
         </Animated.View>
 
         {/* Products List */}
@@ -502,6 +533,21 @@ const styles = StyleSheet.create({
     height: 20,
     backgroundColor: '#2A2A35',
     marginHorizontal: 12,
+  },
+  balanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#e11d4820',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    marginBottom: 12,
+  },
+  balanceText: {
+    color: '#fb7185',
+    fontSize: 12,
+    fontWeight: '700',
   },
 
   productsContainer: {

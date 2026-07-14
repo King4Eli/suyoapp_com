@@ -85,6 +85,7 @@ async function processWebhookEvent(event) {
             const sku_variant = metadata.sku_variant;
             const paymentId = metadata.paymentId;
             const userId = metadata.userId;
+            const matchId = metadata.matchId;
             const type = session.mode;
 
             if (!userId || !paymentId || !sku_variant) {
@@ -158,6 +159,16 @@ async function processWebhookEvent(event) {
                 } else if (type === "payment") {
                     await updatePaymentStatus(paymentId, 'completed', session.id);
                     tools.serverLog(`One-time payment completed: ${paymentId}`, "hook_8997");
+
+                    // Fulfillment is best-effort and isolated from the outer catch: the webhook
+                    // event is already deduped by event_id at this point, so letting an error
+                    // escape here would mark the payment completed but never retry the grant.
+                    try {
+                        await fulfillOnetimePurchase(sku_variant, userId, paymentId, matchId);
+                    } catch (fulfillError) {
+                        tools.serverLog(`Error fulfilling one-time purchase for payment ${paymentId}: ${fulfillError}`, "hook_9002");
+                    }
+
                     return { success: true };
                 }
 
@@ -378,6 +389,67 @@ async function processWebhookEvent(event) {
         default:
             tools.serverLog(`Unhandled webhook event: ${event.type}`, "hook_134");
             return { success: true, handled: false };
+    }
+}
+
+/**
+ * Grants whatever a purchased one-time product variant represents:
+ * - `superlike`-category variants (rose packs), described as `{"roses": <quantity>}`
+ * - `rewind`-category: "buy once, rewind once" — no balance is kept; the purchase
+ *   directly performs the rewind on the match named by `matchId` (see pay.js's onetime
+ *   handler, which requires matchId for this category and threads it through Stripe
+ *   metadata to get here).
+ * @param {string} variantId
+ * @param {string} userId
+ * @param {string} paymentId
+ * @param {string} [matchId]
+ */
+async function fulfillOnetimePurchase(variantId, userId, paymentId, matchId) {
+    /** @type {[any[], any]} */
+    const [variantRows] = await db_pool.query(
+        `SELECT pv.description, pl.category
+         FROM product_list_variant pv
+         INNER JOIN product_lists pl ON pl.pl_sku = pv.product_lists_id_ref
+         WHERE pv.id_ai = ? LIMIT 1`,
+        [variantId]
+    );
+    const variant = variantRows?.[0];
+    if (!variant) return;
+
+    const description = typeof variant.description === 'string' ? JSON.parse(variant.description) : variant.description;
+
+    if (variant.category === 'superlike') {
+        const roses = Number(description?.roses ?? 0);
+        if (!Number.isFinite(roses) || roses <= 0) return;
+
+        // Upsert: the user may never have spent a rose before, so their row in
+        // user_rose_usage might not exist yet.
+        await db_pool.query(
+            `INSERT INTO user_rose_usage (user_id, rose_balance, daily_used, daily_reset_date)
+             VALUES (?, ?, 0, CURRENT_DATE)
+             ON DUPLICATE KEY UPDATE rose_balance = rose_balance + ?`,
+            [userId, roses, roses]
+        );
+        tools.serverLog(`Granted ${roses} roses to user ${userId} for payment ${paymentId}`, "hook_9001");
+        return;
+    }
+
+    if (variant.category === 'rewind') {
+        if (!matchId) {
+            tools.serverLog(`Rewind purchase completed with no matchId for payment ${paymentId}`, "hook_9004");
+            return;
+        }
+
+        /** @type {[import('mysql2/promise').ResultSetHeader, any]} */
+        const [result] = await db_pool.query(
+            `UPDATE matches SET match_status = '0' WHERE match_id = ? AND match_user_id_to = ? AND match_status = '2'`,
+            [matchId, userId]
+        );
+        if (result.affectedRows === 0) {
+            tools.serverLog(`Rewind purchase completed but match ${matchId} was no longer rewindable for payment ${paymentId}`, "hook_9005");
+            return;
+        }
+        tools.serverLog(`Rewound match ${matchId} for user ${userId} for payment ${paymentId}`, "hook_9003");
     }
 }
 

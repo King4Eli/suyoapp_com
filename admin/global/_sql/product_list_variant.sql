@@ -50,7 +50,11 @@ INSERT INTO `product_list_variant` (`id_ai`, `name`, `description`, `price`, `bi
 (3, 'monthly', '{\"cycle\": \"monthly\", \"discount\": \"30% off\"}', 19.99, 4, 'plus_kywhm9u6ymw8ym3u69meno', '1', '2026-03-08 11:38:22', '2026-06-15 07:04:43', ''),
 (4, 'weekly', '{\"cycle\": \"weekly\", \"discount\": \"15% off\"}', 10.99, 3, 'vip_91n46w586u0m4eomircybdvsz', '1', '2026-03-08 11:38:22', '2026-06-15 07:07:33', ''),
 (5, 'biweekly', '{\"cycle\": \"biweekly\", \"discount\": \"\"}', 16.99, 2, 'vip_91n46w586u0m4eomircybdvsz', '1', '2026-03-08 11:38:22', '2026-06-15 07:03:39', ''),
-(6, 'monthly', '{\"cycle\": \"monthly\", \"discount\": \"30% off\"}', 21.99, 4, 'vip_91n46w586u0m4eomircybdvsz', '1', '2026-03-08 11:38:22', '2026-06-15 06:41:25', '');
+(6, 'monthly', '{\"cycle\": \"monthly\", \"discount\": \"30% off\"}', 21.99, 4, 'vip_91n46w586u0m4eomircybdvsz', '1', '2026-03-08 11:38:22', '2026-06-15 06:41:25', ''),
+(7, '10 Roses', '{\"roses\": 10}', 2.99, 1, 'superlikes_4pqojouyyyur5uyihgj898', '1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ''),
+(8, '25 Roses', '{\"roses\": 25}', 5.99, 1, 'superlikes_4pqojouyyyur5uyihgj898', '1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ''),
+(9, '60 Roses', '{\"roses\": 60}', 9.99, 1, 'superlikes_4pqojouyyyur5uyihgj898', '1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ''),
+(10, '1 Rewind', '{\"rewinds\": 1}', 1.45, 1, 'rewind_7hqm3xk9pzalvbnw2e', '1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, '');
 
 --
 -- Indexes for dumped tables
@@ -71,7 +75,7 @@ ALTER TABLE `product_list_variant`
 -- AUTO_INCREMENT for table `product_list_variant`
 --
 ALTER TABLE `product_list_variant`
-  MODIFY `id_ai` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id_ai` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- Constraints for dumped tables

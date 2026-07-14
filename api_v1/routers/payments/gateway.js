@@ -154,7 +154,7 @@ export default class GatewayPay {
         }
     }
 
-    static async onetime(host = "", sku = "", sku_variant="", userEmail = "", productname = "", duration = "", price = "", paymentId = "") {
+    static async onetime(host = "", sku = "", sku_variant="", userEmail = "", productname = "", duration = "", price = "", paymentId = "", matchId = "") {
         try {
             // Validate required parameters
             if (!host || !sku || !sku_variant || !userEmail || !productname || !price || !paymentId) {
@@ -218,7 +218,8 @@ export default class GatewayPay {
                             sku: sku,
                             sku_variant,
                             type: 'onetime',
-                            paymentId
+                            paymentId,
+                            ...(matchId ? { matchId } : {})
                         }
                     });
                     break; // Success, exit retry loop

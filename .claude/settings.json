@@ -100,7 +100,8 @@
       "Bash(adb -s emulator-5554 logcat -d -t 500)",
       "Bash(curl -s -m 5 -X POST http://localhost:8081/reload)",
       "Bash(adb -s emulator-5554 logcat -d)",
-      "Bash(adb -s emulator-5554 logcat -d -T \"5 seconds\")"
+      "Bash(adb -s emulator-5554 logcat -d -T \"5 seconds\")",
+      "Bash(node --check global/entitlements.js)"
     ],
     "additionalDirectories": [
       "/home/king/tr/goodapps/projs/suyoapp_com/mobile_frontend/_app/screens",

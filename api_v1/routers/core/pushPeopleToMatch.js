@@ -1,5 +1,13 @@
 import db_pool from "../../global/database.js";
-import { sessions, tools } from "../../global/functions.js";
+import { namer, sessions, tools } from "../../global/functions.js";
+import { checkRateLimit } from "../../global/rateLimit.js";
+import { getSubscriptionTier, spendRose } from "../../global/entitlements.js";
+
+// Free-tier likes are capped on a rolling 24h window (from the user's first like in the
+// window); Plus/VIP are unlimited. Superlikes are separately gated by the rose balance.
+const FREE_LIKE_LIMIT = 15;
+const FREE_LIKE_WINDOW_SECONDS = 24 * 60 * 60;
+
 /**
  * @param {{ user_id2: any; match_status: any; matchId: any; }} data
  */
@@ -13,6 +21,38 @@ export default async function pushPeopleToMatch(data) {
         const secondUserId = data.user_id2?.toLowerCase() ?? "";
         const matchStatus = data.match_status != null ? String(data.match_status) : "0";
         const matchId = data.matchId ?? "";
+
+        if (matchStatus === "0") {
+            const tier = await getSubscriptionTier(sessions.currentUserID);
+            if (tier === "free") {
+                const limitCheck = await checkRateLimit(
+                    `${namer.ratelimit.likes_daily}${sessions.currentUserID}`,
+                    FREE_LIKE_LIMIT,
+                    FREE_LIKE_WINDOW_SECONDS
+                );
+                if (!limitCheck.allowed) {
+                    response.code = 429;
+                    response.message = "You've reached today's limit of 15 likes. Upgrade to Plus or VIP for unlimited likes, or check back later.";
+                    response.retryAfterSeconds = limitCheck.retryAfterSeconds;
+                    response.likesRemainingToday = 0;
+                    return response;
+                }
+                response.likesRemainingToday = Math.max(0, FREE_LIKE_LIMIT - limitCheck.count);
+            }
+        }
+
+        if (matchStatus === "5") {
+            const roseResult = await spendRose(sessions.currentUserID);
+            if (!roseResult.spent) {
+                response.code = 402;
+                response.message = "You're out of roses. Buy more to keep sending super likes.";
+                response.rosesRemainingToday = 0;
+                return response;
+            }
+            response.rosesRemainingToday = roseResult.remainingToday;
+            if (roseResult.source === 'balance') response.roseBalance = roseResult.balance;
+        }
+
         if (!matchId) {
             // Insert new match
             const genChatId = tools.generateAlphanumeric(21, 30);

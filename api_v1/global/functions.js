@@ -156,6 +156,7 @@ export const namer = {
         phonechange_otp_verify: "ratelimit:phonechange:otp-verify:",
         emailchange_otp_request: "ratelimit:emailchange:otp-request:",
         emailchange_otp_verify: "ratelimit:emailchange:otp-verify:",
+        likes_daily: "ratelimit:likes:daily:",
     }
 }
 

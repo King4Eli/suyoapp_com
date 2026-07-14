@@ -261,7 +261,8 @@ export const namer = {
     productCategoryName: {
         mainsub: "mainsub",
         superlike: "superlike",
-        instantmessage: "instantmessage"
+        instantmessage: "instantmessage",
+        rewind: "rewind"
     },
 }
 

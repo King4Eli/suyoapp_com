@@ -138,7 +138,7 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
       LEFT JOIN matches m1
         ON m1.match_user_id_from = users.user_id
        AND m1.match_user_id_to   = ?
-       AND m1.match_status       = '0'
+       AND m1.match_status       IN ('0', '5')
       LEFT JOIN matches m2
         ON (m2.match_user_id_to   = users.user_id AND m2.match_user_id_from = ?)
         OR (m2.match_user_id_from = users.user_id AND m2.match_user_id_to   = ? AND m2.match_status IN ('1','2','3'))

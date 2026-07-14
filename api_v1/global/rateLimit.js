@@ -19,7 +19,7 @@ return {count, ttl}
  * @param {string} key
  * @param {number} limit - max requests allowed per window
  * @param {number} windowSeconds
- * @returns {Promise<{allowed: boolean, retryAfterSeconds: number}>}
+ * @returns {Promise<{allowed: boolean, retryAfterSeconds: number, count: number}>}
  */
 export async function checkRateLimit(key, limit, windowSeconds) {
     try {
@@ -33,11 +33,33 @@ export async function checkRateLimit(key, limit, windowSeconds) {
             return {
                 allowed: count <= limit,
                 retryAfterSeconds: ttl > 0 ? ttl : windowSeconds,
+                count,
             };
         });
     }
     catch (err) {
         tools.serverLog(`Rate limit check failed for key ${key}: ${err}`, 'ratelimit_error_1');
-        return { allowed: true, retryAfterSeconds: 0 };
+        return { allowed: true, retryAfterSeconds: 0, count: 0 };
+    }
+}
+
+/**
+ * Read-only peek at a fixed-window counter used by checkRateLimit, without incrementing it.
+ * Used to display "N remaining" to a user before they take the rate-limited action.
+ * @param {string} key
+ * @param {number} limit
+ * @returns {Promise<{count: number, remaining: number}>}
+ */
+export async function peekRateLimit(key, limit) {
+    try {
+        return await redisDo(async (client) => {
+            const raw = await client.get(key);
+            const count = raw ? Number(raw) : 0;
+            return { count, remaining: Math.max(0, limit - count) };
+        });
+    }
+    catch (err) {
+        tools.serverLog(`Rate limit peek failed for key ${key}: ${err}`, 'ratelimit_error_2');
+        return { count: 0, remaining: limit };
     }
 }

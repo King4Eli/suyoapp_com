@@ -1,6 +1,9 @@
 import db_pool from "../../global/database.js";
-import { sessions, tools } from "../../global/functions.js";
-import { getActiveSubscription } from "../../global/entitlements.js";
+import { namer, sessions, tools } from "../../global/functions.js";
+import { getActiveSubscription, getRoseStatus } from "../../global/entitlements.js";
+import { peekRateLimit } from "../../global/rateLimit.js";
+
+const FREE_LIKE_LIMIT = 15;
 
 export default async function getProfile() {
   /** @type { any } */
@@ -161,6 +164,16 @@ export default async function getProfile() {
     const streakCount = Number(userProfile?.user_last_accessed ?? 0);
     const hasActiveSubscription = subscription !== null;
 
+    const roses = await getRoseStatus(sessions.currentUserID);
+    let likesRemainingToday = null;
+    if (roses.tier === "free") {
+      const likesPeek = await peekRateLimit(`${namer.ratelimit.likes_daily}${sessions.currentUserID}`, FREE_LIKE_LIMIT);
+      likesRemainingToday = likesPeek.remaining;
+    }
+
+    // Plus/VIP rewind for free; free tier must buy a one-time rewind per match instead.
+    const rewind = { freeForTier: roses.tier !== "free" };
+
     response.code = 200;
     response.message = "Profile retrieved successfully";
     response.currentUser = {
@@ -233,6 +246,11 @@ export default async function getProfile() {
  
       // subscription
       subscription: subscription,
+
+      // entitlements
+      roses,
+      likesRemainingToday,
+      rewind,
 
       active_status: userProfile.user_active,
       created_at: userProfile.user_datecreated,

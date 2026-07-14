@@ -39,6 +39,10 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
     const [showItsAMatchModal, setShowItsAMatchModal] = useState(false);
     const [getShowDislikedMatchModal, setShowDislikedMatchModal] = useState(false);
     const [getActionBurst, setActionBurst] = useState<{ kind: ActionBurstKind; key: number } | null>(null);
+    const [entitlements, setEntitlements] = useState<{
+        roses: { remainingToday: number; balance: number } | null;
+        rewind: { freeForTier: boolean } | null;
+    }>({ roses: null, rewind: null });
 
     const carouselRef = useRef<CarouselRef>(null);
     const insets = useSafeAreaInsets(); 
@@ -95,6 +99,14 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                 const [profile] = await Promise.all([cacheStorage.getCurrentUserProfile()]);
                 if (mounted && profile) {
                     setProfile(profile);
+                    setEntitlements({
+                        roses: profile?.roses
+                            ? { remainingToday: profile.roses.remainingToday, balance: profile.roses.balance }
+                            : null,
+                        rewind: profile?.rewind
+                            ? { freeForTier: profile.rewind.freeForTier }
+                            : null,
+                    });
                 }
             } catch (error) {
                 console.error("Error loading profile:", error);
@@ -156,10 +168,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                         elevation: 3,
                     }
                 ]}>
-                    {getSkippedLastPerson !== null && <Pressable style={{ gap: 3 }} onPress={() => {
-                        setPeopleToMatch((prev) => [getSkippedLastPerson, ...(prev ?? [])]);
-                        setSkippedLastPerson(null);
-                    }}>
+                    {getSkippedLastPerson !== null && <Pressable style={{ gap: 3 }} onPress={attemptRestore}>
                         <MIcon name="backup-restore" size={30} color={colors.text} />
                     </Pressable>}
                     <Pressable style={{ gap: 3 }} onPress={() => { navigation.navigate(namer.navigation.editpreference); }}>
@@ -167,7 +176,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                     </Pressable>
                 </View>),
         });
-    }, [getPeopleToMatch, getSkippedLastPerson, colors]);
+    }, [getPeopleToMatch, getSkippedLastPerson, colors, entitlements]);
 
     // next person load images
     useEffect(() => {
@@ -322,6 +331,29 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                             matchId: matchId
                         }
                     }).then((response) => {
+                        if (response?.code === 429 || response?.code === 402) {
+                            Toastx.show({ type: 'info', message: response?.message ?? 'Action not available right now.', duration: 4000 });
+                            if (response?.code === 429) {
+                                navigation.navigate(namer.navigation.subscription);
+                            } else {
+                                setEntitlements(prev => ({ ...prev, roses: prev.roses ? { ...prev.roses, remainingToday: 0 } : prev.roses }));
+                                navigation.navigate(namer.navigation.consumables, { productcategory: namer.productCategoryName.superlike });
+                            }
+                            return;
+                        }
+
+                        if (typeof response?.rosesRemainingToday === 'number') {
+                            setEntitlements(prev => ({
+                                ...prev,
+                                roses: prev.roses
+                                    ? {
+                                        remainingToday: response.rosesRemainingToday,
+                                        balance: typeof response?.roseBalance === 'number' ? response.roseBalance : prev.roses.balance,
+                                    }
+                                    : prev.roses,
+                            }));
+                        }
+
                         if (what === "dislike") {
                             if (functs.onePersonProfile) {
                                 navigation.popToTop();
@@ -377,7 +409,50 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
         }
     }
 
+    async function handleRewind() {
+        const matchId = getSkippedLastPerson?.match_id;
+        if (!matchId) return;
+        Loaderx.show();
+        try {
+            const response = await _http_request({
+                reqType: 'POST',
+                customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/rewindMatch",
+                bodyArray: { matchId }
+            });
+            if (response?.code === 200) {
+                setShowDislikedMatchModal(false);
+                setPeopleToMatch((prev) => [getSkippedLastPerson, ...(prev ?? [])]);
+                setSkippedLastPerson(null);
+                Toastx.show({ type: 'success', message: response?.message ?? 'Match recovered!' });
+            } else {
+                Toastx.show({ type: 'info', message: response?.message ?? 'Unable to rewind this match.' });
+            }
+        } catch (e) {
+            Toastx.show({ type: 'error', message: 'Unable to rewind this match.' });
+        } finally {
+            Loaderx.hide();
+        }
+    }
 
+    // Shared entry point for "undo last dislike" — used by both the header's restore
+    // icon and the missed-match modal, so neither can bypass the other's gating.
+    // A skipped person with no match_id was never a mutual-interest match, so undoing
+    // that is a free convenience action; recovering a real missed match (match_id
+    // present, meaning they'd already liked or superliked/rose'd you) is gated by
+    // subscription tier via handleRewind/the paywall modal.
+    function attemptRestore() {
+        if (!getSkippedLastPerson) return;
+        if (!getSkippedLastPerson?.match_id) {
+            setPeopleToMatch((prev) => [getSkippedLastPerson, ...(prev ?? [])]);
+            setSkippedLastPerson(null);
+            return;
+        }
+        if (entitlements.rewind?.freeForTier) {
+            handleRewind();
+        } else {
+            setShowDislikedMatchModal(true);
+        }
+    }
 
 
     const distanceLabel = (() => {
@@ -626,7 +701,14 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                                 setActionBurst({ kind: 'superlike', key: Date.now() });
                                 peoples_action('superlike', getPeopleToMatch?.[0]?.match_id ? 1 : 5, false);
                             }}>
-                                <IIcon name="diamond" size={30} color="#0ea5e9" />
+                                <IIcon name="rose" size={30} color="#e11d48" />
+                                {entitlements.roses && (
+                                    <View style={deckStyles.entitlementBadge}>
+                                        <Text style={deckStyles.entitlementBadgeText}>
+                                            {entitlements.roses.remainingToday + entitlements.roses.balance}
+                                        </Text>
+                                    </View>
+                                )}
                             </Pressable>}
                             <Pressable style={[deckStyles.circleBtn, deckStyles.circleBtnPrimary]} onPress={() => {
                                  setActionBurst({ kind: 'like', key: Date.now() });
@@ -706,11 +788,10 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
             <Modal visible={getShowDislikedMatchModal} transparent animationType="fade"
                 onRequestClose={() => {
                     setShowDislikedMatchModal(false);
-                    functs.refreshPeoples();
                 }}>
                 <View style={matchStyles.backdrop}>
                     <Animated.View style={[matchStyles.card, passedShakeStyle]}>
-                        <Pressable style={matchStyles.closeButton} onPress={() => {setShowDislikedMatchModal(false); functs.refreshPeoples();}}>
+                        <Pressable style={matchStyles.closeButton} onPress={() => {setShowDislikedMatchModal(false);  }}>
                             <IIcon name="close" size={24} color="#cbd5e1" />
                         </Pressable>
                         <View style={styles.zcircle1} />
@@ -728,19 +809,35 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                         </View>
 
                         <Text style={[matchStyles.subtitle, { color: '#fbbf24', fontWeight: '600' }]}>
-                            Upgrade to rewind and recover this match!
+                            Rewind to recover this match!
                         </Text>
 
-                        <Pressable style={[matchStyles.primaryBtn, { backgroundColor: '#f59e0b' }]} onPress={() => {
-                            setShowDislikedMatchModal(false);
-                            navigation.navigate(namer.navigation.subscription);
-                        }}>
-                            <Text style={matchStyles.primaryBtnText}>Upgrade to Rewind</Text>
-                        </Pressable>
+                        {entitlements.rewind?.freeForTier ? (
+                            <Pressable style={[matchStyles.primaryBtn, { backgroundColor: '#f59e0b' }]} onPress={handleRewind}>
+                                <Text style={matchStyles.primaryBtnText}>Rewind (Free)</Text>
+                            </Pressable>
+                        ) : (
+                            <>
+                                <Pressable style={[matchStyles.primaryBtn, { backgroundColor: '#f59e0b' }]} onPress={() => {
+                                    setShowDislikedMatchModal(false);
+                                    navigation.navigate(namer.navigation.consumables, {
+                                        productcategory: namer.productCategoryName.rewind,
+                                        matchId: getSkippedLastPerson?.match_id,
+                                    });
+                                }}>
+                                    <Text style={matchStyles.primaryBtnText}>Buy Rewind – $1.45</Text>
+                                </Pressable>
+                                <Pressable onPress={() => {
+                                    setShowDislikedMatchModal(false);
+                                    navigation.navigate(namer.navigation.subscription);
+                                }}>
+                                    <Text style={[matchStyles.secondaryBtnText, { textDecorationLine: 'underline' }]}>Or subscribe for unlimited rewinds</Text>
+                                </Pressable>
+                            </>
+                        )}
 
                         <Pressable style={matchStyles.secondaryBtn} onPress={() => {
                             setShowDislikedMatchModal(false);
-                            functs.refreshPeoples();
                         }}>
                             <Text style={matchStyles.secondaryBtnText}>Keep swiping</Text>
                         </Pressable>
@@ -761,7 +858,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                 animationType="fade"
             /> 
 
-            {/* like / dislike / diamond tap feedback */}
+            {/* like / dislike / rose tap feedback */}
             <ActionBurstOverlay burst={getActionBurst} onDone={() => setActionBurst(null)} />
 
 
@@ -809,6 +906,8 @@ function createDeckStyles(colors: ThemeColors) {
     galleryImage: { width: 160, height: 200, borderRadius: 16, backgroundColor: staticColors.gray1 },
     actionDock: { position: 'absolute', bottom: 16, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 16 },
     circleBtn: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center', shadowColor: colors.shadow, shadowOpacity: 0.15, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
+    entitlementBadge: { position: 'absolute', top: -2, right: -2, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 4, backgroundColor: '#f43f5e', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: colors.background },
+    entitlementBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
     circleBtnGhost: { backgroundColor: colors.surface },
     circleBtnAccent: { backgroundColor: '#e0f2fe' },
     circleBtnPrimary: { backgroundColor: '#dcfce7' },
