@@ -51,18 +51,7 @@ export function Zz_devv({ route, navigation }: { route: any, navigation: any }) 
                 <Pressable style={modernStyles.dangerSection} onPress={() => { Linking.openURL(__MAPPER?.img_domain[0]); }}>
                     <Text>Image url: {__MAPPER?.img_domain[0]}</Text>
                 </Pressable>
-
-                <Pressable style={modernStyles.dangerSection} onPress={async () => { console.log("uyuu", await cacheStorage.getProducts(true)) }}>
-                    <Text>getProducts</Text>
-                </Pressable>
-
-                <Pressable style={modernStyles.dangerSection} onPress={async () => {
-                    Linking.openURL(
-                        __CONFIG__.HTTPS_DOMAIN + '/admin/admin_user_detail.php?id=' + getProfile?.profile?.id
-                    );
-                }}>
-                    <Text>Profile admin url: {__CONFIG__.HTTPS_DOMAIN}{"\n"}[uid: {getProfile?.profile?.id}]</Text>
-                </Pressable>
+ 
 
                 <Pressable style={modernStyles.dangerSection} onPress={async () => {
                     Clipboard.setString(getSession?.x_omi_payload + "\n" + getSession?.x_omi_payload_hash);
@@ -95,11 +84,7 @@ export function Zz_devv({ route, navigation }: { route: any, navigation: any }) 
                 }}>
                     <Text>Testing null page</Text>
                 </Pressable>
-
-                <View style={modernStyles.dangerSection}>
-                    <Text>\*** bundle ID: {DeviceInfo.getBundleId()}</Text>
-                    <Text>\*** display name: {DeviceInfo.getApplicationName()}</Text>
-                </View>
+ 
 
 
             </ScrollView>

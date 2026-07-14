@@ -4,7 +4,6 @@ import { View, Text,  StyleSheet, Linking, Alert, Share, TouchableOpacity, TextI
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { namer, styles, __CONFIG__ } from '../funcs/static';
 import { __init__app, _http_request, cacheStorage, help, logReport } from '../funcs/functions';
-import appJson from '../../app.json';
 import DeviceInfo from 'react-native-device-info';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import IIcon from 'react-native-vector-icons/Ionicons';
@@ -44,7 +43,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   // Bottom sheet refs with larger snap points for keyboard
   const bottomSheetRef_push = {
     ref: useRef<BottomSheet>(null),
-    snap: useMemo(() => ['65%'], [])
+    snap: useMemo(() => ['45%'], [])
   };  
   const bottomSheetRef_email = {
     ref: useRef<BottomSheet>(null),
@@ -379,8 +378,8 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         style={modernStyles.quickAction}
         onPress={async () => {
           await Share.share({
-            title: `Join me on ${appJson?.displayName}!`,
-            message: `I'm using ${appJson?.displayName} to meet amazing people. Join me!`,
+            title: `Join me on "`,
+            message: `I'm using ?.displayName} to meet amazing people. Join me!`,
           });
         }}
       > 
@@ -1110,10 +1109,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
 
             {/* App Version */}
             <View style={modernStyles.versionContainer}>
-              <Text style={modernStyles.versionText}> dv-{DeviceInfo.getVersion()} (jv-{appJson?.appversion})</Text>
-              <Text style={modernStyles.buildText}>
-                Build {DeviceInfo.getBuildNumber()} • Bundle {appJson?.bundlebuildnumber}
-              </Text>
+              <Text style={modernStyles.versionText}>{DeviceInfo.getVersion()}:{DeviceInfo.getBuildNumber()}</Text>
             </View>
           </View>
         </ScrollView>
@@ -1680,10 +1676,6 @@ function createModernStyles(colors: ThemeColors) {
     fontSize: 14,
     color: colors.textSecondary,
     marginBottom: 4,
-  },
-  buildText: {
-    fontSize: 11,
-    color: colors.textTertiary,
   },
   });
 }

@@ -25,6 +25,10 @@ type SignupData = {
   interestedIn: string;
   photos: string[];
   bio: string;
+  smoking: string;
+  drinking: string;
+  children: string;
+  hasPet: string;
   // interests: string[];
   locationEnabled: boolean | null;
   location: any | null;
@@ -61,6 +65,24 @@ const fallbackOptions = {
   ]),
   gender: mapLabelsToOptions(['Woman', 'Man', 'Non-binary' ]),
   interestedIn: mapLabelsToOptions(['Women', 'Men', 'Everyone', 'Non-binary people']),
+  smoking: [
+    { label: 'No', value: '0' },
+    { label: 'Yes', value: '1' },
+    { label: 'Sometimes', value: '2' },
+  ],
+  drinking: [
+    { label: 'No', value: '0' },
+    { label: 'Yes', value: '1' },
+    { label: 'Occasionally', value: '2' },
+  ],
+  children: [
+    { label: 'No', value: '0' },
+    { label: 'Yes', value: '1' },
+  ],
+  hasPet: [
+    { label: 'No', value: '0' },
+    { label: 'Yes', value: '1' },
+  ],
   // interests: mapLabelsToOptions([
   //   'Music',
   //   'Gym',
@@ -147,6 +169,10 @@ export const Auth_Signup = ({route}:{route: any}) => {
   interestedIn: '',
   photos: [],
   bio: '',
+  smoking: '',
+  drinking: '',
+  children: '',
+  hasPet: '',
   // interests: [],
   locationEnabled: null,
   location: null,
@@ -176,6 +202,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
       { eyebrow: 'Photos', title: 'Add your best shots' },
       { eyebrow: 'Bio', title: 'Add a spark' },
       // { eyebrow: 'Interests', title: 'Pick your favorites' },
+      { eyebrow: 'Lifestyle', title: 'A few lifestyle basics' },
       { eyebrow: 'Nearby', title: 'Find people nearby.' },
       { eyebrow: 'Phone', title: 'Verify your number' },
 ],
@@ -190,7 +217,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
     let mounted = true;
 
     cacheStorage
-      .getMapper(false, ['intent', 'gender', 'interested_in'])
+      .getMapper(false, ['intent', 'gender', 'interested_in', 'smoking', 'drinking', 'children', 'pets'])
       .then(mapper => {
         if (!mounted || !mapper) return;
 
@@ -198,6 +225,10 @@ export const Auth_Signup = ({route}:{route: any}) => {
           intent: mapperToOptions(mapper, ['bio_intent', 'intent'], fallbackOptions.intent),
           gender: mapperToOptions(mapper, ['bio_gender', 'gender'], fallbackOptions.gender),
           interestedIn: mapperToOptions(mapper, ['interested_in', 'interestedIn'], fallbackOptions.interestedIn),
+          smoking: mapperToOptions(mapper, ['bio_smoking', 'smoking'], fallbackOptions.smoking),
+          drinking: mapperToOptions(mapper, ['bio_drinking', 'drinking'], fallbackOptions.drinking),
+          children: mapperToOptions(mapper, ['bio_children', 'children'], fallbackOptions.children),
+          hasPet: mapperToOptions(mapper, ['bio_pets', 'pets'], fallbackOptions.hasPet),
           // interests: mapperToOptions(mapper, ['interests', 'interest'], fallbackOptions.interests),
         });
       })
@@ -295,7 +326,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
     //   return false;
     // }
     // Keep required checks local to the active step so the flow stays low-friction.
-    if (step === 5 && !signupData.phoneVerified) {
+    if (step === 6 && !signupData.phoneVerified) {
       Toastx.show({ type: 'error', message: 'Verify your phone number to continue.' });
       return false;
     }
@@ -389,8 +420,8 @@ export const Auth_Signup = ({route}:{route: any}) => {
     return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
   };
 
-  const uploadSignupPhoto = (uri: string, index: number) => {
-    if (photoUploadPromises.current[uri]) return photoUploadPromises.current[uri];
+  const uploadSignupPhoto = async (uri: string, index: number) => {
+    if (await photoUploadPromises.current[uri]) return photoUploadPromises.current[uri];
 
     const uploadPromise = (async () => {
       setPhotoUploads(prev => ({
@@ -494,6 +525,10 @@ export const Auth_Signup = ({route}:{route: any}) => {
     intent: signupData.intent,
     photos: photos ?? signupData.photos,
     bio: signupData.bio,
+    smoking: signupData.smoking,
+    drinking: signupData.drinking,
+    children: signupData.children,
+    haspet: signupData.hasPet,
     // interests: signupData.interests,
     location: signupData.location,
   });
@@ -522,7 +557,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
 
       const nextSendCount = verificationSendCount + 1;
       setVerificationSendCount(nextSendCount);
-      setResendCooldownSeconds(90 * nextSendCount);
+      setResendCooldownSeconds(60 * nextSendCount);
       setVerificationSent(true);
       if (result?.dev_code) updateSignupData('verificationCode', String(result.dev_code));
       updateSignupData('phoneVerified', false);
@@ -759,6 +794,66 @@ export const Auth_Signup = ({route}:{route: any}) => {
       </StepScroll>,
     );
 
+  const renderLifestyleScreen = () =>
+    renderStepShell(
+      <StepScroll stylesx={stylesx}>
+        <StepHeader eyebrow="Lifestyle" title="A few lifestyle basics" helper="Helps us find better matches. You can change these later." stylesx={stylesx} />
+        <View style={stylesx.card}>
+          <FieldLabel label="Smoking" stylesx={stylesx} />
+          <View style={stylesx.chipWrap}>
+            {getMapper.smoking.map(option => (
+              <Chip
+                key={option.value}
+                label={option.label}
+                selected={signupData.smoking === option.value}
+                onPress={() => updateSignupData('smoking', option.value)}
+                stylesx={stylesx}
+              />
+            ))}
+          </View>
+
+          <FieldLabel label="Drinking" stylesx={stylesx} />
+          <View style={stylesx.chipWrap}>
+            {getMapper.drinking.map(option => (
+              <Chip
+                key={option.value}
+                label={option.label}
+                selected={signupData.drinking === option.value}
+                onPress={() => updateSignupData('drinking', option.value)}
+                stylesx={stylesx}
+              />
+            ))}
+          </View>
+
+          <FieldLabel label="Have kids" stylesx={stylesx} />
+          <View style={stylesx.chipWrap}>
+            {getMapper.children.map(option => (
+              <Chip
+                key={option.value}
+                label={option.label}
+                selected={signupData.children === option.value}
+                onPress={() => updateSignupData('children', option.value)}
+                stylesx={stylesx}
+              />
+            ))}
+          </View>
+
+          <FieldLabel label="Have a pet" stylesx={stylesx} />
+          <View style={stylesx.chipWrap}>
+            {getMapper.hasPet.map(option => (
+              <Chip
+                key={option.value}
+                label={option.label}
+                selected={signupData.hasPet === option.value}
+                onPress={() => updateSignupData('hasPet', option.value)}
+                stylesx={stylesx}
+              />
+            ))}
+          </View>
+        </View>
+      </StepScroll>,
+    );
+
   // const renderInterestsScreen = () =>
   //   renderStepShell(
   //     <StepScroll stylesx={stylesx}>
@@ -887,6 +982,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
     renderPhotosScreen(),
     renderBioScreen(),
     // renderInterestsScreen(),
+    renderLifestyleScreen(),
     renderLocationScreen(),
     verifyPhonenumber(),
   ];
@@ -915,7 +1011,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
         onPageChange={index => animatePageChange(index)}
       />
 
-      {step !== 5 && (
+      {step !== 6 && (
         <View style={stylesx.footer}>
           <TouchableOpacity style={stylesx.primaryButton} onPress={goNext}>
             <Text style={stylesx.primaryButtonText}>Continue</Text>

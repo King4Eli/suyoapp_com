@@ -108,6 +108,10 @@ signup_router.post('/', async (req, res) => {
     const interestedIn = onlyNumberOrDefault(req.body.interested_in, -99);
     const intent = onlyNumberOrDefault(req.body.intent, -99);
     const bio = cleanText(req.body.bio, 400);
+    const smoking = String(onlyNumberOrDefault(req.body.smoking, 0));
+    const drinking = String(onlyNumberOrDefault(req.body.drinking, 0));
+    const children = String(onlyNumberOrDefault(req.body.children, 0));
+    const hasPet = String(onlyNumberOrDefault(req.body.haspet, 0));
     const email = `${phonenumber}@example.com`;
     const photos = Array.isArray(req.body.photos) ? req.body.photos.slice(0, 6) : [];
     const location = locationToDb(req.body.location);
@@ -129,7 +133,7 @@ signup_router.post('/', async (req, res) => {
                 user_bio_relationshipgoal, user_bio_gender,
                 user_bio_about, user_bio_dob, user_preference_gender, user_settings,
                 user_bio_smoking, user_bio_drinking, user_bio_children, user_bio_haspet
-            ) VALUES (?, ?, ?, ?, ?, ?, '1', ?, ?, ?, ?, '1', ?, ?, ?, ?, ?, ?, ?, '0', '0', '0', '0')`,
+            ) VALUES (?, ?, ?, ?, ?, ?, '1', ?, ?, ?, ?, '1', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 genUserId,
                 email,
@@ -148,6 +152,10 @@ signup_router.post('/', async (req, res) => {
                 birthday,
                 interestedIn,
                 settings,
+                smoking,
+                drinking,
+                children,
+                hasPet,
             ],
         );
 
@@ -180,7 +188,7 @@ signup_router.post('/', async (req, res) => {
 
     if (req.body.location) {
         // @ts-ignore
-        pushLocation(JSON.stringify(req.body.location), userId).catch(err => tools.serverLog("Error pushing location: " + err.message, "signup_error_101"));
+        pushLocation(JSON.stringify(req.body.location), genUserId).catch(err => tools.serverLog("Error pushing location: " + err.message, "signup_error_101"));
     }
 
     const sessionToken = sessions.createSession(genUserId);
