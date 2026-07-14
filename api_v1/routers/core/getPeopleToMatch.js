@@ -77,6 +77,10 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
         rows.forEach((u) => {
           u.user_image      = JSON.parse(u.user_image      ?? "[]");
           u.geo_meta        = (u.geo_meta ??  {} );
+          if (u.user_privacy_show_age === '0') delete u.user_bio_dob;
+          delete u.user_privacy_show_distance;
+          delete u.user_privacy_show_age;
+          delete u.user_privacy_incognito;
         });
         await attachPrompts(rows);
         response.code           = 200;
@@ -143,6 +147,7 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
         AND users.user_id    != ?
         ${geoHashFilter}
         AND m2.match_id IS NULL
+        AND (users.user_privacy_incognito = '0' OR m1.match_id IS NOT NULL)
         AND ((FLOOR(DATEDIFF(CURRENT_DATE, STR_TO_DATE(users.user_bio_dob, '%Y%m%d')) / 365))
               BETWEEN currentUser.user_preference_minimum_age AND currentUser.user_preference_maximum_age)
          AND (currentUser.user_preference_gender           = -99  OR users.user_bio_gender           = currentUser.user_preference_gender)
@@ -179,6 +184,11 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
         u.user_image      = JSON.parse(u.user_image      ?? "[]");
         u.user_location   =  (u.geo_meta ??  {}) ;
         delete u.match_status;
+        if (u.user_privacy_show_age === '0') delete u.user_bio_dob;
+        if (u.user_privacy_show_distance === '0') delete u.distance_miles;
+        delete u.user_privacy_show_distance;
+        delete u.user_privacy_show_age;
+        delete u.user_privacy_incognito;
       });
       await attachPrompts(rows);
       response.code           = 200;

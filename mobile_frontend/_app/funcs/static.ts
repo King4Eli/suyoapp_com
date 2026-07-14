@@ -281,8 +281,12 @@ export const __CONFIG__ = [
     DOMAIN: "suyoapp.com",
     HTTPS_DOMAIN: "https://"+"suyoapp.com",
 
-    API_DOMAIN: "api."+"suyoapp.com",
-    HTTPS_API_DOMAIN: "https://"+"api.suyoapp.com"
+    API_DOMAIN: "api.suyoapp.com",
+    HTTPS_API_DOMAIN: "https://"+"api.suyoapp.com",
+
+    BRAND_NAME: "SuyoApp",
+    SUPPORT_EMAIL: "support@suyoapp.com",
+    SAFETY_EMAIL: "safety@suyoapp.com",
   },
   {
     DOMAIN: "10.0.2.2:2004",
@@ -290,5 +294,9 @@ export const __CONFIG__ = [
 
     API_DOMAIN: "10.0.2.2:2001",
     HTTPS_API_DOMAIN: "http://"+"10.0.2.2:2001",
+
+    BRAND_NAME: "SuyoApp",
+    SUPPORT_EMAIL: "support@suyoapp.com",
+    SAFETY_EMAIL: "safety@suyoapp.com",
   }
 ][1];

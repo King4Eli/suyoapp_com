@@ -22,13 +22,9 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   const MODERN_COLORS = colors;
   const modernStyles = useMemo(() => createModernStyles(colors), [colors]);
 
-  const [getAllowOnlyVerified, setAllowOnlyVerified] = useState(getProfile?.messagefromonlyverified ?? false);
-  const [privacyShowInDiscovery, setPrivacyShowInDiscovery] = useState(true);
-  const [privacyShowLastActive, setPrivacyShowLastActive] = useState(true);
   const [privacyShowDistance, setPrivacyShowDistance] = useState(true);
   const [privacyShowAge, setPrivacyShowAge] = useState(true);
   const [privacyIncognitoMode, setPrivacyIncognitoMode] = useState(false);
-  const [privacyAllowMessageRequests, setPrivacyAllowMessageRequests] = useState(true);
   const [notifyPushEnabled, setNotifyPushEnabled] = useState(true);
   const [notifyEmailEnabled, setNotifyEmailEnabled] = useState(true);
 
@@ -58,15 +54,11 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     snap: useMemo(() => ['55%'], [])
   };
 
-  const PRIVACY_STORAGE_KEY = 'privacy_settings_v1';
   const NOTIFICATION_STORAGE_KEY = 'notification_settings_v1';
   const privacyDefaults = {
-    showInDiscovery: true,
-    showLastActive: true,
     showDistance: true,
     showAge: true,
     incognitoMode: false,
-    allowMessageRequests: true,
   };
   const notificationDefaults = {
     pushEnabled: true,
@@ -78,7 +70,12 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     (async () => {
       try {
         const profile = await cacheStorage.getCurrentUserProfile();
-        if (mounted) setProfile(profile);
+        if (!mounted) return;
+        setProfile(profile);
+        const privacy = profile?.profile?.privacy;
+        setPrivacyShowDistance(privacy?.showDistance ?? privacyDefaults.showDistance);
+        setPrivacyShowAge(privacy?.showAge ?? privacyDefaults.showAge);
+        setPrivacyIncognitoMode(privacy?.incognitoMode ?? privacyDefaults.incognitoMode);
       } catch {
         if (mounted) setProfile(null);
       }
@@ -88,26 +85,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   }, []);
 
   useEffect(() => {
-    const loadPrivacySettings = async () => {
-      try {
-        const raw = await AsyncStorage.getItem(PRIVACY_STORAGE_KEY);
-        if (!raw) return;
-        const parsed = JSON.parse(raw);
-        setPrivacyShowInDiscovery(parsed?.showInDiscovery ?? privacyDefaults.showInDiscovery);
-        setPrivacyShowLastActive(parsed?.showLastActive ?? privacyDefaults.showLastActive);
-        setPrivacyShowDistance(parsed?.showDistance ?? privacyDefaults.showDistance);
-        setPrivacyShowAge(parsed?.showAge ?? privacyDefaults.showAge);
-        setPrivacyIncognitoMode(parsed?.incognitoMode ?? privacyDefaults.incognitoMode);
-        setPrivacyAllowMessageRequests(parsed?.allowMessageRequests ?? privacyDefaults.allowMessageRequests);
-      } catch (err) {
-        logReport({
-          type: "function",
-          useraction: "loadPrivacySettings",
-          logMessage: "Failed to load privacy settings",
-          stackTrace: err
-        });
-      }
-    };
     const loadNotificationSettings = async () => {
       try {
         const raw = await AsyncStorage.getItem(NOTIFICATION_STORAGE_KEY);
@@ -124,7 +101,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         });
       }
     };
-    loadPrivacySettings();
     loadNotificationSettings();
   }, []);
 
@@ -176,14 +152,21 @@ export function Screen_settings({ navigation }: { navigation: any }) {
 
   const savePrivacySettings = async () => {
     try {
-      await AsyncStorage.setItem(PRIVACY_STORAGE_KEY, JSON.stringify({
-        showInDiscovery: privacyShowInDiscovery,
-        showLastActive: privacyShowLastActive,
-        showDistance: privacyShowDistance,
-        showAge: privacyShowAge,
-        incognitoMode: privacyIncognitoMode,
-        allowMessageRequests: privacyAllowMessageRequests,
-      }));
+      const response = await _http_request({
+        customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushProfile",
+        reqType: 'POST',
+        bodyArray: {
+          prof_privacy: {
+            showDistance: privacyShowDistance,
+            showAge: privacyShowAge,
+            incognitoMode: privacyIncognitoMode,
+          }
+        }
+      });
+      if (response?.code !== 200) {
+        throw new Error(response?.message ?? 'Failed to save privacy settings');
+      }
+      cacheStorage.getCurrentUserProfile(true);
       Toastx.show({ type: "success", message: "Privacy settings saved" });
       bottomSheetRef_privacy.ref.current?.close();
     } catch (err) {
@@ -198,14 +181,19 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   };
 
   const resetPrivacySettings = async () => {
-    setPrivacyShowInDiscovery(privacyDefaults.showInDiscovery);
-    setPrivacyShowLastActive(privacyDefaults.showLastActive);
     setPrivacyShowDistance(privacyDefaults.showDistance);
     setPrivacyShowAge(privacyDefaults.showAge);
     setPrivacyIncognitoMode(privacyDefaults.incognitoMode);
-    setPrivacyAllowMessageRequests(privacyDefaults.allowMessageRequests);
     try {
-      await AsyncStorage.setItem(PRIVACY_STORAGE_KEY, JSON.stringify(privacyDefaults));
+      const response = await _http_request({
+        customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushProfile",
+        reqType: 'POST',
+        bodyArray: { prof_privacy: privacyDefaults }
+      });
+      if (response?.code !== 200) {
+        throw new Error(response?.message ?? 'Failed to reset privacy settings');
+      }
+      cacheStorage.getCurrentUserProfile(true);
       Toastx.show({ type: "success", message: "Privacy settings reset" });
     } catch (err) {
       Toastx.show({ type: "error", message: "Failed to reset privacy settings" });
@@ -362,33 +350,28 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     <View style={modernStyles.quickActions}>
       <TouchableOpacity
         style={modernStyles.quickAction}
-      > 
+        onPress={() => Linking.openURL(`mailto:${__CONFIG__.SUPPORT_EMAIL}`)}
+      >
           <Feather name="help-circle" size={20} color="#FFF" />
          <Text style={modernStyles.quickActionText}>Support</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         style={modernStyles.quickAction}
-      > 
-          <Feather name="message-square" size={20} color="#FFF" />
-         <Text style={modernStyles.quickActionText}>Feedback</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={modernStyles.quickAction}
         onPress={async () => {
           await Share.share({
-            title: `Join me on "`,
-            message: `I'm using ?.displayName} to meet amazing people. Join me!`,
+            title: `Join me on ${__CONFIG__.BRAND_NAME}`,
+            message: `I'm using ${__CONFIG__.BRAND_NAME} to meet amazing people. Join me!`,
           });
         }}
-      > 
+      >
           <Feather name="share-2" size={20} color="#FFF" />
          <Text style={modernStyles.quickActionText}>Share</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         style={modernStyles.quickAction}
+        onPress={() => navigation.navigate(namer.navigation.subscription)}
       >
           <Feather name="crown" size={20} color="#FFF" />
          <Text style={modernStyles.quickActionText}>Premium</Text>
@@ -1029,11 +1012,16 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               />
               <ModernOption
                 icon="warning-outline"
-                title="Safety Center"
-                subtitle="Learn about dating safely"
-                onPress={() => Linking.openURL(__CONFIG__.HTTPS_DOMAIN + "/static_page/tnc.php")}
+                title="Help & Safety"
+                subtitle="Contact support or report a concern"
+                onPress={() => Linking.openURL(__CONFIG__.HTTPS_DOMAIN + "/contact")}
                 rightElement={<IIcon size={20} name='open-outline' />}
+                hr={false}
               />
+            </ModernSection>
+
+            {/* Notifications Section */}
+            <ModernSection title="Notifications" icon="notifications-outline">
               <ModernOption
                 icon="notifications-outline"
                 title="Push Notifications"
@@ -1081,30 +1069,39 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 onPress={() => {
                   Alert.alert(
                     "Delete Account?",
-                    "This action cannot be undone. All your data will be permanently deleted.",
+                    "This action cannot be undone. We'll email you to confirm and finish deleting your data.",
                     [
                       { text: "Cancel", style: "cancel" },
                       {
-                        text: "Delete",
+                        text: "Continue",
                         style: "destructive",
                         onPress: () => {
-                          Toastx.show({ type: "success", message: "Account deletion requested" });
+                          Linking.openURL(
+                            `mailto:${__CONFIG__.SAFETY_EMAIL}?subject=${encodeURIComponent('Account deletion request')}&body=${encodeURIComponent(
+                              `Please delete my account.\nPhone: ${profilePhone}\nEmail: ${profileEmail}`
+                            )}`
+                          );
                         }
                       },
                     ]
                   );
                 }}
                 danger
-                />
-
-              <ModernOption
-                icon="help-circle-outline"
-                title="DEV Tool"
-                onPress={() => { navigation.push("zz_devv"); }}
                 hr={false}
-              />
+                />
               </ModernCard>
+            </View>
 
+            {/* Developer Section */}
+            <View style={modernStyles.dangerSection}>
+              <ModernCard>
+                <ModernOption
+                  icon="construct-outline"
+                  title="Developer Tools"
+                  onPress={() => { navigation.push("zz_devv"); }}
+                  hr={false}
+                />
+              </ModernCard>
             </View>
 
             {/* App Version */}

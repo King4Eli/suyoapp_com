@@ -59,8 +59,11 @@ export default async function getProfile() {
       user_preference_religion,
       user_preference_politicalview,
       user_preference_language,
-      user_settings
-    FROM users 
+      user_settings,
+      user_privacy_show_distance,
+      user_privacy_show_age,
+      user_privacy_incognito
+    FROM users
     WHERE user_id = ?
     LIMIT 1`;
 
@@ -172,6 +175,11 @@ export default async function getProfile() {
         images: userImage,
         location: userLocation,
         settings: userSettings,
+        privacy: {
+          showDistance: userProfile.user_privacy_show_distance === '1',
+          showAge: userProfile.user_privacy_show_age === '1',
+          incognitoMode: userProfile.user_privacy_incognito === '1',
+        },
         verified: userProfile.user_verified === '1',
       },
 

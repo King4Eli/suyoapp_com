@@ -80,7 +80,10 @@ CREATE TABLE `users` (
   `user_preference_religion` tinyint NOT NULL DEFAULT '-99',
   `user_preference_politicalview` tinyint NOT NULL DEFAULT '-99',
   `user_preference_language` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin,
-  `user_settings` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL
+  `user_settings` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `user_privacy_show_distance` enum('0','1') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '1',
+  `user_privacy_show_age` enum('0','1') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '1',
+  `user_privacy_incognito` enum('0','1') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --

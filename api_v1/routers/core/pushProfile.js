@@ -129,6 +129,21 @@ export default async function pushProfile(input = {}) {
     profUpdates.push({ field: "user_preference_language", value: normalizedPrefLanguage });
   }
 
+  // Privacy toggles
+  if (hasKey(input, "prof_privacy") && input.prof_privacy && typeof input.prof_privacy === "object") {
+    const privacyMapping = [
+      ["showDistance", "user_privacy_show_distance"],
+      ["showAge", "user_privacy_show_age"],
+      ["incognitoMode", "user_privacy_incognito"],
+    ];
+    for (const [inputKey, dbField] of privacyMapping) {
+      const val = input.prof_privacy[inputKey];
+      if (typeof val === "boolean") {
+        profUpdates.push({ field: dbField, value: val ? "1" : "0" });
+      }
+    }
+  }
+
   let savedSomething = false;
 
   // Execute update
