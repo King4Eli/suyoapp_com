@@ -273,3 +273,22 @@ export const resourceMap = {
     },
     loading1: require('../assets/images/loading1.gif'),
 };
+
+// 0 for live 1 for dev
+// remove
+export const __CONFIG__ = [
+  {
+    DOMAIN: "suyoapp.com",
+    HTTPS_DOMAIN: "https://"+"suyoapp.com",
+
+    API_DOMAIN: "api."+"suyoapp.com",
+    HTTPS_API_DOMAIN: "https://"+"api.suyoapp.com"
+  },
+  {
+    DOMAIN: "10.0.2.2:2004",
+    HTTPS_DOMAIN: "http://"+"10.0.2.2:2004",
+
+    API_DOMAIN: "10.0.2.2:2001",
+    HTTPS_API_DOMAIN: "http://"+"10.0.2.2:2001",
+  }
+][1];

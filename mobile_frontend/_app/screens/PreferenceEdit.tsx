@@ -4,8 +4,8 @@ import IIcon from 'react-native-vector-icons/Ionicons';
 import { Loaderx } from '../funcs/functions_stateful';
 import RadioGroup from 'react-native-radio-buttons-group';
 import RangeSlider from 'rn-range-slider';
-import { namer, styles } from '../funcs/static';
-import { _http_request, cacheStorage, help, hostServer } from '../funcs/functions';
+import { namer, styles, __CONFIG__ } from '../funcs/static';
+import { _http_request, cacheStorage, help } from '../funcs/functions';
 import { AccordionItem } from '../funcs/customAccordion';
 import { Toastx } from '../funcs/customNotification';
 import { useHeaderHeight } from '@react-navigation/elements';
@@ -135,7 +135,7 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
         Loaderx.show();
         try {
             const response = await _http_request({
-                customApiUrl: hostServer() + '/api/core/v1/pushProfile',
+                customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/pushProfile',
                 reqType: 'POST',
                 bodyArray: {
                     min_age: preferences.minAge,

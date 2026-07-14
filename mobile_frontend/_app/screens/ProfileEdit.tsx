@@ -20,9 +20,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import MIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { namer } from '../funcs/static';
+import { namer, __CONFIG__ } from '../funcs/static';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { _http_request, cacheStorage, help, hostServer, mediaHandler, sleep, uploadHandler } from '../funcs/functions';
+import { _http_request, cacheStorage, help, mediaHandler, sleep, uploadHandler } from '../funcs/functions';
 import { useHeaderHeight } from '@react-navigation/elements';
 import BottomSheet, { BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
@@ -426,7 +426,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
         (async () => {
             try {
                 const response = await _http_request({
-                    customApiUrl: hostServer() + '/api/core/v1/getReligions',
+                    customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getReligions',
                     reqType: 'POST',
                 });
                 if (mounted && Array.isArray(response?.religions)) {
@@ -612,7 +612,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
 
             const response = await _http_request({
                 reqType: 'POST',
-                customApiUrl: hostServer() + '/api/core/v1/pushProfile',
+                customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/pushProfile',
                 bodyArray: {
                     prof_about: getProfileEdit?.about,
                     prof_smoking: getProfileEdit?.smoking,

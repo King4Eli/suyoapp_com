@@ -5,9 +5,9 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { _http_request, cacheStorage, hostServer, parseCategoryProducts } from '../funcs/functions';
+import { _http_request, cacheStorage, parseCategoryProducts } from '../funcs/functions';
 import { Loaderx } from '../funcs/functions_stateful';
-import { namer } from '../funcs/static';
+import { namer, __CONFIG__ } from '../funcs/static';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -91,7 +91,7 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
 
     Loaderx.show();
     _http_request({
-      customApiUrl: `${hostServer()}/api/secure/gateway/onetime`,
+      customApiUrl: `${__CONFIG__.HTTPS_API_DOMAIN}/api/secure/gateway/onetime`,
       reqType: 'POST',
       bodyArray: {
         sku: selectedProduct.sku,

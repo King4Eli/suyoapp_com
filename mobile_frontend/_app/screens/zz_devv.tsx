@@ -1,7 +1,8 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { View, Text, Button, ScrollView, StyleSheet, Pressable, Linking, Clipboard } from 'react-native';
 import { Toastx } from '../funcs/customNotification';
-import { __init__app, cacheStorage, hostServer, logReport } from '../funcs/functions';
+import { __init__app, cacheStorage, logReport } from '../funcs/functions';
+import { __CONFIG__ } from '../funcs/static';
 import DeviceInfo from 'react-native-device-info';
 import RNRestart from 'react-native-restart';
 import { sessionManager } from '../funcs/SessionContext';
@@ -57,10 +58,10 @@ export function Zz_devv({ route, navigation }: { route: any, navigation: any }) 
 
                 <Pressable style={modernStyles.dangerSection} onPress={async () => {
                     Linking.openURL(
-                        hostServer() + '/admin/admin_user_detail.php?id=' + getProfile?.profile?.id
+                        __CONFIG__.HTTPS_DOMAIN + '/admin/admin_user_detail.php?id=' + getProfile?.profile?.id
                     );
                 }}>
-                    <Text>Profile admin url: {hostServer()}{"\n"}[uid: {getProfile?.profile?.id}]</Text>
+                    <Text>Profile admin url: {__CONFIG__.HTTPS_DOMAIN}{"\n"}[uid: {getProfile?.profile?.id}]</Text>
                 </Pressable>
 
                 <Pressable style={modernStyles.dangerSection} onPress={async () => {

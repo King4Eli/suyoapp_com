@@ -4,9 +4,9 @@ import MIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { View, Text, Pressable, ScrollView, Alert, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import { Loaderx, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import { useFocusEffect } from '@react-navigation/native';
-import { styles, namer, colors as staticColors, resourceMap } from '../funcs/static';
+import { styles, namer, colors as staticColors, resourceMap, __CONFIG__ } from '../funcs/static';
 import { useTheme, ThemeColors } from '../funcs/theme';
-import { _http_request, cacheStorage,    help, hostServer, logReport, screenHeight, sleep } from '../funcs/functions';
+import { _http_request, cacheStorage,    help, logReport, screenHeight, sleep } from '../funcs/functions';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { TextInput } from 'react-native-gesture-handler';
@@ -191,7 +191,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
     useFocusEffect(React.useCallback(() => {
         _http_request({
             reqType: 'POST',
-            customApiUrl: hostServer() + "/api/core/v1/getPeopleToMatch",
+            customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/getPeopleToMatch",
             bodyArray: {
                 getOnePersons_id2: functs.onePersonProfile
             }
@@ -315,7 +315,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                     const matchId = getPeopleToMatch?.[0]?.match_id || functs.likedMatchId;
                     await _http_request({
                         reqType: 'POST',
-                        customApiUrl: hostServer() + "/api/core/v1/pushPeopleToMatch",
+                        customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushPeopleToMatch",
                         bodyArray: {
                             user_id2: getPeopleToMatch?.[0]?.user_id,
                             match_status: matchStatus,

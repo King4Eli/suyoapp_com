@@ -1,7 +1,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { _http_request, hostServer, } from '../../funcs/functions';
-import { namer } from '../static';
+import { _http_request, } from '../../funcs/functions';
+import { namer, __CONFIG__ } from '../static';
 import DeviceInfo from 'react-native-device-info';
 import { Dimensions } from 'react-native';
 import { xxa_logggingReport } from './logging';
@@ -43,7 +43,7 @@ export class cacheStorage {
                 // Fetch fresh data from API
                 //console.log("fetching profile from API");
                 const profile = await _http_request({
-                    customApiUrl: hostServer() + '/api/core/v1/getProfile',
+                    customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getProfile',
                     reqType: 'POST',
                 });
 
@@ -221,7 +221,7 @@ export class cacheStorage {
                 // Fetch fresh data from API
                 //console.log("fetching getProducts from API");
                 const response = await _http_request({
-                    customApiUrl: hostServer() + '/api/core/v1/getProducts',
+                    customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getProducts',
                     reqType: 'POST',
                 });
 
@@ -305,7 +305,7 @@ export class cacheStorage {
                 }
 
                 const response = await _http_request({
-                    customApiUrl: hostServer() + '/api/core/v1/getMapper',
+                    customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getMapper',
                     reqType: 'POST',
                     headerArray: {
                         'Content-Type': 'application/json',
@@ -352,7 +352,7 @@ export class cacheStorage {
             if (!sessIdStorage) return;
 
             const server = await _http_request({
-                customApiUrl: hostServer() + '/api/core/v1/getMapper',
+                customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getMapper',
                 reqType: "POST",
                 bodyArray: {
                     _gpl: true,
@@ -365,7 +365,7 @@ export class cacheStorage {
                 await AsyncStorage.setItem(namer.storage.mapper_payload, JSON.stringify(server?.mapper_payload));
                 cacheStorage.tempMapper = server?.mapper_payload;
             } else {
-                xxa_logggingReport({ type: "function", extra: server, useraction: "CONFIG.generateFromServer", url: hostServer() + '/api/core/v1/getMapper', logMessage: "Failed to fetch versioning data" });
+                xxa_logggingReport({ type: "function", extra: server, useraction: "CONFIG.generateFromServer", url: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getMapper', logMessage: "Failed to fetch versioning data" });
             }
         }
     }

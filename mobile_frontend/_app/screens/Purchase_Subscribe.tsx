@@ -2,11 +2,11 @@ import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Linking, Animated } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import IIcon from 'react-native-vector-icons/Ionicons';
-import { _http_request, cacheStorage, help, hostServer, parseCategoryProducts } from '../funcs/functions';
+import { _http_request, cacheStorage, help, parseCategoryProducts } from '../funcs/functions';
 import { Loaderx, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { namer, styles } from '../funcs/static';
+import { namer, styles, __CONFIG__ } from '../funcs/static';
 
 const TIER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
 
@@ -175,7 +175,7 @@ export const Screen_PurchaseSubscribe = ({ route, navigation }: { route: any; na
 console.log(productDetails?.sku,productDetails)
     if(paymentMethod === 'card') {
     _http_request({
-      customApiUrl: `${hostServer()}/api/secure/gateway/subscribe`,
+      customApiUrl: `${__CONFIG__.HTTPS_API_DOMAIN}/api/secure/gateway/subscribe`,
       reqType: 'POST',
       bodyArray: {
         s_sku: productDetails?.sku,

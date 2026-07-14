@@ -6,7 +6,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import { useHeaderHeight } from '@react-navigation/elements';
-import { _http_request, hostServer } from '../funcs/functions';
+import { _http_request } from '../funcs/functions';
+import { __CONFIG__ } from '../funcs/static';
 import { MAX_PROMPTS, PromptEntry } from './ProfileEdit';
 import { useTheme, ThemeColors } from '../funcs/theme';
 
@@ -47,7 +48,7 @@ export function Screen_editProfilePrompts({ navigation, route }: { navigation: a
         setIsLoading(true);
         try {
             const response = await _http_request({
-                customApiUrl: hostServer() + '/api/core/v1/getPrompts',
+                customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getPrompts',
                 reqType: 'POST',
                 bodyArray: { excludeIds },
             });

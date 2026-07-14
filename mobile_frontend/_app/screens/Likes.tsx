@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { View, Text, Pressable, Dimensions, StyleSheet, Animated, Easing, FlatList, ScrollView, Image, ActivityIndicator } from 'react-native';
-import { _http_request, cacheStorage, help, hostServer, logReport } from '../funcs/functions';
+import { _http_request, cacheStorage, help, logReport } from '../funcs/functions';
 import { useFocusEffect } from '@react-navigation/native';
-import { styles, namer, resourceMap } from '../funcs/static';
+import { styles, namer, resourceMap, __CONFIG__ } from '../funcs/static';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import { BlurView } from '@react-native-community/blur';
 
@@ -197,7 +197,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
     useFocusEffect(React.useCallback(() => {
         _http_request({
             reqType: 'POST',
-            customApiUrl: hostServer() + "/api/core/v1/getLikes",
+            customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/getLikes",
         }).then((response: any) => {
             setTimeout(() => {
                 setNewLikes((prev: any) => {

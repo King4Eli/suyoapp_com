@@ -1,9 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, AppState, Dimensions, PermissionsAndroid, Platform, Vibration } from 'react-native';
 import { sessionManager } from './SessionContext';
-import DeviceInfo from 'react-native-device-info';
 import Geolocation from 'react-native-geolocation-service';
-import { namer } from './static';
+import { namer, __CONFIG__ } from './static';
 import { Asset, ImageLibraryOptions, launchImageLibrary } from 'react-native-image-picker';
 import { Toastx } from './customNotification';
 import { SocketClient } from './socket_realtimeData';
@@ -16,16 +15,6 @@ export { cacheStorage as cacheStorage }
 export { xxa_logggingReport as logReport };
 export { xxa__http_requests as _http_request };
  
-// Define API URL
-export const hostServer = () => {
-  let h_0 = "https://api.suyoapp.com"; //live server
-
-  if (Platform.OS === "android" && DeviceInfo.isEmulatorSync()) {
-    // if android emulator
-    h_0 = "http://10.0.2.2:2001"; 
-  }
-  return h_0;
-}
 export const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 export const navigationRef = createNavigationContainerRef<any>();
 
@@ -200,7 +189,7 @@ export const __init__app = async (): Promise<void> => {
               };
               // Update the current user profile with the new location
               await xxa__http_requests({
-                  customApiUrl: hostServer() + "/api/core/v1/pushLocation",
+                  customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushLocation",
                   reqType: 'POST', bodyArray: {
                       longlatd: JSON.stringify(cords),
                   }
@@ -301,7 +290,7 @@ async function waitForEntitlementRefresh(maxAttempts = 5, delayMs = 2000): Promi
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const entitlement = await xxa__http_requests({
-        customApiUrl: hostServer() + '/api/core/v1/getEntitlement',
+        customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getEntitlement',
         reqType: 'POST',
       });
       if (entitlement?.hasActiveSubscription) {
@@ -386,7 +375,7 @@ export const _handle_Signin = async (phoneNumber: string, callingCode: string, v
     //
     if (err === null) {
       const loginRes = await xxa__http_requests({
-        customApiUrl: hostServer() + '/api/login',
+        customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/login',
         reqType: 'POST', bodyArray: {
           cc: callingCode,
           user_phone: phoneNumber
@@ -413,7 +402,7 @@ export const _handle_Signin = async (phoneNumber: string, callingCode: string, v
     }
   } else if (vscode && vscode.length >= 6) {
     if (err === null) {
-      const loginRes = await fetch(hostServer() + "/api/login", {
+      const loginRes = await fetch(__CONFIG__.HTTPS_API_DOMAIN + "/api/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -476,7 +465,7 @@ export const _handle_Signup = async (
   if (!err) {
     const signupRes = await xxa__http_requests({
       reqType: 'POST',
-      customApiUrl: hostServer() + '/api/signup',
+      customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/signup',
       bodyArray: {
         action: '2bu4tywnr7',
         fullname: help.encodeStr('frederick owens'),
@@ -607,7 +596,7 @@ export class uploadHandler {
     }
 
     const data = await xxa__http_requests({
-      customApiUrl: hostServer() + "/api/core/v1/handleFileUpload",
+      customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/handleFileUpload",
       reqType: 'POST',
       bodyArray: requestBody
     });

@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef, useLayoutEffect, useMemo, useCallba
 import { View, Text, Pressable, TextInput, Alert, FlatList, Platform, TouchableOpacity, KeyboardAvoidingView, PermissionsAndroid, Linking, ImageBackground, Animated } from 'react-native';
 import { Loaderx, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import IonIcon from 'react-native-vector-icons/Ionicons';
-import { namer, styles } from '../funcs/static';
+import { namer, styles, __CONFIG__ } from '../funcs/static';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { _http_request, help, mediaHandler, screenWidth, hostServer, logReport, uploadHandler, navigationRef, cacheStorage } from '../funcs/functions';
+import { _http_request, help, mediaHandler, screenWidth, logReport, uploadHandler, navigationRef, cacheStorage } from '../funcs/functions';
 import { Asset } from 'react-native-image-picker';
 import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -527,7 +527,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                         Loaderx.show();
 
                         await _http_request({
-                            customApiUrl: hostServer() + "/api/core/v1/pushPeopleToMatch",
+                            customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushPeopleToMatch",
                             reqType: 'POST', bodyArray: {
                                 match_status: 3,
                                 matchId: funt.matchId,
@@ -683,7 +683,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         // get convo
         (async () => {
             await _http_request({
-                customApiUrl: hostServer() + "/api/core/v1/getConversation",
+                customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/getConversation",
                 reqType: 'POST', bodyArray: {
                     matchID: funt.matchId,
                 }
@@ -1060,7 +1060,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
 
         try {
             const response = await _http_request({
-                customApiUrl: hostServer() + "/api/core/v1/pushConversation",
+                customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushConversation",
                 reqType: 'POST',
                 bodyArray: {
                     messagee: messageText,

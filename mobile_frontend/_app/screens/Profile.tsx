@@ -8,9 +8,9 @@ import LottieView from 'lottie-react-native';
 import Svg, { Circle } from 'react-native-svg';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import MIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { _http_request, cacheStorage, help, hostServer, logReport, parseCategoryProducts, screenWidth } from '../funcs/functions';
+import { _http_request, cacheStorage, help, logReport, parseCategoryProducts, screenWidth } from '../funcs/functions';
 import { Loaderx } from '../funcs/functions_stateful';
-import { namer, resourceMap, styles } from '../funcs/static';
+import { namer, resourceMap, styles, __CONFIG__ } from '../funcs/static';
 import { useTheme, ThemeColors } from '../funcs/theme';
 
 const PLAN_UI: Record<string, { icon: string; color: string; cardColors: string[] }> = {
@@ -72,7 +72,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                     onPress: async () => {
                         Loaderx.show();
                         const response: any = await _http_request({
-                            customApiUrl: `${hostServer()}/api/secure/gateway/cancel-subscription`,
+                            customApiUrl: `${__CONFIG__.HTTPS_API_DOMAIN}/api/secure/gateway/cancel-subscription`,
                             reqType: 'POST',
                             bodyArray: { subscriptionId },
                         });

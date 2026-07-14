@@ -2,8 +2,8 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, Animated, Easing, Platform, ImageBackground, FlatList, ScrollView, ActivityIndicator } from 'react-native';
 import { Loaderx } from '../funcs/functions_stateful';
 import { useFocusEffect } from '@react-navigation/native';
-import { namer, resourceMap, styles } from '../funcs/static';
-import { _http_request, cacheStorage, help, hostServer, logReport } from '../funcs/functions';
+import { namer, resourceMap, styles, __CONFIG__ } from '../funcs/static';
+import { _http_request, cacheStorage, help, logReport } from '../funcs/functions';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useHeaderHeight } from '@react-navigation/elements';
 import MIcon from "react-native-vector-icons/MaterialCommunityIcons";
@@ -250,7 +250,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
 
   useFocusEffect(React.useCallback(() => {
     _http_request({
-      customApiUrl: hostServer() + "/api/core/v1/getChatLists",
+      customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/getChatLists",
       reqType: 'POST',
     }).then((response: any) => {
       setTimeout(() => {

@@ -1,7 +1,7 @@
 
 //socket.io client example
 import { io } from "socket.io-client";
-import { hostServer } from "./functions";
+import { __CONFIG__ } from "./static";
 import { _http_request } from "./functions";
 import { sessionManager } from "./SessionContext";
 export class SocketClient {
@@ -39,7 +39,7 @@ export class SocketClient {
     }
 
     static connect(userID: string, callback?: (data: any) => void) {
-        console.log(`🟨 [SOCKET] connect() called -> userID=${userID} host=${hostServer()} alreadyConnected=${Boolean(this.socket?.connected)}`);
+        console.log(`🟨 [SOCKET] connect() called -> userID=${userID} host=${__CONFIG__.HTTPS_API_DOMAIN} alreadyConnected=${Boolean(this.socket?.connected)}`);
         if (this.socket && this.socket.connected) {
             console.log('Socket already connected');
             if (callback) {
@@ -58,7 +58,7 @@ export class SocketClient {
         // `auth` as a function (not a plain object) is required here: socket.io calls
         // it fresh on every connect/reconnect attempt, so a token that wasn't ready yet
         // (or that's since been renewed) is picked up instead of being sent stale forever.
-        this.socket = io(hostServer(), {
+        this.socket = io(__CONFIG__.HTTPS_API_DOMAIN, {
             transports: ['websocket', 'polling'],
             reconnection: true,
             reconnectionAttempts: 5,
@@ -85,10 +85,10 @@ export class SocketClient {
         return this.socket;
     }
     static emit(event: string, data: any) {
-        console.log(`🟦 [SOCKET][HTTP] emit OUT -> ${hostServer()}/api/realtime${event}`, JSON.stringify(data));
+        console.log(`🟦 [SOCKET][HTTP] emit OUT -> ${__CONFIG__.HTTPS_API_DOMAIN}/api/realtime${event}`, JSON.stringify(data));
         const yy = _http_request({
             reqType: 'POST',
-            customApiUrl: hostServer() + '/api/realtime'+event,
+            customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/realtime'+event,
             bodyArray: {
                 message: data
             }

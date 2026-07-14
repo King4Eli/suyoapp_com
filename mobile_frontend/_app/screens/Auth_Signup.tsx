@@ -7,10 +7,10 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
-import { __init__app, cacheStorage, getCurrentLocation, hostServer, navigationRef, screenWidth, uploadHandler } from '../funcs/functions';
+import { __init__app, cacheStorage, getCurrentLocation, navigationRef, screenWidth, uploadHandler } from '../funcs/functions';
 import { Toastx } from '../funcs/customNotification';
 import { Loaderx } from '../funcs/functions_stateful';
-import { namer } from '../funcs/static';
+import { namer, __CONFIG__ } from '../funcs/static';
 import { sessionManager } from '../funcs/SessionContext';
 import { useTheme, ThemeColors } from '../funcs/theme';
 
@@ -508,7 +508,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch(`${hostServer()}/api/signup`, {
+      const response = await fetch(`${__CONFIG__.HTTPS_API_DOMAIN}/api/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(signupPayload()),
@@ -546,7 +546,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
     Loaderx.show();
     try {
       const uploadedPhotos = await ensureSignupPhotoUploads();
-      const response = await fetch(`${hostServer()}/api/signup`, {
+      const response = await fetch(`${__CONFIG__.HTTPS_API_DOMAIN}/api/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(signupPayload(signupData.verificationCode, uploadedPhotos)),

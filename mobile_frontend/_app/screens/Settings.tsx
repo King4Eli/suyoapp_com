@@ -2,8 +2,8 @@ import React, { useState, useRef, useMemo, useEffect, useLayoutEffect } from 're
 import { View, Text,  StyleSheet, Linking, Alert, Share, TouchableOpacity, TextInput, Platform,  ActivityIndicator, KeyboardAvoidingView, ScrollView } from 'react-native';
  import { sessionManager } from '../funcs/SessionContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { namer, styles } from '../funcs/static';
-import { __init__app, _http_request, cacheStorage, help, hostServer, logReport } from '../funcs/functions';
+import { namer, styles, __CONFIG__ } from '../funcs/static';
+import { __init__app, _http_request, cacheStorage, help, logReport } from '../funcs/functions';
 import appJson from '../../app.json';
 import DeviceInfo from 'react-native-device-info';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -490,7 +490,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
 
                 try {
                   const response = await _http_request({
-                    customApiUrl: hostServer() + "/api/core/v1/pushNewEmail",
+                    customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushNewEmail",
                     reqType: 'POST',
                     bodyArray: {
                       oldemail: trimmedCurrentEmail,
@@ -570,7 +570,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 setIsLoading(true);
                 try {
                   const response = await _http_request({
-                    customApiUrl: hostServer() + "/api/core/v1/pushNewEmail",
+                    customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushNewEmail",
                     reqType: 'POST',
                     bodyArray: {
                       oldemail: currentEmail.trim().toLowerCase(),
@@ -625,7 +625,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                   setIsLoading(true);
                   try {
                     const response = await _http_request({
-                      customApiUrl: hostServer() + "/api/core/v1/pushNewEmail",
+                      customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushNewEmail",
                       reqType: 'POST',
                       bodyArray: {
                         oldemail: currentEmail.trim().toLowerCase(),
@@ -773,7 +773,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
 
                 try {
                   const response = await _http_request({
-                    customApiUrl: hostServer() + "/api/core/v1/pushNewPhonenumber",
+                    customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushNewPhonenumber",
                     reqType: 'POST',
                     bodyArray: {
                       oldpnumber: currentPhoneDigits,
@@ -852,7 +852,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 setIsLoading(true);
                 try {
                   const response = await _http_request({
-                    customApiUrl: hostServer() + "/api/core/v1/pushNewPhonenumber",
+                    customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushNewPhonenumber",
                     reqType: 'POST',
                     bodyArray: {
                       oldpnumber: currentPhone.replace(/[^0-9]/g, ''),
@@ -907,7 +907,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                   setIsLoading(true);
                   try {
                     const response = await _http_request({
-                      customApiUrl: hostServer() + "/api/core/v1/pushNewPhonenumber",
+                      customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushNewPhonenumber",
                       reqType: 'POST',
                       bodyArray: {
                         oldpnumber: currentPhone.replace(/[^0-9]/g, ''),
@@ -1032,7 +1032,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 icon="warning-outline"
                 title="Safety Center"
                 subtitle="Learn about dating safely"
-                onPress={() => Linking.openURL(hostServer() + "/static_page/tnc.php")}
+                onPress={() => Linking.openURL(__CONFIG__.HTTPS_DOMAIN + "/static_page/tnc.php")}
                 rightElement={<IIcon size={20} name='open-outline' />}
               />
               <ModernOption
@@ -1051,13 +1051,13 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               <ModernOption
                 icon="reader-outline"
                 title="Terms of Service"
-                onPress={() => Linking.openURL(hostServer() + "/static_page/tnc.php")}
+                onPress={() => Linking.openURL(__CONFIG__.HTTPS_DOMAIN + "/terms")}
                 rightElement={<IIcon size={20} name='open-outline' />}
               />
               <ModernOption
                 icon="shield-checkmark-outline"
                 title="Privacy Policy"
-                onPress={() => Linking.openURL(hostServer() + "/static_page/privacy.php")}
+                onPress={() => Linking.openURL(__CONFIG__.HTTPS_DOMAIN + "/privacy")}
                 rightElement={<IIcon size={20} name='open-outline' />}
                 hr={false}
               />

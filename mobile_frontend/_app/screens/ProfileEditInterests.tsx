@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } fro
 import { View, Text, Pressable, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import IIcon from 'react-native-vector-icons/Ionicons';
-import { _http_request, hostServer } from '../funcs/functions';
+import { _http_request } from '../funcs/functions';
+import { __CONFIG__ } from '../funcs/static';
 import { Toastx } from '../funcs/customNotification';
 import { MAX_INTERESTS, InterestEntry } from './ProfileEdit';
 import { useTheme, ThemeColors } from '../funcs/theme';
@@ -45,7 +46,7 @@ export function Screen_editProfileInterests({ navigation, route }: { navigation:
         (async () => {
             try {
                 const response = await _http_request({
-                    customApiUrl: hostServer() + '/api/core/v1/getInterests',
+                    customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getInterests',
                     reqType: 'POST',
                 });
                 if (mounted && Array.isArray(response?.interests)) {

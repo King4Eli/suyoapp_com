@@ -1,6 +1,7 @@
 import DeviceInfo from "react-native-device-info";
 import appjson from '../../../app.json';
-import { hostServer, cacheStorage } from "../functions.ts";
+import { cacheStorage } from "../functions.ts";
+import { __CONFIG__ } from "../static";
 import { sessionManager } from "../SessionContext";
 
 // Log function for debugging
@@ -41,7 +42,7 @@ export const xxa_logggingReport = ({ type, extra, useraction, url, logMessage, r
 
             try {
                 console.log("logReport:", logD);
-                const res = await fetch(hostServer() + '/api/core/v1/pushLogReport', {
+                const res = await fetch(__CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/pushLogReport', {
                     method: 'POST', // Explicitly set method
                     headers: {
                         'Content-Type': 'application/json', // Specify content type
