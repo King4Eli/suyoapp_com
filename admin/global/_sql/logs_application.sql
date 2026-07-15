@@ -37,6 +37,7 @@ CREATE TABLE `logs_application` (
   `report_status` tinyint NOT NULL DEFAULT '0',
   `report_data` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '{\r\n ''id'':"",\r\n ''todo'':""\r\n}',
   `report_currentuser` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `device_id` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT 'references users_devices.device_id; replaces embedding full device info per log',
   `created_at` bigint UNSIGNED NOT NULL DEFAULT (unix_timestamp()),
   `updated_at` bigint UNSIGNED NOT NULL DEFAULT (unix_timestamp())
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -50,7 +51,8 @@ CREATE TABLE `logs_application` (
 --
 ALTER TABLE `logs_application`
   ADD PRIMARY KEY (`report_id`),
-  ADD KEY `fk_report_user` (`report_currentuser`);
+  ADD KEY `fk_report_user` (`report_currentuser`),
+  ADD KEY `idx_report_device` (`device_id`);
 
 --
 -- Constraints for dumped tables

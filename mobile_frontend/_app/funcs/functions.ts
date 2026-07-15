@@ -166,6 +166,10 @@ export const __init__app = async (): Promise<void> => {
   // get mapper
   await cacheStorage.CONFIG.getMapper();
 
+  // register/refresh this device once per app session -- logs then reference
+  // device_id instead of re-sending the full device payload every time
+  cacheStorage.registerDevice();
+
   // get session and verify
   const getSession_omi = sessionManager.getCurrentSession()?.x_omi_payload;
   const getSession_hash = sessionManager.getCurrentSession()?.x_omi_payload_hash;

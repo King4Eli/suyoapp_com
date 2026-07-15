@@ -95,7 +95,7 @@ $params = [];
 $where = [];
 $sql = $view === 'group'
     ? 'SELECT r.report_type, COUNT(*) AS report_count FROM logs_application r LEFT JOIN users u ON u.user_id = r.report_currentuser'
-    : 'SELECT r.report_id, r.report_type, r.report_status, r.report_data, r.created_at, r.updated_at, r.report_currentuser, u.user_fullname FROM logs_application r LEFT JOIN users u ON u.user_id = r.report_currentuser';
+    : 'SELECT r.report_id, r.report_type, r.report_status, r.report_data, r.created_at, r.updated_at, r.report_currentuser, u.user_fullname, d.device_model, d.device_brand, d.device_os, d.app_version, d.is_emulator FROM logs_application r LEFT JOIN users u ON u.user_id = r.report_currentuser LEFT JOIN users_devices d ON d.device_id = r.device_id';
 if ($query !== '') {
     $where[] = '(r.report_id LIKE :q OR r.report_type LIKE :q OR r.report_currentuser LIKE :q OR u.user_fullname LIKE :q)';
     $params[':q'] = '%' . $query . '%';
@@ -298,6 +298,18 @@ try {
                             </tr>
                             <tr class="collapse bg-light" id="<?php echo $collapse_id; ?>">
                                 <td colspan="6">
+                                    <?php if (!empty($report['device_model']) || !empty($report['device_os'])): ?>
+                                        <div class="small text-muted mb-2">
+                                            Device: <?php echo htmlspecialchars(trim(($report['device_brand'] ?? '') . ' ' . ($report['device_model'] ?? ''))); ?>
+                                            &middot; <?php echo htmlspecialchars($report['device_os'] ?? 'unknown os'); ?>
+                                            <?php if (!empty($report['app_version'])): ?>
+                                                &middot; app v<?php echo htmlspecialchars($report['app_version']); ?>
+                                            <?php endif; ?>
+                                            <?php if (!empty($report['is_emulator'])): ?>
+                                                &middot; <span class="badge bg-secondary">emulator</span>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endif; ?>
                                     <pre class="small mb-0" style="text-wrap:wrap;overflow-wrap:anywhere"><?php echo htmlspecialchars(format_report_data($report['report_data'] ?? '')); ?></pre>
                                 </td>
                             </tr>

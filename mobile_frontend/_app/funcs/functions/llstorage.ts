@@ -182,6 +182,34 @@ export class cacheStorage {
         return this.deviceLoadingPromise;
     }
 
+    // Registers/refreshes this device against users_devices, once per app session --
+    // logs then just reference device_id instead of re-sending full device info.
+    private static deviceRegisteredPromise: Promise<any> | null = null;
+    public static registerDevice = (): Promise<any> => {
+        if (this.deviceRegisteredPromise) {
+            return this.deviceRegisteredPromise;
+        }
+
+        this.deviceRegisteredPromise = (async () => {
+            try {
+                const deviceData = await this.getDeviceData();
+                return await _http_request({
+                    customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/pushDevice',
+                    reqType: 'POST',
+                    bodyArray: {
+                        device: { ...deviceData, app_version: DeviceInfo.getVersion() },
+                    },
+                });
+            } catch (error) {
+                console.error("Error registering device:", error);
+                this.deviceRegisteredPromise = null;
+                return null;
+            }
+        })();
+
+        return this.deviceRegisteredPromise;
+    }
+
 
 
     // Device

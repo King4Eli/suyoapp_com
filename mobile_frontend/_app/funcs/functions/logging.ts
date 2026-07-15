@@ -27,6 +27,7 @@ export const xxa_logggingReport = ({ type, extra, useraction, url, logMessage, r
     }
     (async () => {
         try {
+            const deviceData = await cacheStorage.getDeviceData();
             const logD = {
                 "type": type,
                 "_error": {
@@ -36,7 +37,10 @@ export const xxa_logggingReport = ({ type, extra, useraction, url, logMessage, r
                     "extras": extra,
                 },
                 "user": { "reporteduserId": reporteduserId },
-                "device": await cacheStorage.getDeviceData(),
+                // Device details live in users_devices (registered once via
+                // registerDevice on app init) -- only the reference is sent here,
+                // not the full device payload, on every single log.
+                "device_id": deviceData?.InstallationId || deviceData?.Id,
                 "app": await getAppMeta(),
             }
 

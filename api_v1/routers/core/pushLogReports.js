@@ -38,18 +38,23 @@ export default async function pushLogReport(scripts, requestIP) {
         }
 
         // Generic application/error log
+        // Device details live in users_devices (registered once via pushDevice on
+        // app init) -- we only store the device_id reference here, not the full
+        // device payload, so it isn't re-sent/duplicated on every single log.
         const genId = tools.generateAlphanumeric(11, 30);
+        const deviceId = decodeStats.device_id ?? null;
         const enrichedStats = {
             ...decodeStats,
-            device: { ...(decodeStats.device ?? {}), requestIP: ipAddr },
+            device_id: undefined,
+            requestIP: ipAddr,
             user: { ...(decodeStats.user ?? {}), currentuser: sessions.currentUserID },
             app: { ...(decodeStats.app ?? {}), apiVersion: variables.site.api_version },
         };
         const jsonStats = JSON.stringify(enrichedStats);
         /** @type {[import('mysql2/promise').ResultSetHeader, any]} */
         const [result] = await db_pool.query(`INSERT INTO logs_application
-            (report_id, report_type, report_data, report_status, report_currentuser)
-            VALUES (?, ?, ?, 0, ?)`, [genId, type, jsonStats, sessions.currentUserID]);
+            (report_id, report_type, report_data, report_status, report_currentuser, device_id)
+            VALUES (?, ?, ?, 0, ?, ?)`, [genId, type, jsonStats, sessions.currentUserID, deviceId]);
 
         if (result.affectedRows > 0) {
             response.code = 200;

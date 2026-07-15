@@ -12,6 +12,7 @@ import pushPeopleToMatch from './core/pushPeopleToMatch.js';
 import pushConversation from './core/pushConversation.js';
 import pushNewEmail from './core/pushNewEmail.js';
 import pushLogReport from './core/pushLogReports.js';
+import pushDevice from './core/pushDevice.js';
 import handleFileUpload from './core/handleFileUpload.js';
 import getProducts from './core/getProducts.js';
 import getPaymentHistory from './core/getPaymentHistory.js';
@@ -135,6 +136,10 @@ core_router.post('/:action', async (req, res) => {
             const logvalue = req.body?.scripts;
             const log = await pushLogReport(logvalue, req.ip);
             return res.json({ code: 200, message: "logged" });
+        case 'pushDevice':
+            const deviceInfo = req.body?.device;
+            const device = await pushDevice(deviceInfo);
+            return res.json(device);
 
         case 'handleFileUpload':
             const meta = req.body?.meta;
