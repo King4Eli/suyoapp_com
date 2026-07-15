@@ -809,7 +809,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
 
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={0}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
                 style={{ flex: 1 }}
             >
                 <ScrollView

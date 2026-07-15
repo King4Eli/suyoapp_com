@@ -7,7 +7,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
-import { __init__app, cacheStorage, getCurrentLocation, navigationRef, screenWidth, uploadHandler } from '../funcs/functions';
+import { __init__app, cacheStorage, getCurrentLocation, getFriendlyNetworkErrorMessage, navigationRef, screenWidth, uploadHandler } from '../funcs/functions';
 import { Toastx } from '../funcs/customNotification';
 import { Loaderx } from '../funcs/functions_stateful';
 import { namer, __CONFIG__ } from '../funcs/static';
@@ -600,8 +600,8 @@ export const Auth_Signup = ({route}:{route: any}) => {
       if (result?.dev_code) updateSignupData('verificationCode', String(result.dev_code));
       updateSignupData('phoneVerified', false);
       Toastx.show({ type: 'success', message: result?.message ?? 'Verification code sent.' });
-    } catch {
-      setFieldError('phoneNumber', 'Could not send verification code. Check your connection and try again.');
+    } catch (error: any) {
+      setFieldError('phoneNumber', await getFriendlyNetworkErrorMessage(error, 'Could not send verification code.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -658,7 +658,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
       });
       return true;
     } catch (error: any) {
-      Toastx.show({ type: 'error', message: error?.message ?? 'Signup failed.' });
+      Toastx.show({ type: 'error', message: await getFriendlyNetworkErrorMessage(error, 'Signup failed.') });
       return false;
     } finally {
       Loaderx.hide();

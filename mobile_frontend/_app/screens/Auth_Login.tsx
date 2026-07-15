@@ -6,7 +6,7 @@ import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
-import { __init__app, _handle_Signin, cacheStorage, screenWidth } from '../funcs/functions';
+import { __init__app, _handle_Signin, cacheStorage, getFriendlyNetworkErrorMessage, screenWidth } from '../funcs/functions';
 import { Loaderx } from '../funcs/functions_stateful';
 import { namer, __CONFIG__ } from '../funcs/static';
 import { Toastx } from '../funcs/customNotification';
@@ -218,6 +218,8 @@ export const Auth_Login = () => {
       }
 
       Toastx.show({ type: 'error', message: response.message ?? response.redirect ?? 'Invalid code.' });
+    } catch (error: any) {
+      Toastx.show({ type: 'error', message: await getFriendlyNetworkErrorMessage(error, 'Error verifying account.') });
     } finally {
       Loaderx.hide();
       setIsSubmitting(false);

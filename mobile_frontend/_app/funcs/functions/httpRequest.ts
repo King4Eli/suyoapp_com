@@ -85,3 +85,23 @@ export const xxa__http_requests = async ({ reqType, bodyArray, headerArray, cust
         return null;
     }
 };
+
+/**
+ * Produces a user-friendly message for a raw `fetch()` failure -- the few call sites that
+ * bypass `xxa__http_requests` (OTP send/verify during signup/login) still need the same
+ * "are they actually offline" triage this wrapper does internally above, instead of
+ * leaking fetch's raw rejection text (e.g. "Network request failed") straight to a toast.
+ */
+export const getFriendlyNetworkErrorMessage = async (error: any, fallback = 'Something went wrong. Please try again.'): Promise<string> => {
+    try {
+        const networkState = await NetInfo.fetch();
+        if (!networkState.isConnected) {
+            return "You're offline. Check your connection and try again.";
+        }
+    } catch { }
+
+    if (error?.message === 'Network request failed') {
+        return "Network error. Check your connection and try again.";
+    }
+    return error?.message || fallback;
+};

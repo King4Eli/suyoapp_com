@@ -1,26 +1,17 @@
 datingapp-rn-frontend/android/app/src/main/res
     Verify app icon, splash screen, package name, permissions, store metadata, and version numbers.
 
-- [0] Confirm logout clears profile cache, products cache, socket state, and navigation history.
-- [1] Improve offline behavior during signup/login with user-friendly errors.
-- [0] Implement voice call and video call .
-- [1] Finalize Android and ios keyboard behavior for the   input with `adjustResize` and test on at least two screen sizes.
-
-- [0] Remove upload progress `console.log` statements from production.
-- [1] Validate audio recording permission, cancel, preview, send, playback, and cleanup.
+# DO NOW
 - [1] Add resend action for failed messages.
+- [1] add skeleton for pages that requires api, like likes.tsx profile.tsx instead of lottie files and a small obvious loader
 
-========== Purchases And Subscriptions
 - [1] Add clear failed-payment and cancelled-payment states.
 - [1] Add restore purchases / refresh entitlement action.
+- [1] Add account deletion confirmation and backend deletion/anonymization workflow.
+ 
 
-========== Settings, Safety, And Support
-- [P1] Add account deletion confirmation and backend deletion/anonymization workflow.
-
-========= Discovery, Likes, And Matches
-
+# IGNORE
 - [0] Remove production `console.log` statements from discovery.
-- [1] on new like/match send info to socket to respecctive users with respective toast
-- [1] Add skeleton/loading states  .
-- [1] Add graceful fallback when profile images fail to load.
+- [0] Implement voice call and video call .
+- [0] Confirm logout clears profile cache, products cache, socket state, and navigation history.
  

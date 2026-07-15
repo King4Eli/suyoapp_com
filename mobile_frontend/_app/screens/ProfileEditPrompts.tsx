@@ -85,8 +85,8 @@ export function Screen_editProfilePrompts({ navigation, route }: { navigation: a
         <SafeAreaView style={styles.screen} edges={['left', 'right', 'bottom']}>
             <KeyboardAvoidingView
                 style={{ flex: 1 }}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                keyboardVerticalOffset={headerHeight}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
             >
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                     {prompts.length > 0 && (

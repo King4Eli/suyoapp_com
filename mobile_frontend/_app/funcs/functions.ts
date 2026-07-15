@@ -8,12 +8,13 @@ import { Toastx } from './customNotification';
 import { SocketClient } from './socket_realtimeData';
 import { createNavigationContainerRef } from '@react-navigation/native';
 import { xxa_logggingReport } from './functions/logging';
-import { xxa__http_requests } from './functions/httpRequest';
+import { xxa__http_requests, getFriendlyNetworkErrorMessage } from './functions/httpRequest';
 import { cacheStorage } from './functions/llstorage';
 
 export { cacheStorage as cacheStorage }
 export { xxa_logggingReport as logReport };
 export { xxa__http_requests as _http_request };
+export { getFriendlyNetworkErrorMessage };
  
 export const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 export const navigationRef = createNavigationContainerRef<any>();
@@ -436,38 +437,42 @@ export const _handle_Signin = async (phoneNumber: string, callingCode: string, v
     }
   } else if (vscode && vscode.length >= 6) {
     if (err === null) {
-      const loginRes = await fetch(__CONFIG__.HTTPS_API_DOMAIN + "/api/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          user_phone: phoneNumber,
-          cc: callingCode,
-          vcode: vscode,
-        }),
-      });
-
-      const headers = loginRes.headers;
-      const response = await loginRes.json();
-
-      if (response?.code === 200) {
-        const auth = headers.get('x-omi-auth') ?? '';
-        const hash = headers.get('x-omi-hash') ?? '';
-
-        await AsyncStorage.setItem(namer.storage.sessionId, auth);
-        await AsyncStorage.setItem(namer.storage.sessionIdVerify, hash);
-        await sessionManager.updateSession({
-          x_omi_payload: auth,
-          x_omi_payload_hash: hash,
+      try {
+        const loginRes = await fetch(__CONFIG__.HTTPS_API_DOMAIN + "/api/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            user_phone: phoneNumber,
+            cc: callingCode,
+            vcode: vscode,
+          }),
         });
 
-        return {
-          code: 200,
-          message: "Login success"
-        };
-      } else {
-        err = response?.message ?? "Error logging in!";
+        const headers = loginRes.headers;
+        const response = await loginRes.json();
+
+        if (response?.code === 200) {
+          const auth = headers.get('x-omi-auth') ?? '';
+          const hash = headers.get('x-omi-hash') ?? '';
+
+          await AsyncStorage.setItem(namer.storage.sessionId, auth);
+          await AsyncStorage.setItem(namer.storage.sessionIdVerify, hash);
+          await sessionManager.updateSession({
+            x_omi_payload: auth,
+            x_omi_payload_hash: hash,
+          });
+
+          return {
+            code: 200,
+            message: "Login success"
+          };
+        } else {
+          err = response?.message ?? "Error logging in!";
+        }
+      } catch (error: any) {
+        err = await getFriendlyNetworkErrorMessage(error, "Error logging in!");
       }
     }
   }
