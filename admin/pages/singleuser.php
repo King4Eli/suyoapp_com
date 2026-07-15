@@ -126,7 +126,7 @@ if (!empty($user['user_bio_dob']) && strlen($user['user_bio_dob']) === 8) {
 
 // Parse JSON fields
 $location = $user['geo_meta'] ? json_decode($user['geo_meta'], true) : [];
-$prompts = $user['user_bio_prompt'] ? json_decode($user['user_bio_prompt'], true) : [];
+$prompts = !empty($user['user_bio_prompt']) ? json_decode($user['user_bio_prompt'], true) : [];
 $settings = $user['user_settings'] ? json_decode($user['user_settings'], true) : [];
 $images = $user['user_image'] ? json_decode($user['user_image'], true) : [];
 ?>

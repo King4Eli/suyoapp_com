@@ -5,6 +5,7 @@ $active_page = $active_page ?? '';
 $nav_items = [
     'dashboard' => ['Dashboard', 'dashboard.php'],
     'users' => ['Users', 'users.php'],
+    'devices' => ['Devices', 'devices.php'],
     'user_reports' => ['User Reports', 'user_reports.php'],
     'applogs' => ['App Logs', 'applogs.php'],
     'storage' => ['Storage', 'storage.php'],

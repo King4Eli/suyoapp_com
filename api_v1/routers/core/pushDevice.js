@@ -17,14 +17,21 @@ export default async function pushDevice(device, userId = sessions.currentUserID
 
         await db_pool.query(
             `INSERT INTO users_devices
-                (user_id, device_id, device_name, device_model, device_brand, device_os, is_emulator, app_version)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (user_id, device_id, device_name, device_model, device_brand, device_type, manufacturer,
+                 device_os, carrier, user_agent, screen_width, screen_height, is_emulator, app_version)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON DUPLICATE KEY UPDATE
                 user_id = VALUES(user_id),
                 device_name = VALUES(device_name),
                 device_model = VALUES(device_model),
                 device_brand = VALUES(device_brand),
+                device_type = VALUES(device_type),
+                manufacturer = VALUES(manufacturer),
                 device_os = VALUES(device_os),
+                carrier = VALUES(carrier),
+                user_agent = VALUES(user_agent),
+                screen_width = VALUES(screen_width),
+                screen_height = VALUES(screen_height),
                 is_emulator = VALUES(is_emulator),
                 app_version = VALUES(app_version)`,
             [
@@ -33,7 +40,13 @@ export default async function pushDevice(device, userId = sessions.currentUserID
                 device?.Name ?? null,
                 device?.Model ?? null,
                 device?.Brand ?? null,
+                device?.Type ?? null,
+                device?.Manufacturer ?? null,
                 device?.Os ?? null,
+                device?.Carrier ?? null,
+                device?.UserAgent ?? null,
+                device?.ScreenDimension?.width ? Math.round(device.ScreenDimension.width) : null,
+                device?.ScreenDimension?.height ? Math.round(device.ScreenDimension.height) : null,
                 device?.isEmulator ? 1 : 0,
                 device?.app_version ?? null,
             ]
