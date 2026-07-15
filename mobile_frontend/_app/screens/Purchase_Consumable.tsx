@@ -7,6 +7,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { _http_request, cacheStorage, parseCategoryProducts } from '../funcs/functions';
 import { Loaderx } from '../funcs/functions_stateful';
+import { purchaseNative } from '../funcs/iap';
 import { namer, __CONFIG__ } from '../funcs/static';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -123,6 +124,30 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
         Alert.alert('Error', res?.message || 'Purchase failed. Please try again.');
       }
     });
+  };
+
+  const handleNativePurchase = async () => {
+    if (!selectedProduct) return;
+
+    const selectedVariant = selectedProduct.variants?.find((v: any) => v.id === selectedVariantId) || selectedProduct.variants?.[0] || null;
+    if (!selectedVariant) return;
+
+    Loaderx.show();
+    const result = await purchaseNative({
+      purchaseType: 'onetime',
+      sku: selectedProduct.sku,
+      variantId: selectedVariant.id,
+      storeProductId: selectedVariant.store_product_id,
+      ...(requestedMatchId ? { matchId: requestedMatchId } : {}),
+    });
+    Loaderx.hide();
+
+    if (result.code === 200) {
+      setShowConfirm(false);
+      Alert.alert('Success', 'Your purchase was completed.');
+    } else if (result.code !== 499) {
+      Alert.alert('Error', result.message ?? 'Purchase failed. Please try again.');
+    }
   };
 
   const toggleProductExpand = (sku: string) => {
@@ -462,6 +487,11 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
             <TouchableOpacity style={styles.purchaseButton} onPress={handlePurchase}>
               <Text style={styles.purchaseButtonText}>Complete Purchase</Text>
               <Icon name="arrow-forward" size={18} color="#FFF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.nativeButton} onPress={handleNativePurchase}>
+              <Icon name={Platform.OS === 'ios' ? 'logo-apple' : 'logo-google-playstore'} size={18} color="#E5E7EB" />
+              <Text style={styles.nativeButtonText}>{Platform.OS === 'ios' ? 'Pay with Apple' : 'Pay with Google Play'}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.cancelButton} onPress={() => setShowConfirm(false)}>
@@ -916,6 +946,23 @@ const styles = StyleSheet.create({
   purchaseButtonText: {
     color: '#FFF',
     fontSize: 16,
+    fontWeight: '700',
+  },
+  nativeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#2A2A35',
+    borderWidth: 1,
+    borderColor: '#3A3A45',
+    paddingVertical: 14,
+    borderRadius: 16,
+    marginBottom: 12,
+  },
+  nativeButtonText: {
+    color: '#E5E7EB',
+    fontSize: 15,
     fontWeight: '700',
   },
   cancelButton: {

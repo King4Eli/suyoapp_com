@@ -45,16 +45,16 @@ CREATE TABLE `product_list_variant` (
 --
 
 INSERT INTO `product_list_variant` (`id_ai`, `name`, `description`, `price`, `billing_cycle`, `product_lists_id_ref`, `active`, `date_created`, `date_updated`, `external_3rdparty_store_product_id`) VALUES
-(1, 'weekly', '{\"cycle\": \"weekly\", \"discount\": \"15% off\"}', 8.99, 3, 'plus_kywhm9u6ymw8ym3u69meno', '1', '2026-03-08 11:38:22', '2026-06-15 07:01:41', ''),
-(2, 'biweekly', '{\"cycle\": \"biweekly\", \"discount\": \"\"}', 14.99, 2, 'plus_kywhm9u6ymw8ym3u69meno', '1', '2026-03-08 11:38:22', '2026-06-15 07:01:45', ''),
-(3, 'monthly', '{\"cycle\": \"monthly\", \"discount\": \"30% off\"}', 19.99, 4, 'plus_kywhm9u6ymw8ym3u69meno', '1', '2026-03-08 11:38:22', '2026-06-15 07:04:43', ''),
-(4, 'weekly', '{\"cycle\": \"weekly\", \"discount\": \"15% off\"}', 10.99, 3, 'vip_91n46w586u0m4eomircybdvsz', '1', '2026-03-08 11:38:22', '2026-06-15 07:07:33', ''),
-(5, 'biweekly', '{\"cycle\": \"biweekly\", \"discount\": \"\"}', 16.99, 2, 'vip_91n46w586u0m4eomircybdvsz', '1', '2026-03-08 11:38:22', '2026-06-15 07:03:39', ''),
-(6, 'monthly', '{\"cycle\": \"monthly\", \"discount\": \"30% off\"}', 21.99, 4, 'vip_91n46w586u0m4eomircybdvsz', '1', '2026-03-08 11:38:22', '2026-06-15 06:41:25', ''),
-(7, '10 Roses', '{\"roses\": 10}', 2.99, 1, 'superlikes_4pqojouyyyur5uyihgj898', '1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ''),
-(8, '25 Roses', '{\"roses\": 25}', 5.99, 1, 'superlikes_4pqojouyyyur5uyihgj898', '1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ''),
-(9, '60 Roses', '{\"roses\": 60}', 9.99, 1, 'superlikes_4pqojouyyyur5uyihgj898', '1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ''),
-(10, '1 Rewind', '{\"rewinds\": 1}', 1.45, 1, 'rewind_7hqm3xk9pzalvbnw2e', '1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, '');
+(1, 'weekly', '{\"cycle\": \"weekly\", \"discount\": \"15% off\"}', 8.99, 3, 'plus_kywhm9u6ymw8ym3u69meno', '1', '2026-03-08 11:38:22', '2026-06-15 07:01:41', 'com.vintolab.suyoapp.plus.weekly'),
+(2, 'biweekly', '{\"cycle\": \"biweekly\", \"discount\": \"\"}', 14.99, 2, 'plus_kywhm9u6ymw8ym3u69meno', '1', '2026-03-08 11:38:22', '2026-06-15 07:01:45', 'com.vintolab.suyoapp.plus.biweekly'),
+(3, 'monthly', '{\"cycle\": \"monthly\", \"discount\": \"30% off\"}', 19.99, 4, 'plus_kywhm9u6ymw8ym3u69meno', '1', '2026-03-08 11:38:22', '2026-06-15 07:04:43', 'com.vintolab.suyoapp.plus.monthly'),
+(4, 'weekly', '{\"cycle\": \"weekly\", \"discount\": \"15% off\"}', 10.99, 3, 'vip_91n46w586u0m4eomircybdvsz', '1', '2026-03-08 11:38:22', '2026-06-15 07:07:33', 'com.vintolab.suyoapp.vip.weekly'),
+(5, 'biweekly', '{\"cycle\": \"biweekly\", \"discount\": \"\"}', 16.99, 2, 'vip_91n46w586u0m4eomircybdvsz', '1', '2026-03-08 11:38:22', '2026-06-15 07:03:39', 'com.vintolab.suyoapp.vip.biweekly'),
+(6, 'monthly', '{\"cycle\": \"monthly\", \"discount\": \"30% off\"}', 21.99, 4, 'vip_91n46w586u0m4eomircybdvsz', '1', '2026-03-08 11:38:22', '2026-06-15 06:41:25', 'com.vintolab.suyoapp.vip.monthly'),
+(7, '10 Roses', '{\"roses\": 10}', 2.99, 1, 'superlikes_4pqojouyyyur5uyihgj898', '1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'com.vintolab.suyoapp.roses.10'),
+(8, '25 Roses', '{\"roses\": 25}', 5.99, 1, 'superlikes_4pqojouyyyur5uyihgj898', '1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'com.vintolab.suyoapp.roses.25'),
+(9, '60 Roses', '{\"roses\": 60}', 9.99, 1, 'superlikes_4pqojouyyyur5uyihgj898', '1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'com.vintolab.suyoapp.roses.60'),
+(10, '1 Rewind', '{\"rewinds\": 1}', 1.45, 1, 'rewind_7hqm3xk9pzalvbnw2e', '1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'com.vintolab.suyoapp.rewind.1');
 
 --
 -- Indexes for dumped tables

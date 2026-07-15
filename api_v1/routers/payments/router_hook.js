@@ -404,7 +404,7 @@ async function processWebhookEvent(event) {
  * @param {string} paymentId
  * @param {string} [matchId]
  */
-async function fulfillOnetimePurchase(variantId, userId, paymentId, matchId) {
+export async function fulfillOnetimePurchase(variantId, userId, paymentId, matchId) {
     /** @type {[any[], any]} */
     const [variantRows] = await db_pool.query(
         `SELECT pv.description, pl.category
@@ -461,7 +461,7 @@ const PAYMENT_STATUS = { pending: 0, completed: 1, refunded: 2, failed: 3 };
  * @param {'pending'|'completed'|'refunded'|'failed'} statusKey
  * @param {string} [transactionReference]
  */
-async function updatePaymentStatus(paymentId, statusKey, transactionReference) {
+export async function updatePaymentStatus(paymentId, statusKey, transactionReference) {
     try {
         const statusCode = PAYMENT_STATUS[statusKey] ?? 0;
         let query = `UPDATE payments SET status = ?`;

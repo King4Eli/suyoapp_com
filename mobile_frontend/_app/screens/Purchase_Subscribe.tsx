@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Linking, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Linking, Animated, Platform } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import { _http_request, cacheStorage, help, parseCategoryProducts } from '../funcs/functions';
 import { Loaderx, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
+import { purchaseNative } from '../funcs/iap';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { namer, styles, __CONFIG__ } from '../funcs/static';
@@ -165,11 +166,29 @@ export const Screen_PurchaseSubscribe = ({ route, navigation }: { route: any; na
   const selectedVariant = currentVariants.find((v: any) => v.id === selectedVariantId) || currentVariants[0] || null;
 
 
-  const handleSubscribe = (paymentMethod: 'iap' | 'card') => {
+  const handleSubscribe = async (paymentMethod: 'iap' | 'card') => {
     Loaderx.show();
     if (paymentMethod === 'iap') {
+      if (!productDetails?.sku || !selectedVariant) {
+        Loaderx.hide();
+        Alert.alert('Error', 'Please select a plan first.');
+        return;
+      }
+
+      const result = await purchaseNative({
+        purchaseType: 'subscribe',
+        sku: productDetails.sku,
+        variantId: selectedVariant.id,
+        storeProductId: selectedVariant.store_product_id,
+      });
       Loaderx.hide();
-      Alert.alert('Info', 'IAP payment method is currently unavailable. Please try the credit card option or contact support.');
+
+      if (result.code === 200) {
+        paymentSheetRef.current?.close();
+        Alert.alert('Success', 'Your subscription is now active.');
+      } else if (result.code !== 499) {
+        Alert.alert('Payment Error', result.message ?? 'There has been an error.');
+      }
       return;
     }
 console.log(productDetails?.sku,productDetails)
@@ -509,8 +528,8 @@ console.log(productDetails?.sku,productDetails)
               style={[styles2.sheetButton, styles2.sheetButtonSecondary]}
               onPress={() => handleSubscribe('iap')}
             >
-              <IIcon name="logo-apple" size={20} color="#111827" />
-              <Text style={styles2.sheetButtonTextSecondary}>Apple Pay</Text>
+              <IIcon name={Platform.OS === 'ios' ? 'logo-apple' : 'logo-google-playstore'} size={20} color="#111827" />
+              <Text style={styles2.sheetButtonTextSecondary}>{Platform.OS === 'ios' ? 'Apple Pay' : 'Google Play'}</Text>
             </TouchableOpacity>
 
             <Text style={styles2.sheetDisclaimer}>

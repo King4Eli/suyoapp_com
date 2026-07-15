@@ -2,11 +2,23 @@ import express from 'express';
 import { sessions, tools, stripe_gateway } from '../global/functions.js';
 import GatewayPay from './payments/gateway.js';
 import db_pool from '../global/database.js';
+import { fulfillOnetimePurchase } from './payments/router_hook.js';
+import { verifyAppleTransaction, verifyGooglePurchase } from '../global/iapVerify.js';
 
 import fs from 'fs';
 const variables = JSON.parse(fs.readFileSync('./global/variables.json', 'utf8'));
 
 const pay_router = express.Router();
+
+// subscriptions.external_platform: 1=stripe,2=apple,3=google
+const IAP_PLATFORM_CODE = { apple: 2, google: 3 };
+
+// Fallback when the store doesn't hand back an expiry (e.g. pseudo-mode Google one-time
+// lookups don't have one); mirrors gateway.js's billing_cycle semantics in days instead of
+// Stripe's {interval,interval_count} shape.
+function daysForBillingCycle(cycle) {
+    return { 2: 7, 3: 14, 4: 30, 5: 365 }[cycle] ?? null;
+}
 
 pay_router.post('/:division', async (req, res) => {
     const { division } = req.params;
@@ -278,6 +290,145 @@ pay_router.post('/:division', async (req, res) => {
                 }
 
                 return res.json({ code: 200, message: "Subscription will be cancelled at the end of the current billing period.", subscriptionId, cancel_at_period_end: true });
+            }
+
+            case 'iap-verify': {
+                const { purchaseType, platform, sku, variantId, productId, transactionId, purchaseToken, matchId: iapMatchId } = req.body;
+
+                if (!['subscribe', 'onetime'].includes(purchaseType) || !IAP_PLATFORM_CODE[platform] || !sku || !variantId || !productId || !transactionId || !purchaseToken) {
+                    return res.status(400).json({ code: 400, message: "Missing or invalid required parameters for IAP verification." });
+                }
+
+                /** @type any */
+                let variantRows = [];
+                try {
+                    const [rows] = await db_pool.query(
+                        `SELECT pl.pl_sku, pl.category, pv.id_ai AS variant_id, pv.price, pv.billing_cycle, pv.external_3rdparty_store_product_id
+                         FROM product_lists pl
+                         INNER JOIN product_list_variant pv ON pv.product_lists_id_ref = pl.pl_sku
+                         WHERE pl.pl_is_active = '1' AND pv.active = '1' AND pl.pl_sku = ? AND pv.id_ai = ?
+                         LIMIT 1`,
+                        [sku, variantId]
+                    );
+                    variantRows = rows;
+                } catch (dbError) {
+                    return res.status(500).json({ code: 500, message: "Database error occurred. Please try again later." });
+                }
+
+                const variant = variantRows?.[0];
+                if (!variant) {
+                    return res.status(404).json({ code: 404, message: "Product not found or inactive." });
+                }
+                if (variant.external_3rdparty_store_product_id !== productId) {
+                    tools.serverLog(`IAP productId mismatch: client sent ${productId}, expected ${variant.external_3rdparty_store_product_id}`, "pay-iap-0");
+                    return res.status(400).json({ code: 400, message: "Product identifier does not match this store listing." });
+                }
+                if (variant.category === 'rewind' && !iapMatchId) {
+                    return res.status(400).json({ code: 400, message: "Missing matchId for rewind purchase." });
+                }
+
+                // Idempotent: the client may resend the same transaction (e.g. app relaunch before
+                // finishTransaction runs), in which case this insert fails and we short-circuit.
+                try {
+                    await db_pool.query(
+                        `INSERT INTO iap_transactions
+                        (transaction_id, platform, product_id, variant_id_ref, user_id_ref, match_id_ref, status)
+                        VALUES (?, ?, ?, ?, ?, ?, 0)`,
+                        [transactionId, IAP_PLATFORM_CODE[platform], productId, variantId, sessions?.currentUserID, iapMatchId ?? null]
+                    );
+                } catch (dupError) {
+                    /** @type any */
+                    const [existingRows] = await db_pool.query(
+                        `SELECT status, payment_id_ref FROM iap_transactions WHERE transaction_id = ? LIMIT 1`,
+                        [transactionId]
+                    );
+                    const existing = existingRows?.[0];
+                    if (existing?.status === 1) {
+                        return res.json({ code: 200, message: "Purchase already verified.", paymentId: existing.payment_id_ref });
+                    }
+                    return res.status(409).json({ code: 409, message: "This transaction is already being processed." });
+                }
+
+                let verification;
+                try {
+                    verification = platform === 'apple'
+                        ? await verifyAppleTransaction(transactionId, purchaseToken)
+                        : await verifyGooglePurchase(productId, purchaseToken, purchaseType === 'subscribe');
+                } catch (verifyError) {
+                    tools.serverLog(`IAP verification failed for transaction ${transactionId}: ${verifyError}`, "pay-iap-1");
+                    await db_pool.query(`UPDATE iap_transactions SET status = 2 WHERE transaction_id = ?`, [transactionId]);
+                    return res.status(502).json({ code: 502, message: "Unable to verify this purchase with the store. Please try again." });
+                }
+
+                if (verification.productId !== productId) {
+                    tools.serverLog(`IAP verified productId ${verification.productId} does not match requested ${productId}`, "pay-iap-2");
+                    await db_pool.query(`UPDATE iap_transactions SET status = 2 WHERE transaction_id = ?`, [transactionId]);
+                    return res.status(400).json({ code: 400, message: "Store verification returned a different product." });
+                }
+
+                const isExpired = purchaseType === 'subscribe' && verification.expiresAtMs && verification.expiresAtMs < Date.now();
+                const isInactive = purchaseType === 'subscribe' && verification.isActive === false;
+                if (isExpired || isInactive) {
+                    tools.serverLog(`IAP subscription not active for transaction ${transactionId}`, "pay-iap-5");
+                    await db_pool.query(`UPDATE iap_transactions SET status = 2 WHERE transaction_id = ?`, [transactionId]);
+                    return res.status(400).json({ code: 400, message: "This subscription is not currently active." });
+                }
+
+                const genPaymentId = `pay${tools.generateAlphanumeric(10, tools.randomInt(15, 46))}`;
+                const connection = await db_pool.getConnection();
+                try {
+                    await connection.beginTransaction();
+
+                    await connection.query(
+                        `INSERT INTO payments
+                        (user_id_ref, payment_id, type, p_amount, p_currency, variant_ref, status, p_transaction_reference)
+                        VALUES (?, ?, ?, ?, 'USD', ?, 1, ?)`,
+                        [sessions?.currentUserID, genPaymentId, purchaseType === 'subscribe' ? 1 : 2, variant.price, variantId, transactionId]
+                    );
+
+                    if (purchaseType === 'subscribe') {
+                        const genSubId = tools.generateAlphanumeric(10, tools.randomInt(20, 50));
+                        const expiresAtMs = verification.expiresAtMs ?? (() => {
+                            const days = daysForBillingCycle(variant.billing_cycle);
+                            return days ? Date.now() + days * 24 * 60 * 60 * 1000 : null;
+                        })();
+                        if (!expiresAtMs) {
+                            throw new Error('Unable to determine subscription expiry');
+                        }
+
+                        await connection.query(
+                            `INSERT INTO subscriptions
+                            (id, user_id, variant_id_ref, start_date, end_date, external_platform, external_id, payment_id_ref, status)
+                            VALUES (?, ?, ?, NOW(), FROM_UNIXTIME(?), ?, ?, ?, 1)`,
+                            [genSubId, sessions?.currentUserID, variantId, Math.floor(expiresAtMs / 1000), IAP_PLATFORM_CODE[platform], verification.originalTransactionId ?? transactionId, genPaymentId]
+                        );
+                    }
+
+                    await connection.query(
+                        `UPDATE iap_transactions
+                         SET status = 1, payment_id_ref = ?, verification_mode = ?, verification_response = ?
+                         WHERE transaction_id = ?`,
+                        [genPaymentId, verification.mode === 'verified' ? 1 : 0, JSON.stringify(verification.raw ?? {}), transactionId]
+                    );
+
+                    await connection.commit();
+                } catch (error) {
+                    await connection.rollback();
+                    tools.serverLog(`IAP fulfillment transaction failed for ${transactionId}: ${error}`, "pay-iap-3");
+                    return res.status(500).json({ code: 500, message: "Failed to record this purchase. Please contact support." });
+                } finally {
+                    connection.release();
+                }
+
+                if (purchaseType === 'onetime') {
+                    try {
+                        await fulfillOnetimePurchase(variantId, sessions?.currentUserID, genPaymentId, iapMatchId);
+                    } catch (fulfillError) {
+                        tools.serverLog(`Error fulfilling IAP one-time purchase for payment ${genPaymentId}: ${fulfillError}`, "pay-iap-4");
+                    }
+                }
+
+                return res.json({ code: 200, message: "Purchase verified.", paymentId: genPaymentId, verified: verification.mode === 'verified' });
             }
 
             default:
