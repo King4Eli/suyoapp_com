@@ -305,7 +305,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                                             )}
                                         </View>
                                         <View style={stylesoy.infoContainer}>
-                                            <Text style={stylesoy.name}>{item?.likedUserFullname[0] + '*'.repeat(Math.max(0, item?.likedUserFullname?.length - 1))},  {help.getageFromDOB(item?.likedUserDob)}</Text>
+                                            <Text style={stylesoy.name}>{activeSubscription ? item?.likedUserFullname : item?.likedUserFullname[0] + '*'.repeat(Math.max(0, item?.likedUserFullname?.length - 1))},  {help.getageFromDOB(item?.likedUserDob)}</Text>
                                         </View>
                                     </View>
                                 </Pressable>

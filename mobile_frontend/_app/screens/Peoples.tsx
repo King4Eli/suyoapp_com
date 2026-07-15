@@ -32,6 +32,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
     const [getPeopleToMatch, setPeopleToMatch] = useState<any[] | null>(null);
     const [gptmd, sptmd] = useState<boolean>(false);
     const scrollViewRef = useRef<ScrollView>(null);
+    const isActionLockedRef = useRef(false);
     const headerHeight = useStableHeaderHeight();
     const [getSkippedLastPerson, setSkippedLastPerson] = useState<any|null>(null);
     const [photoIndex, setPhotoIndex] = useState(0);
@@ -309,6 +310,8 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
         what: "like" | "superlike" | "dislike" | "block" | "report",
         matchStatus: number = 0,
         showloader: boolean = true) {
+        if (isActionLockedRef.current) return;
+        isActionLockedRef.current = true;
         try {
             showloader && Loaderx.show();
             switch (what) {
@@ -373,7 +376,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                         if ((getPeopleToMatch?.length ?? 0) <= 2 && !functs.onePersonProfile) {// Refresh the people to match list if there are only 2 or fewer left after the action
                             setPeopleToMatch(null);
                             sptmd((prev: boolean) => !prev);
-                            console.log("refresh from server...");
+                            // console.log("refresh from server...");
                         }
 
                         if (!functs.onePersonProfile) {
@@ -401,6 +404,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
         } finally {
             setTimeout(() => {
                 Loaderx.hide();
+                isActionLockedRef.current = false;
             }, 765);
         }
     }
