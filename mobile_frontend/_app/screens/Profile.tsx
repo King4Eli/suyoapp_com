@@ -1,7 +1,7 @@
 import React, { useLayoutEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { useHeaderHeight } from '@react-navigation/elements';
+import { useStableHeaderHeight } from '../funcs/useStableHeaderHeight';
 import FastImage from 'react-native-fast-image';
 import LinearGradient from 'react-native-linear-gradient';
 import LottieView from 'lottie-react-native';
@@ -22,7 +22,7 @@ const PLAN_UI: Record<string, { icon: string; color: string; cardColors: string[
 const getPlanUi = (plan?: string | null) => PLAN_UI[String(plan ?? '').trim().toLowerCase()] ?? PLAN_UI.free;
 
 export function Screen_profile({ navigation }: { navigation: any }) {
-    const headerHeight = useHeaderHeight();
+    const headerHeight = useStableHeaderHeight();
     const { colors } = useTheme();
     const stylesx = useMemo(() => createStylesx(colors), [colors]);
     const [profile, setProfile] = useState<any>(null);

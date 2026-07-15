@@ -5,7 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { namer, resourceMap, styles, __CONFIG__ } from '../funcs/static';
 import { _http_request, cacheStorage, help, logReport } from '../funcs/functions';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useHeaderHeight } from '@react-navigation/elements';
+import { useStableHeaderHeight } from '../funcs/useStableHeaderHeight';
 import MIcon from "react-native-vector-icons/MaterialCommunityIcons";
 import IIcon from 'react-native-vector-icons/Ionicons';
 import FastImage from 'react-native-fast-image'
@@ -24,7 +24,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
   const [getEngagedMessages, setEngagedMessages] = useState<any>([]);
   const [getCountLikes, setCountLikes] = useState<number>(0);
   const [getImageLikes, setImageLikes] = useState<{ p: string, w: string, h: string }>({ p: "", w: "", h: "" });
-  const headerHeight = useHeaderHeight();
+  const headerHeight = useStableHeaderHeight();
   const activeSubscription = help.getSubscriptionState(getProfile).hasActive;
   const [activeFilter, setActiveFilter] = useState<'all' | 'yourTurn' | 'verified' | 'unread'>('all');
   const [visibleMessages, setVisibleMessages] = useState<number>(6);

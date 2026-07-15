@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {Animated,KeyboardAvoidingView,Linking,Platform,Pressable,StyleSheet,Text,TextInput,TouchableOpacity,View,} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import CountryPicker, { Country, CountryCode } from 'react-native-country-picker-modal';
+import { CountryPicker, CountryItem } from 'react-native-country-codes-picker';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,8 +24,10 @@ export const Auth_Login = () => {
   const resendAttemptRef = useRef(1);
 
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [countryCode, setCountryCode] = useState<CountryCode>('US');
+  const [countryCode, setCountryCode] = useState('US');
+  const [countryFlag, setCountryFlag] = useState('🇺🇸');
   const [callingCode, setCallingCode] = useState('1');
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [verificationCode, setVerificationCode] = useState<string[]>(() => Array(CODE_LENGTH).fill(''));
   const [showCreateAccountPrompt, setShowCreateAccountPrompt] = useState(false);
   const [timer, setTimer] = useState(INITIAL_RESEND_SECONDS);
@@ -96,9 +98,11 @@ export const Auth_Login = () => {
     resendAttemptRef.current = 1;
   };
 
-  const handleCountrySelect = (country: Country) => {
-    setCountryCode(country.cca2);
-    setCallingCode(country.callingCode?.[0] ?? '1');
+  const handleCountrySelect = (country: CountryItem) => {
+    setCountryCode(country.code);
+    setCountryFlag(country.flag);
+    setCallingCode(country.dial_code.replace('+', ''));
+    setShowCountryPicker(false);
   };
 
   const requestCode = async (showSuccessToast = false) => {
@@ -243,15 +247,18 @@ export const Auth_Login = () => {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={stylesx.formCard}>
         <Text style={stylesx.fieldLabel}>Phone number</Text>
         <View style={[stylesx.phoneInput, isPhoneValid && stylesx.phoneInputActive]}>
+          <TouchableOpacity
+            style={stylesx.countryPickerButton}
+            onPress={() => setShowCountryPicker(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={stylesx.countryPickerButtonText}>{countryFlag} +{callingCode}</Text>
+          </TouchableOpacity>
           <CountryPicker
-            countryCode={countryCode}
-            withFilter
-            withFlag
-            withCallingCode
-            withCallingCodeButton
-            withEmoji
-            onSelect={handleCountrySelect}
-            containerButtonStyle={stylesx.countryPickerButton}
+            show={showCountryPicker}
+            lang="en"
+            pickerButtonOnPress={handleCountrySelect}
+            onBackdropPress={() => setShowCountryPicker(false)}
           />
           <View style={stylesx.inputDivider} />
           <TextInput
@@ -577,6 +584,12 @@ function createStylesx(colors: ThemeColors) {
     height: 38,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  countryPickerButtonText: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '700',
   },
   inputDivider: {
     width: 1,

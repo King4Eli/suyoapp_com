@@ -8,7 +8,7 @@ import { namer, styles, __CONFIG__ } from '../funcs/static';
 import { _http_request, cacheStorage, help } from '../funcs/functions';
 import { AccordionItem } from '../funcs/customAccordion';
 import { Toastx } from '../funcs/customNotification';
-import { useHeaderHeight } from '@react-navigation/elements';
+import { useStableHeaderHeight } from '../funcs/useStableHeaderHeight';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme, ThemeColors } from '../funcs/theme';
 
@@ -34,7 +34,7 @@ const defaultPreferences = {
 export function Screen_editpreference({ navigation }: { navigation: any }) {
     const { colors } = useTheme();
     const localStyles = useMemo(() => createLocalStyles(colors), [colors]);
-    const headerHeight = useHeaderHeight();
+    const headerHeight = useStableHeaderHeight();
     const [getProfile, setProfile] = useState<any>(null);
 
     const __MAPPER = cacheStorage.CONFIG.get()?.mapper;

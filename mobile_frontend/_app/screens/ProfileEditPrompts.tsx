@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import IIcon from 'react-native-vector-icons/Ionicons';
-import { useHeaderHeight } from '@react-navigation/elements';
+import { useStableHeaderHeight } from '../funcs/useStableHeaderHeight';
 import { _http_request } from '../funcs/functions';
 import { __CONFIG__ } from '../funcs/static';
 import { MAX_PROMPTS, PromptEntry } from './ProfileEdit';
@@ -14,7 +14,7 @@ import { useTheme, ThemeColors } from '../funcs/theme';
 export function Screen_editProfilePrompts({ navigation, route }: { navigation: any; route: any }) {
     const { colors } = useTheme();
     const styles = useMemo(() => createStyles(colors), [colors]);
-    const headerHeight = useHeaderHeight();
+    const headerHeight = useStableHeaderHeight();
     const existingPrompts: PromptEntry[] = route.params?.existingPrompts ?? [];
     const onSave: ((updated: PromptEntry[]) => void) | undefined = route.params?.onSave;
 

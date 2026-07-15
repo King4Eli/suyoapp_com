@@ -16,7 +16,7 @@ import { Toastx } from '../funcs/customNotification';
 import FastImage from 'react-native-fast-image';
 import { SocketClient } from '../funcs/socket_realtimeData';
 import ImageViewing from 'react-native-image-viewing';
-import { useHeaderHeight } from '@react-navigation/elements';
+import { useStableHeaderHeight } from '../funcs/useStableHeaderHeight';
 import { useTheme } from '../funcs/theme';
 
 const CONFIG = {
@@ -70,7 +70,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     const ajjj=useCallback(bottomsheet_renderBackdrop,[]);
     const { colors } = useTheme();
 
-    const headerHeight = useHeaderHeight();
+    const headerHeight = useStableHeaderHeight();
     const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
     const imageDomain = __MAPPER?.img_domain[0];
     const [getProfile, setProfile] = useState<any>(null);

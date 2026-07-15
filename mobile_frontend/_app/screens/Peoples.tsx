@@ -8,7 +8,7 @@ import { styles, namer, colors as staticColors, resourceMap, __CONFIG__ } from '
 import { useTheme, ThemeColors } from '../funcs/theme';
 import { _http_request, cacheStorage,    help, logReport, screenHeight, sleep } from '../funcs/functions';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useHeaderHeight } from '@react-navigation/elements';
+import { useStableHeaderHeight } from '../funcs/useStableHeaderHeight';
 import { TextInput } from 'react-native-gesture-handler';
 import { LinearGradient } from 'react-native-linear-gradient';
 import { Toastx } from '../funcs/customNotification';
@@ -32,7 +32,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
     const [getPeopleToMatch, setPeopleToMatch] = useState<any[] | null>(null);
     const [gptmd, sptmd] = useState<boolean>(false);
     const scrollViewRef = useRef<ScrollView>(null);
-    const headerHeight = useHeaderHeight();
+    const headerHeight = useStableHeaderHeight();
     const [getSkippedLastPerson, setSkippedLastPerson] = useState<any|null>(null);
     const [photoIndex, setPhotoIndex] = useState(0);
     const [getFullscreenClickImageIndex, setFullscreenClickImageIndex] = useState<number | null>(null);

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import MIcon from "react-native-vector-icons/MaterialCommunityIcons";
 
@@ -36,7 +36,7 @@ import { Screen_PurchaseConsumable } from './Purchase_Consumable';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 
 // Type definitions for props if needed
-const Stack = createStackNavigator<any>();
+const Stack = createNativeStackNavigator<any>();
 const TabBottom = createBottomTabNavigator<any>();
 
 const MainApp: React.FC = () => {

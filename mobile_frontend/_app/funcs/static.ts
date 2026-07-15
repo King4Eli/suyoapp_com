@@ -1,4 +1,5 @@
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
+import DeviceInfo from 'react-native-device-info';
 export const colors = {
     primaryBtn: "#f95464",
     primaryBtn2: "#c935aeff",
@@ -275,8 +276,8 @@ export const resourceMap = {
     loading1: require('../assets/images/loading1.gif'),
 };
 
-// 0 for live 1 for dev
-// remove
+//
+// remove for prod
 export const __CONFIG__ = [
   {
     DOMAIN: "suyoapp.com",
@@ -300,4 +301,5 @@ export const __CONFIG__ = [
     SUPPORT_EMAIL: "support@suyoapp.com",
     SAFETY_EMAIL: "safety@suyoapp.com",
   }
-][0];
+// remove on prod
+][(DeviceInfo.isEmulatorSync() && Platform.OS === "android") ? 1 : 0];

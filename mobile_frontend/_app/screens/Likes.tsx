@@ -7,7 +7,7 @@ import IIcon from 'react-native-vector-icons/Ionicons';
 import { BlurView } from '@react-native-community/blur';
 
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useHeaderHeight } from '@react-navigation/elements';
+import { useStableHeaderHeight } from '../funcs/useStableHeaderHeight';
 import FastImage from 'react-native-fast-image';
 import LottieView from 'lottie-react-native';
 import { useTheme, ThemeColors } from '../funcs/theme';
@@ -40,7 +40,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
     const subscriptionState = help.getSubscriptionState(getProfile);
     const activeSubscription = subscriptionState.hasActive;
  
-    const headerHeight = useHeaderHeight();
+    const headerHeight = useStableHeaderHeight();
     const [getNewLikes, setNewLikes] = useState<any>(null);
     const [activeFilter, setActiveFilter] = useState<LikesFilter>('all');
     const [layout, setLayout] = useState({

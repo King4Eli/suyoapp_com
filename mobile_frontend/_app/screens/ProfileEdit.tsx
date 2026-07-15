@@ -23,7 +23,7 @@ import MIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { namer, __CONFIG__ } from '../funcs/static';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { _http_request, cacheStorage, help, mediaHandler, sleep, uploadHandler } from '../funcs/functions';
-import { useHeaderHeight } from '@react-navigation/elements';
+import { useStableHeaderHeight } from '../funcs/useStableHeaderHeight';
 import BottomSheet, { BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
 import LinearGradient from 'react-native-linear-gradient';
@@ -412,7 +412,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
     const { colors } = useTheme();
     const photoStyles = useMemo(() => createPhotoStyles(colors), [colors]);
     const pgStyles = useMemo(() => createPgStyles(colors), [colors]);
-    const headerHeight = useHeaderHeight();
+    const headerHeight = useStableHeaderHeight();
 
     const [getProfile, setProfile] = useState<any>(null);
     const __MAPPER = cacheStorage.CONFIG.get()?.mapper;

@@ -12,12 +12,12 @@ import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
 import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
 import { bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
-import { useHeaderHeight } from '@react-navigation/elements';
+import { useStableHeaderHeight } from '../funcs/useStableHeaderHeight';
 import { useTheme, ThemeMode, ThemeColors } from '../funcs/theme';
 
 export function Screen_settings({ navigation }: { navigation: any }) {
   const [getProfile, setProfile] = useState<any>(null);
-  const headerHeight = useHeaderHeight();
+  const headerHeight = useStableHeaderHeight();
   const { colors, mode, setMode } = useTheme();
   const MODERN_COLORS = colors;
   const modernStyles = useMemo(() => createModernStyles(colors), [colors]);

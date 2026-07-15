@@ -116,7 +116,6 @@ export const help = {
   const pastSeconds = Number(unixSeconds);
   const seconds = nowSeconds - pastSeconds;
 
-console.log(nowSeconds, unixSeconds, seconds)
   if (seconds < 5) return 'just now';
   if (seconds < 60) return `${seconds}s ago`;
 
