@@ -13,17 +13,24 @@
             "cwd": "${workspaceFolder}"
         },
         {
-            "name": "build android",
+            "name": "run-android",
             "type": "node-terminal",
             "request": "launch",
             "command": "npx react-native run-android",//"npm run build:android",
             "cwd": "${workspaceFolder}"
         },
         {
-            "name": "build ios",
+            "name": "run-ios",
             "type": "node-terminal",
             "request": "launch",
-            "command": "npm run build:ios",
+            "command": "npx react-native run-ios",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "build ios release",
+            "type": "node-terminal",
+            "request": "launch",
+            "command": "npx react-native run-ios --mode Release",
             "cwd": "${workspaceFolder}"
         },
         {
