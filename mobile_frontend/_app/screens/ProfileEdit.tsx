@@ -472,6 +472,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
     // ── Profile state ──────────────────────────────────────────────────────
     const [getPrompts, setPrompts] = useState<PromptEntry[]>([]);
     const [getInterests, setInterests] = useState<InterestEntry[]>([]);
+    const [promptErrors, setPromptErrors] = useState<Record<number, string>>({});
 
 
 
@@ -595,6 +596,16 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
 
     // ── Save ───────────────────────────────────────────────────────────────
     const handleSaveProfile = async () => {
+        // A prompt with a question but no answer is silently dropped by the backend
+        // (pushProfile.js filters out blank answers) -- catch it here instead so the
+        // user sees exactly which prompt needs fixing rather than a generic failure.
+        const emptyAnswerIndex = getPrompts.findIndex(p => !p?.answer || !p.answer.trim());
+        if (emptyAnswerIndex !== -1) {
+            setPromptErrors({ [emptyAnswerIndex]: 'Answer this prompt or remove it.' });
+            Toastx.show({ type: 'error', message: 'One of your prompts needs an answer.' });
+            return;
+        }
+
         Loaderx.show();
         try {
             const orderedImageMeta = padImages(getProfileEdit?.images)
@@ -760,6 +771,15 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
     // ── Prompt helpers ─────────────────────────────────────────────────────
     const removePrompt = useCallback((index: number) => {
         setPrompts(prev => prev.filter((_, i) => i !== index));
+        setPromptErrors(prev => {
+            const next: Record<number, string> = {};
+            Object.entries(prev).forEach(([key, message]) => {
+                const keyIndex = Number(key);
+                if (keyIndex === index) return;
+                next[keyIndex > index ? keyIndex - 1 : keyIndex] = message;
+            });
+            return next;
+        });
     }, []);
 
     // ── Interest helpers ───────────────────────────────────────────────────
@@ -1041,7 +1061,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                     </Pressable>
                                     <Text style={pgStyles.promptQuestion}>{item?.question}</Text>
                                     <TextInput
-                                        style={[pgStyles.textInput, pgStyles.promptAnswer]}
+                                        style={[pgStyles.textInput, pgStyles.promptAnswer, promptErrors[index] && pgStyles.inputError]}
                                         value={item?.answer}
                                         placeholder={item?.question}
                                         placeholderTextColor={colors.textTertiary}
@@ -1053,8 +1073,18 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                                 updated[index] = { ...updated[index], answer: text };
                                                 return updated;
                                             });
+                                            if (promptErrors[index]) {
+                                                setPromptErrors(prev => {
+                                                    const next = { ...prev };
+                                                    delete next[index];
+                                                    return next;
+                                                });
+                                            }
                                         }}
                                     />
+                                    {promptErrors[index] && (
+                                        <Text style={pgStyles.fieldError}>{promptErrors[index]}</Text>
+                                    )}
                                 </View>
                             ))}
 
@@ -1533,6 +1563,14 @@ function createPgStyles(colors: ThemeColors) {
     readOnlyInput: {
         color: colors.textSecondary,
         backgroundColor: colors.backgroundSecondary,
+    },
+    inputError: {
+        borderColor: colors.error,
+    },
+    fieldError: {
+        color: colors.error,
+        fontSize: 12,
+        fontWeight: '700',
     },
     charCounter: {
         fontSize: 11,

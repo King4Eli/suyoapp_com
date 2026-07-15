@@ -2,14 +2,15 @@ import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } fro
 import { View, Text, Pressable, Dimensions, StyleSheet, Animated, Easing, FlatList, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { _http_request, cacheStorage, help, logReport } from '../funcs/functions';
 import { useFocusEffect } from '@react-navigation/native';
-import { styles, namer, resourceMap, __CONFIG__ } from '../funcs/static';
+import { styles, namer, __CONFIG__ } from '../funcs/static';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import { BlurView } from '@react-native-community/blur';
 
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useStableHeaderHeight } from '../funcs/useStableHeaderHeight';
 import FastImage from 'react-native-fast-image';
-import LottieView from 'lottie-react-native';
+import { SafeImage } from '../funcs/customImage';
+import { Skeleton } from '../funcs/functions_stateful';
 import { useTheme, ThemeColors } from '../funcs/theme';
 
 type LikesFilter = 'all' | 'verifiedOnly';
@@ -212,7 +213,19 @@ export function Screen_likes({ navigation }: { navigation: any }) {
     }, []));
 
     if (getNewLikes === null) {
-        return <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background }}><LottieView source={resourceMap.lottie.infinityLoading} autoPlay loop style={{ width: 220, height: 220 }} /></View>
+        const skeletonWidth = Dimensions.get('window').width;
+        const skeletonCols = skeletonWidth >= 600 ? 3 : 2;
+        const skeletonItemWidth = (skeletonWidth - 24 - (skeletonCols - 1) * 12) / skeletonCols;
+        return (
+            <View style={[styles.container, { paddingTop: headerHeight, backgroundColor: colors.background }]}>
+                <Skeleton style={{ height: 96, borderRadius: 16, marginBottom: 12 }} />
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                    {Array.from({ length: skeletonCols * 3 }).map((_, i) => (
+                        <Skeleton key={i} style={{ width: skeletonItemWidth, height: skeletonItemWidth * 1.5, borderRadius: 16 }} />
+                    ))}
+                </View>
+            </View>
+        );
     }
 
     return (
@@ -274,7 +287,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                                     }}>
                                     <View style={{ flex: 1, }}>
                                         <View style={{ flex: 1 }}>
-                                            <FastImage style={stylesoy.image}
+                                            <SafeImage style={stylesoy.image}
                                                 source={{ cache: FastImage.cacheControl.immutable, uri: __MAPPER?.img_domain[0] + item?.likedUserImages?.p }}
                                                 onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: __MAPPER?.img_domain[0] + (getProfile?.user_image?.[0]?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }} />
                                             {!activeSubscription && <BlurView

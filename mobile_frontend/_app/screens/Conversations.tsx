@@ -14,6 +14,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
 import FastImage from 'react-native-fast-image';
+import { SafeImage } from '../funcs/customImage';
 import { SocketClient } from '../funcs/socket_realtimeData';
 import ImageViewing from 'react-native-image-viewing';
 import { useStableHeaderHeight } from '../funcs/useStableHeaderHeight';
@@ -1236,7 +1237,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                                         setFullscreenClickImage(imgPath);
                                     }}>
                                         <View style={{ position: 'relative' }}>
-                                            <FastImage source={{ cache: FastImage.cacheControl.immutable, uri: imgPath }} style={{ width: targetWidth, height: targetHeight }} resizeMode="contain"
+                                            <SafeImage source={{ cache: FastImage.cacheControl.immutable, uri: imgPath }} style={{ width: targetWidth, height: targetHeight }} resizeMode="contain"
                                                 onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: imgPath, useraction: 'Image Load', stackTrace: null }); }} />
                                             {item.isUploading && (
                                                 <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}>
@@ -1278,8 +1279,8 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                 <View style={{ paddingVertical: 5 }}>
                     <Pressable onPress={() => { navigation.push(namer.navigation.peoplesOnePerson, { alreadyLiked: true, likedMatchedId: funt.matchId, getOnePersonId: getUser2Deets?.uid }); }}
                         style={{ backgroundColor: colors.backgroundSecondary, borderRadius: 14, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                        {getUser2Deets?.image?.p ? <FastImage source={{ uri: imageDomain + getUser2Deets?.image?.p, cache: FastImage.cacheControl.immutable }}
-                            style={{ width: 80, height: 80, borderRadius: 50 }} /> : <View style={{ width: 52, height: 52, borderRadius: 12, backgroundColor: colors.border }} />}
+                        <SafeImage source={{ uri: getUser2Deets?.image?.p ? imageDomain + getUser2Deets.image.p : undefined, cache: FastImage.cacheControl.immutable }}
+                            style={{ width: 80, height: 80, borderRadius: 50 }} />
                         <View style={{ flex: 1, gap: 4 }}>
                             <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                                 <Text style={{ fontSize: 16, fontWeight: 'bold', textTransform: "capitalize" }}>{getUser2Deets?.fullname || "Your match"}</Text>

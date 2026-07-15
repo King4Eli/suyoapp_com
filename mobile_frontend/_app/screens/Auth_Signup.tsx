@@ -191,6 +191,20 @@ export const Auth_Signup = ({route}:{route: any}) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [photoUploads, setPhotoUploads] = useState<Record<string, SignupPhotoUpload>>({});
   const photoUploadPromises = useRef<Record<string, Promise<string>>>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const setFieldError = (field: string, message: string) => {
+    setFieldErrors(prev => ({ ...prev, [field]: message }));
+  };
+
+  const clearFieldError = (field: string) => {
+    setFieldErrors(prev => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
 
  
  
@@ -211,6 +225,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
 
   const updateSignupData = <K extends keyof SignupData>(field: K, value: SignupData[K]) => {
     setSignupData(prev => ({ ...prev, [field]: value }));
+    clearFieldError(field as string);
   };
 
   useEffect(() => {
@@ -294,40 +309,62 @@ export const Auth_Signup = ({route}:{route: any}) => {
   };
 
   const validateStep = () => {
-
-
-    if (step === 0 && !signupData.intent) {
-      Toastx.show({ type: 'error', message: 'Choose what you are looking for.' });
-      return false;
+    if (step === 0) {
+      if (!signupData.intent) {
+        setFieldError('intent', 'Choose what you are looking for.');
+        return false;
+      }
+      clearFieldError('intent');
     }
 
     if (step === 1) {
+      let valid = true;
       if (signupData.firstName.trim().length < 2) {
-        Toastx.show({ type: 'error', message: 'Enter your first name.' });
-        return false;
+        setFieldError('firstName', 'Enter your first name.');
+        valid = false;
+      } else {
+        clearFieldError('firstName');
       }
+
       if (!birthdayIsValid()) {
-        Toastx.show({ type: 'error', message: 'Enter a valid birthday. You must be 18+.' });
-        return false;
+        setFieldError('birthday', 'Enter a valid birthday. You must be 18+.');
+        valid = false;
+      } else {
+        clearFieldError('birthday');
       }
-      if (!signupData.gender || !signupData.interestedIn) {
-        Toastx.show({ type: 'error', message: 'Select your gender and who you want to meet.' });
-        return false;
+
+      if (!signupData.gender) {
+        setFieldError('gender', 'Select your gender.');
+        valid = false;
+      } else {
+        clearFieldError('gender');
       }
+
+      if (!signupData.interestedIn) {
+        setFieldError('interestedIn', 'Select who you want to meet.');
+        valid = false;
+      } else {
+        clearFieldError('interestedIn');
+      }
+
+      if (!valid) return false;
     }
 
-    if (step === 2 && signupData.photos.length < 2) {
-      Toastx.show({ type: 'error', message: 'Add at least two photos.' });
-      return false;
+    if (step === 2) {
+      if (signupData.photos.length < 2) {
+        setFieldError('photos', 'Add at least two photos.');
+        return false;
+      }
+      clearFieldError('photos');
     }
 
     // if (step === 4 && signupData.interests.length < 3) {
-    //   Toastx.show({ type: 'error', message: 'Pick at least 3 interests.' });
+    //   setFieldError('interests', 'Pick at least 3 interests.');
     //   return false;
     // }
     // Keep required checks local to the active step so the flow stays low-friction.
     if (step === 6 && !signupData.phoneVerified) {
-      Toastx.show({ type: 'error', message: 'Verify your phone number to continue.' });
+      setFieldError('phoneVerified', 'Verify your phone number to continue.');
       return false;
     }
     return true;
@@ -362,7 +399,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
 
     if (result.didCancel) return;
     if (result.errorMessage) {
-      Toastx.show({ type: 'error', message: result.errorMessage });
+      setFieldError('photos', result.errorMessage);
       return;
     }
 
@@ -375,7 +412,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
       updateSignupData('photos', nextPhotos);
       selectedUris.forEach((uri, selectedIndex) => {
         uploadSignupPhoto(uri, signupData.photos.length + selectedIndex).catch(() => {
-          Toastx.show({ type: 'error', message: 'A signup photo failed to upload. We will retry before signup.' });
+          setFieldError('photos', 'A signup photo failed to upload. We will retry before signup.');
         });
       });
     }
@@ -537,9 +574,10 @@ export const Auth_Signup = ({route}:{route: any}) => {
     if (resendCooldownSeconds > 0 || isSubmitting) return;
 
     if (getSignupPhoneNumber().length !== 10) {
-      Toastx.show({ type: 'error', message: 'Enter a valid phone number.' });
+      setFieldError('phoneNumber', 'Enter a valid phone number.');
       return;
     }
+    clearFieldError('phoneNumber');
 
     setIsSubmitting(true);
     try {
@@ -551,7 +589,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
       const result = await response.json();
 
       if (result?.code !== 200) {
-        Toastx.show({ type: 'error', message: result?.message ?? 'Could not send verification code.' });
+        setFieldError('phoneNumber', result?.message ?? 'Could not send verification code.');
         return;
       }
 
@@ -563,7 +601,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
       updateSignupData('phoneVerified', false);
       Toastx.show({ type: 'success', message: result?.message ?? 'Verification code sent.' });
     } catch {
-      Toastx.show({ type: 'error', message: 'Could not send verification code.' });
+      setFieldError('phoneNumber', 'Could not send verification code. Check your connection and try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -571,9 +609,10 @@ export const Auth_Signup = ({route}:{route: any}) => {
 
   const confirmVerificationCode = async () => {
     if (signupData.verificationCode.replace(/\D/g, '').length !== 6) {
-      Toastx.show({ type: 'error', message: 'Enter the 6-digit code.' });
+      setFieldError('verificationCode', 'Enter the 6-digit code.');
       return false;
     }
+    clearFieldError('verificationCode');
 
     if (isSubmitting) return false;
 
@@ -589,7 +628,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
       const result = await response.json();
 
       if (result?.code !== 200) {
-        Toastx.show({ type: 'error', message: result?.message ?? 'Signup failed.' });
+        setFieldError('verificationCode', result?.message ?? 'Signup failed.');
         return false;
       }
 
@@ -659,6 +698,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
             />
           ))}
         </View>
+        <FieldError message={fieldErrors.intent} stylesx={stylesx} />
       </StepScroll>,
     );
 
@@ -670,7 +710,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
           <View style={stylesx.card}>
             <FieldLabel label="First name" stylesx={stylesx} />
             <TextInput
-              style={stylesx.input}
+              style={[stylesx.input, fieldErrors.firstName && stylesx.inputError]}
               placeholder="Alex"
               placeholderTextColor={colors.placeholder}
               value={signupData.firstName}
@@ -678,10 +718,11 @@ export const Auth_Signup = ({route}:{route: any}) => {
               maxLength={28}
               autoCapitalize="words"
             />
+            <FieldError message={fieldErrors.firstName} stylesx={stylesx} />
 
             <FieldLabel label="Birthday" helper="YYYY-MM-DD" stylesx={stylesx} />
             <TextInput
-              style={stylesx.input}
+              style={[stylesx.input, fieldErrors.birthday && stylesx.inputError]}
               placeholder="1998-04-22"
               placeholderTextColor={colors.placeholder}
               value={signupData.birthday}
@@ -689,6 +730,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
               keyboardType="number-pad"
               maxLength={10}
             />
+            <FieldError message={fieldErrors.birthday} stylesx={stylesx} />
 
             <FieldLabel label="Gender" stylesx={stylesx} />
             <View style={stylesx.chipWrap}>
@@ -702,6 +744,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
                 />
               ))}
             </View>
+            <FieldError message={fieldErrors.gender} stylesx={stylesx} />
 
             <FieldLabel label="Interested in" stylesx={stylesx} />
             <View style={stylesx.chipWrap}>
@@ -715,6 +758,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
                 />
               ))}
             </View>
+            <FieldError message={fieldErrors.interestedIn} stylesx={stylesx} />
           </View>
         </StepScroll>
       </KeyboardAvoidingView>,
@@ -762,6 +806,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
           <MaterialCommunityIcons name="image-plus" size={20} color={colors.primary} />
           <Text style={stylesx.secondaryButtonText}>Upload Photos</Text>
         </TouchableOpacity>
+        <FieldError message={fieldErrors.photos} stylesx={stylesx} />
       </StepScroll>,
     );
 
@@ -920,7 +965,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
           <View style={stylesx.card}>
             <FieldLabel label="Phone number" stylesx={stylesx} />
             <TextInput
-              style={stylesx.input}
+              style={[stylesx.input, fieldErrors.phoneNumber && stylesx.inputError]}
               placeholder="(555) 123-4567"
               placeholderTextColor={colors.placeholder}
               value={signupData.phoneNumber}
@@ -934,6 +979,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
               keyboardType="phone-pad"
               maxLength={14}
             />
+            <FieldError message={fieldErrors.phoneNumber} stylesx={stylesx} />
             <TouchableOpacity
               style={[stylesx.secondaryButton, resendCooldownSeconds > 0 && stylesx.secondaryButtonDisabled]}
               onPress={sendVerificationCode}
@@ -952,7 +998,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
               <>
                 <FieldLabel label="Verification code" helper="6 digits" stylesx={stylesx} />
                 <TextInput
-                  style={[stylesx.input,{letterSpacing:5}]}
+                  style={[stylesx.input, { letterSpacing: 5 }, fieldErrors.verificationCode && stylesx.inputError]}
                   placeholder="123456"
                   placeholderTextColor={colors.placeholder}
                   value={signupData.verificationCode}
@@ -963,14 +1009,16 @@ export const Auth_Signup = ({route}:{route: any}) => {
                   keyboardType="number-pad"
                   maxLength={6}
                 />
+                <FieldError message={fieldErrors.verificationCode} stylesx={stylesx} />
                 <TouchableOpacity style={stylesx.secondaryButton} onPress={confirmVerificationCode} disabled={isSubmitting}>
                   <MaterialCommunityIcons name="check-circle-outline" size={20} color={colors.primary} />
                   <Text style={stylesx.secondaryButtonText}>
                     {signupData.phoneVerified ? 'Verified' : 'Verify Code'}
                   </Text>
-                </TouchableOpacity> 
+                </TouchableOpacity>
               </>
             )}
+            <FieldError message={fieldErrors.phoneVerified} stylesx={stylesx} />
           </View>
         </StepScroll>
       </KeyboardAvoidingView>,
@@ -1052,6 +1100,9 @@ const FieldLabel = ({ label, helper, stylesx }: { label: string; helper?: string
     {helper && <Text style={stylesx.fieldHelper}>{helper}</Text>}
   </View>
 );
+
+const FieldError = ({ message, stylesx }: { message?: string; stylesx: any }) =>
+  message ? <Text style={stylesx.fieldError}>{message}</Text> : null;
 
 const StepScroll = ({ children, stylesx }: { children: React.ReactNode; stylesx: any }) => (
   <ScrollView
@@ -1277,6 +1328,12 @@ function createStylesx(colors: ThemeColors) {
     fontSize: 12,
     fontWeight: '700',
   },
+  fieldError: {
+    color: colors.error,
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: -6,
+  },
   input: {
     minHeight: 52,
     borderRadius: 14,
@@ -1287,6 +1344,9 @@ function createStylesx(colors: ThemeColors) {
     color: colors.text,
     fontSize: 16,
     fontWeight: '700',
+  },
+  inputError: {
+    borderColor: colors.error,
   },
   bioInput: {
     minHeight: 150,

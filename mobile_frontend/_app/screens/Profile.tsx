@@ -2,7 +2,7 @@ import React, { useLayoutEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useStableHeaderHeight } from '../funcs/useStableHeaderHeight';
-import FastImage from 'react-native-fast-image';
+import { SafeImage } from '../funcs/customImage';
 import LinearGradient from 'react-native-linear-gradient';
 import LottieView from 'lottie-react-native';
 import Svg, { Circle } from 'react-native-svg';
@@ -166,7 +166,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                             <View style={stylesx.avatarWrap}>
                                 <CircularProgress progress={profileCompletion} color={colors.primary} trackColor={colors.border} styleProp={stylesx.progressCircle} />
                                 {firstImageUri ? (
-                                    <FastImage
+                                    <SafeImage
                                         style={stylesx.avatar}
                                         resizeMode="cover"
                                         source={{ uri: firstImageUri }}

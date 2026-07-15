@@ -7,9 +7,48 @@ const FREE_LIKE_LIMIT = 20;
 const FREE_LIKE_WINDOW_SECONDS = 24 * 60 * 60; // 24HRS
 
 /**
- * @param {{ user_id2: any; match_status: any; matchId: any; }} data
+ * Tells the recipient's socket room about a new like/match so their app can toast it
+ * immediately, without polling or reopening the screen. Best-effort: failures here must
+ * never fail the underlying like/match write, which is why every error is swallowed.
+ * @param {import("socket.io").Server | undefined} io
+ * @param {string} recipientUserId
+ * @param {'new-like' | 'new-match'} event
+ * @param {Record<string, any>} extra
  */
-export default async function pushPeopleToMatch(data) {
+async function notifyUser(io, recipientUserId, event, extra) {
+    if (!io || !recipientUserId) return;
+    try {
+        /** @type {[any[], any]} */
+        const [rows] = await db_pool.query(
+            `SELECT user_fullname, user_image FROM users WHERE user_id = ? LIMIT 1`,
+            [sessions.currentUserID]
+        );
+        const actor = rows?.[0];
+        if (!actor) return;
+
+        let firstPhoto = null;
+        try {
+            const images = JSON.parse(actor.user_image ?? "[]");
+            firstPhoto = images?.[0]?.p ?? null;
+        } catch { }
+
+        io.to(`user-${recipientUserId}`).emit(event, {
+            fromUserId: sessions.currentUserID,
+            fromUserName: actor.user_fullname,
+            fromUserPhoto: firstPhoto,
+            timestamp: new Date().toISOString(),
+            ...extra,
+        });
+    } catch (err) {
+        tools.serverLog(`Error notifying user ${recipientUserId} of ${event}: ${err}`, 'pushPeopleToMatch-2');
+    }
+}
+
+/**
+ * @param {{ user_id2: any; match_status: any; matchId: any; }} data
+ * @param {import("socket.io").Server} [io]
+ */
+export default async function pushPeopleToMatch(data, io) {
     /** @type { any } */
     const response = {
         code: 400,
@@ -70,6 +109,9 @@ export default async function pushPeopleToMatch(data) {
             if (result.affectedRows > 0) {
                 response.code = 200;
                 response.message = "Wait for them to match you back";
+                if (matchStatus === "0" || matchStatus === "5") {
+                    notifyUser(io, secondUserId, "new-like", { matchId: genChatId, isSuperlike: matchStatus === "5" });
+                }
             }
         }
         else {
@@ -89,6 +131,11 @@ export default async function pushPeopleToMatch(data) {
             response.message = ifUsersMatched
                 ? "Hurray! you matched with someone."
                 : "User blocked";
+            // The current caller already sees "It's a match!" locally -- only the other
+            // party (who liked first and has been waiting) needs a real-time nudge.
+            if (ifUsersMatched) {
+                notifyUser(io, secondUserId, "new-match", { matchId });
+            }
         }
     }
     catch (err) {

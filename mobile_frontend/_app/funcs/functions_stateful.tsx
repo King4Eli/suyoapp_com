@@ -1,11 +1,12 @@
 // https://ionic.io/ionicons 
 // https://static.enapter.com/rn/icons/material-community.html 
 // https://oblador.github.io/react-native-vector-icons/ 
-import { ActivityIndicator, View, Text } from 'react-native';
-import { useEffect, useState } from 'react';
+import { ActivityIndicator, View, Text, Animated } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
 import React from 'react';
 
 import { BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import { useTheme } from './theme';
 
 //****************************
 //
@@ -33,6 +34,30 @@ export const bottomsheet_renderBackdrop =  (props: any) =>
     appearsOnIndex={0}
     disappearsOnIndex={-0.9}
 />) ;
+//*****************************
+//
+//
+
+// A single pulsing placeholder block. Screens compose these into whatever shape
+// their loaded content will take (a photo rect, a line of text, a chip, ...) instead
+// of a shared full-layout skeleton, since every screen's real layout differs.
+export const Skeleton = ({ style }: { style?: any }) => {
+  const { colors } = useTheme();
+  const opacity = useRef(new Animated.Value(0.4)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 700, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.4, duration: 700, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity]);
+
+  return <Animated.View style={[{ backgroundColor: colors.skeleton, borderRadius: 8, opacity }, style]} />;
+};
 //*****************************
 //
 //

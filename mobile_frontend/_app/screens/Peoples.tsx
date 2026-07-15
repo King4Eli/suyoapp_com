@@ -2,9 +2,9 @@ import React, { useState, useRef, useLayoutEffect, useEffect, useMemo } from 're
 import IIcon from 'react-native-vector-icons/Ionicons';
 import MIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { View, Text, Pressable, ScrollView, Alert, TouchableOpacity, StyleSheet, Modal } from 'react-native';
-import { Loaderx, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
+import { Loaderx, Skeleton, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import { useFocusEffect } from '@react-navigation/native';
-import { styles, namer, colors as staticColors, resourceMap, __CONFIG__ } from '../funcs/static';
+import { styles, namer, colors as staticColors, __CONFIG__ } from '../funcs/static';
 import { useTheme, ThemeColors } from '../funcs/theme';
 import { _http_request, cacheStorage,    help, logReport, screenHeight, sleep } from '../funcs/functions';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,8 +12,8 @@ import { useStableHeaderHeight } from '../funcs/useStableHeaderHeight';
 import { TextInput } from 'react-native-gesture-handler';
 import { LinearGradient } from 'react-native-linear-gradient';
 import { Toastx } from '../funcs/customNotification';
+import { SafeImage } from '../funcs/customImage';
 import FastImage from 'react-native-fast-image';
-import LottieView from 'lottie-react-native';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
 import ImageViewing from 'react-native-image-viewing';
@@ -476,12 +476,25 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
     ].filter((item) => item.value);
 
     if (getPeopleToMatch === null) {
-        return <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><LottieView
-            source={resourceMap.lottie.pulsingLoading}
-            autoPlay
-            loop
-            style={{ width: 220, height: 220 }}
-        /></View>
+        return (
+            <View style={[styles.container, { paddingHorizontal: 0, paddingTop: headerHeight, backgroundColor: colors.background }]}>
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.conainerScrollView}>
+                    <View style={[{ borderRadius: 20, overflow: 'hidden' }, deckStyles.cardShadow]}>
+                        <Skeleton style={{ width: '100%', height: (screenHeight * .94) - headerHeight - insets.bottom, borderRadius: 20 }} />
+                    </View>
+                    <View style={deckStyles.detailCard}>
+                        <Skeleton style={{ width: '55%', height: 20, marginBottom: 12 }} />
+                        <Skeleton style={{ width: '90%', height: 14, marginBottom: 8 }} />
+                        <Skeleton style={{ width: '70%', height: 14 }} />
+                    </View>
+                    <View style={[deckStyles.detailCard, { flexDirection: 'row', flexWrap: 'wrap', gap: 10 }]}>
+                        {[90, 120, 80, 100].map((w, i) => (
+                            <Skeleton key={i} style={{ width: w, height: 32, borderRadius: 16 }} />
+                        ))}
+                    </View>
+                </ScrollView>
+            </View>
+        );
     }
 
 
@@ -529,9 +542,9 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                             <ControlledCarousel ref={carouselRef} onPageChange={setPhotoIndex}
                                 pages={(currentPhotos.length > 0 ? currentPhotos : [null]).map((photo: any, idx: number) => (
                                     <View key={`photo-${idx}`} style={{ width: '100%', height: (screenHeight * .94) - headerHeight - insets.bottom }}>
-                                        {photo && (<FastImage source={{ uri: imageDomain + (photo?.p ?? "") }}
+                                        {photo && (<SafeImage source={{ uri: imageDomain + (photo?.p ?? "") }}
                                             onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: imageDomain + (photo?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }}
-                                            style={StyleSheet.absoluteFill} resizeMode={FastImage.resizeMode.cover} />)}
+                                            style={StyleSheet.absoluteFill} resizeMode={FastImage.resizeMode.cover} fallbackIconSize={48} />)}
 
                                         <LinearGradient colors={['rgba(0, 0, 0, 0.35)', 'rgba(0, 0, 0, 0)']}
                                             start={{ x: 0.5, y: 1 }} end={{ x: 0.5, y: 0 }}
@@ -595,7 +608,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
                                     {currentUserImages.map((img: any, idx: number) => (
                                         <Pressable key={idx} onPress={() => setFullscreenClickImageIndex(idx)}>
-                                            <FastImage source={{ uri: imageDomain + img.p }} style={deckStyles.galleryImage} resizeMode="cover"
+                                            <SafeImage source={{ uri: imageDomain + img.p }} style={deckStyles.galleryImage} resizeMode="cover"
                                                 onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: imageDomain + (img?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }} />
                                         </Pressable>
                                     ))}
@@ -723,12 +736,12 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
 
                         <View style={matchStyles.photoRow}>
                             <Animated.View style={[matchStyles.photoCard, matchStyles.leftPhoto, leftPhotoAnimStyle]}>
-                                <FastImage source={{ uri: String(imageDomain + (getProfile?.profile?.images?.[0]?.p ?? "")) }} style={{ width: '100%', height: '100%' }} resizeMode="cover"
+                                <SafeImage source={{ uri: String(imageDomain + (getProfile?.profile?.images?.[0]?.p ?? "")) }} style={{ width: '100%', height: '100%' }} resizeMode="cover"
                                     onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: imageDomain + (getProfile?.profile?.images?.[0]?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }} />
 
                             </Animated.View>
                             <Animated.View style={[matchStyles.photoCard, matchStyles.rightPhoto, rightPhotoAnimStyle]}>
-                                <FastImage source={{ uri: String(imageDomain + (currentUserImages?.[0]?.p ?? "")) }} style={{ width: '100%', height: '100%' }} resizeMode="cover"
+                                <SafeImage source={{ uri: String(imageDomain + (currentUserImages?.[0]?.p ?? "")) }} style={{ width: '100%', height: '100%' }} resizeMode="cover"
                                     onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: imageDomain + (currentUserImages?.[0]?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }} />
 
                             </Animated.View>
@@ -787,7 +800,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
 
                         <View style={[matchStyles.photoRow, { marginVertical: 10 }]}>
                             <View style={[matchStyles.photoCard, { transform: [], borderColor: '#f43f5e', marginRight: 0, marginLeft: 0 }]}>
-                                <FastImage source={{ uri: String(imageDomain + (getSkippedLastPerson?.user_image?.[0]?.p ?? "")) }} style={{ width: '100%', height: '100%' }} resizeMode="cover"
+                                <SafeImage source={{ uri: String(imageDomain + (getSkippedLastPerson?.user_image?.[0]?.p ?? "")) }} style={{ width: '100%', height: '100%' }} resizeMode="cover"
                                     onError={() => logReport({ type: "http -image", logMessage: "Image load", url: imageDomain + (getSkippedLastPerson?.user_image?.[0]?.p ?? ""), useraction: 'Image Load', stackTrace: null })} />
                             </View>
                         </View>

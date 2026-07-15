@@ -9,6 +9,7 @@ import { useStableHeaderHeight } from '../funcs/useStableHeaderHeight';
 import MIcon from "react-native-vector-icons/MaterialCommunityIcons";
 import IIcon from 'react-native-vector-icons/Ionicons';
 import FastImage from 'react-native-fast-image'
+import { SafeImage } from '../funcs/customImage';
 import LottieView from 'lottie-react-native';
 import { useTheme } from '../funcs/theme';
 
@@ -215,7 +216,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
                 renderItem={({ item }) => (
                   <Pressable style={{ width: 120 }} onPress={() => { navigation.navigate(namer.navigation.conversation, { matchId: item?.match_id }); }}>
                     <View style={{ borderRadius: 10, overflow: 'hidden', backgroundColor: '#e2e8f0', height: 180, justifyContent: 'flex-end' }}>
-                      <FastImage style={{ position: 'absolute', width: '100%', height: '100%' }} source={{ cache: FastImage.cacheControl.immutable, uri: String(imageDomain + item?.user_image?.p) }}
+                      <SafeImage style={{ position: 'absolute', width: '100%', height: '100%' }} source={{ cache: FastImage.cacheControl.immutable, uri: String(imageDomain + item?.user_image?.p) }}
                         onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: imageDomain + (getProfile?.profile?.images?.[0]?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }} />
                       <View style={{ backgroundColor: 'rgba(0,0,0,0.4)', padding: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                         <Text style={{ fontSize: 13, fontWeight: '700', color: '#ffffffff', textTransform: 'capitalize', flex: 1 }} numberOfLines={2}>
@@ -346,7 +347,8 @@ export function Screen_chat({ navigation }: { navigation: any }) {
           return (
             <Pressable key={`message-${item?.match_id}-${index}`} onPress={() => { navigation.navigate(namer.navigation.conversation, { matchId: item?.match_id }); }}>
               <View style={{ backgroundColor: colors.surface, borderRadius: 16, padding: 12, flexDirection: 'row', gap: 12, alignItems: 'center', borderWidth: 1, borderColor: colors.border, shadowColor: colors.shadow, shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 2 }}>
-                <FastImage style={{ height: 58, width: 58, borderRadius: 16, backgroundColor: colors.backgroundSecondary }} source={{ uri: String(imageDomain + item?.user_image?.p), cache: FastImage.cacheControl.immutable, }} />
+                <SafeImage style={{ height: 58, width: 58, borderRadius: 16, backgroundColor: colors.backgroundSecondary }} source={{ uri: String(imageDomain + item?.user_image?.p), cache: FastImage.cacheControl.immutable, }}
+                  onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: imageDomain + (item?.user_image?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }} />
                 <View style={{ flex: 1, gap: 5 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>

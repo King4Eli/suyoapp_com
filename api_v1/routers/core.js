@@ -108,7 +108,7 @@ core_router.post('/:action', async (req, res) => {
                 user_id2: upersonID,
                 match_status: umatchstatus,
                 matchId: matchid
-            });
+            }, req.app.get('io'));
             return res.json(upeople);
         case 'pushLocation':
             const location_coords = req.body?.longlatd;

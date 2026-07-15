@@ -259,6 +259,37 @@ export const __init__app = async (): Promise<void> => {
             //displsyNotification(nmessage, "Tap to view message");
           }
         }
+      } else if (data.event === 'new-like') {
+        // Emitted by pushPeopleToMatch.js when someone likes/superlikes the current user.
+        if (navigationRef.getCurrentRoute()?.name === namer.navigation.likes) return;
+        if (AppState.currentState === 'active') {
+          Vibration.vibrate(100);
+          Toastx.show({
+            title: `${data.fromUserName ?? "Someone"} ${data.isSuperlike ? "super liked" : "liked"} you!`,
+            message: "Tap to see who's interested",
+            type: 'info',
+            onPress: () => {
+              if (navigationRef.isReady()) navigationRef.navigate(namer.navigation.likes);
+            }
+          });
+        }
+      } else if (data.event === 'new-match') {
+        // Emitted by pushPeopleToMatch.js to the party who liked first, once the other
+        // side matches back -- they don't otherwise learn about it until they reopen the app.
+        const navigationRef_route = navigationRef.getCurrentRoute();
+        // @ts-ignore
+        if (navigationRef_route?.name === namer.navigation.conversation && navigationRef_route.params?.matchId === data.matchId) return;
+        if (AppState.currentState === 'active') {
+          Vibration.vibrate(100);
+          Toastx.show({
+            title: `It's a match with ${data.fromUserName ?? "someone"}!`,
+            message: "Tap to say hi",
+            type: 'success',
+            onPress: () => {
+              if (navigationRef.isReady()) navigationRef.navigate(namer.navigation.conversation, { matchId: data.matchId });
+            }
+          });
+        }
       }
       });
     } catch (error: any) {
