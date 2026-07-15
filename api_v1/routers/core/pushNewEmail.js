@@ -1,5 +1,5 @@
 import db_pool from "../../global/database.js";
-import { namer, sessions, tools } from "../../global/functions.js";
+import { namer, sessions, tools, envInt } from "../../global/functions.js";
 import { redisDo } from "../../global/redisClient.js";
 import {communicateWith} from "../../global/sendingCommunicate.js";
 import { checkRateLimit } from "../../global/rateLimit.js";
@@ -24,7 +24,7 @@ export default async function pushNewEmail(oldEmail, newEmail, requestNewCode, v
     }
     try {
         if (requestNewCode) {
-            const otpRequestLimit = await checkRateLimit(`${namer.ratelimit.emailchange_otp_request}${sessions.currentUserID}`, 5, 600);
+            const otpRequestLimit = await checkRateLimit(`${namer.ratelimit.emailchange_otp_request}${sessions.currentUserID}`, envInt('EMAILCHANGE_OTP_REQUEST_LIMIT', 5), envInt('EMAILCHANGE_OTP_REQUEST_WINDOW_SECONDS', 600));
             if (!otpRequestLimit.allowed) {
                 response.code = 429;
                 response.message = "Too many codes requested. Please try again later.";
@@ -39,10 +39,12 @@ export default async function pushNewEmail(oldEmail, newEmail, requestNewCode, v
             }
             else {
                 const genPinCode = Math.floor(Math.random() * 900000) + 100000;
-                await communicateWith.sendEmail("1", newEmail, `<p>Your verification code is <strong>${genPinCode}</strong>. Do not share this code with anyone. It expires in 5 minutes.</p>`);
+                const ttlSeconds = envInt('EMAILCHANGE_OTP_CODE_TTL_SECONDS', 300);
+                const ttlMinutes = Math.round(ttlSeconds / 60);
+                await communicateWith.sendEmail("1", newEmail, `<p>Your verification code is <strong>${genPinCode}</strong>. Do not share this code with anyone. It expires in ${ttlMinutes} minutes.</p>`);
                 await redisDo(async (client) => {
                     await client.set(`${namer.redis.verifyCode}email:${sessions.currentUserID}`, genPinCode);
-                    await client.expire(`${namer.redis.verifyCode}email:${sessions.currentUserID}`, 300); // 5 minutes
+                    await client.expire(`${namer.redis.verifyCode}email:${sessions.currentUserID}`, ttlSeconds);
                 });
 
                 response.code = 200;
@@ -50,7 +52,7 @@ export default async function pushNewEmail(oldEmail, newEmail, requestNewCode, v
             }
         }
         else if (tools.validateIsNumber(verificationCode)) {
-            const otpVerifyLimit = await checkRateLimit(`${namer.ratelimit.emailchange_otp_verify}${sessions.currentUserID}`, 10, 600);
+            const otpVerifyLimit = await checkRateLimit(`${namer.ratelimit.emailchange_otp_verify}${sessions.currentUserID}`, envInt('EMAILCHANGE_OTP_VERIFY_LIMIT', 10), envInt('EMAILCHANGE_OTP_VERIFY_WINDOW_SECONDS', 600));
             if (!otpVerifyLimit.allowed) {
                 response.code = 429;
                 response.message = "Too many attempts. Please try again later.";

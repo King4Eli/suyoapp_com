@@ -1,10 +1,7 @@
 import db_pool from "../../global/database.js";
 import { namer, sessions, tools } from "../../global/functions.js";
 import { checkRateLimit } from "../../global/rateLimit.js";
-import { getSubscriptionTier, spendRose } from "../../global/entitlements.js";
-
-const FREE_LIKE_LIMIT = 20;
-const FREE_LIKE_WINDOW_SECONDS = 24 * 60 * 60; // 24HRS
+import { getSubscriptionTier, spendRose, FREE_LIKE_DAILY_LIMIT, FREE_LIKE_WINDOW_SECONDS } from "../../global/entitlements.js";
 
 /**
  * Tells the recipient's socket room about a new like/match so their app can toast it
@@ -64,7 +61,7 @@ export default async function pushPeopleToMatch(data, io) {
             if (tier === "free") {
                 const limitCheck = await checkRateLimit(
                     `${namer.ratelimit.likes_daily}${sessions.currentUserID}`,
-                    FREE_LIKE_LIMIT,
+                    FREE_LIKE_DAILY_LIMIT,
                     FREE_LIKE_WINDOW_SECONDS
                 );
                 if (!limitCheck.allowed) {
@@ -74,7 +71,7 @@ export default async function pushPeopleToMatch(data, io) {
                     response.likesRemainingToday = 0;
                     return response;
                 }
-                response.likesRemainingToday = Math.max(0, FREE_LIKE_LIMIT - limitCheck.count);
+                response.likesRemainingToday = Math.max(0, FREE_LIKE_DAILY_LIMIT - limitCheck.count);
             }
         }
 

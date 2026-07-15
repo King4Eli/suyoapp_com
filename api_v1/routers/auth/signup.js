@@ -2,7 +2,7 @@ import express from 'express';
 import crypto from 'crypto';
 import ngeohash from 'ngeohash';
 import db_pool from '../../global/database.js';
-import { namer, sessions, tools } from '../../global/functions.js';
+import { namer, sessions, tools, envInt } from '../../global/functions.js';
 import pushLocation from '../core/pushLocation.js';
 import {redisDo} from '../../global/redisClient.js';
 import {communicateWith} from '../../global/sendingCommunicate.js';
@@ -50,14 +50,14 @@ signup_router.post('/', async (req, res) => {
         return res.json({ code: 400, message: 'Invalid phone number.' });
     }
 
-    const ipLimit = await checkRateLimit(`${namer.ratelimit.signup_ip}${req.ip}`, 30, 600);
+    const ipLimit = await checkRateLimit(`${namer.ratelimit.signup_ip}${req.ip}`, envInt('SIGNUP_IP_LIMIT', 30), envInt('SIGNUP_IP_WINDOW_SECONDS', 600));
     if (!ipLimit.allowed) {
         res.set('Retry-After', String(ipLimit.retryAfterSeconds));
         return res.status(429).json({ code: 429, message: 'Too many requests. Please try again later.' });
     }
 
     if (!verificationCode || verificationCode.length < 6) {
-        const otpRequestLimit = await checkRateLimit(`${namer.ratelimit.signup_otp_request}${phonenumber}`, 5, 600);
+        const otpRequestLimit = await checkRateLimit(`${namer.ratelimit.signup_otp_request}${phonenumber}`, envInt('SIGNUP_OTP_REQUEST_LIMIT', 5), envInt('SIGNUP_OTP_REQUEST_WINDOW_SECONDS', 600));
         if (!otpRequestLimit.allowed) {
             res.set('Retry-After', String(otpRequestLimit.retryAfterSeconds));
             return res.status(429).json({ code: 429, message: 'Too many codes requested. Please try again later.' });
@@ -72,7 +72,7 @@ signup_router.post('/', async (req, res) => {
         const pin = Math.floor(100000 + Math.random() * 900000).toString();
         await communicateWith.sendSms(callingCode, phonenumber, `Your verification code is ${pin}.`);
         await redisDo(async (client) => {
-            const ttlSeconds = 10 * 60; // 10 minutes
+            const ttlSeconds = envInt('SIGNUP_OTP_CODE_TTL_SECONDS', 600);
             await client.set(`${namer.redis.verifyCode}${phonenumber}`, String(pin), { EX: ttlSeconds });
         });
 
@@ -82,7 +82,7 @@ signup_router.post('/', async (req, res) => {
         });
     }
 
-    const otpVerifyLimit = await checkRateLimit(`${namer.ratelimit.signup_otp_verify}${phonenumber}`, 10, 600);
+    const otpVerifyLimit = await checkRateLimit(`${namer.ratelimit.signup_otp_verify}${phonenumber}`, envInt('SIGNUP_OTP_VERIFY_LIMIT', 10), envInt('SIGNUP_OTP_VERIFY_WINDOW_SECONDS', 600));
     if (!otpVerifyLimit.allowed) {
         res.set('Retry-After', String(otpVerifyLimit.retryAfterSeconds));
         return res.status(429).json({ code: 429, message: 'Too many attempts. Please try again later.' });

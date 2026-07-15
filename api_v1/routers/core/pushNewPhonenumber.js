@@ -1,5 +1,5 @@
 import db_pool from "../../global/database.js";
-import { namer, sessions, tools } from "../../global/functions.js";
+import { namer, sessions, tools, envInt } from "../../global/functions.js";
 import { redisDo } from "../../global/redisClient.js";
 import {communicateWith} from "../../global/sendingCommunicate.js";
 import { checkRateLimit } from "../../global/rateLimit.js";
@@ -21,7 +21,7 @@ export default async function pushNewPhoneNumber(oldPhoneNumber, newPhoneNumber,
     }
     try {
         if (requestNewCode) {
-            const otpRequestLimit = await checkRateLimit(`${namer.ratelimit.phonechange_otp_request}${sessions.currentUserID}`, 5, 600);
+            const otpRequestLimit = await checkRateLimit(`${namer.ratelimit.phonechange_otp_request}${sessions.currentUserID}`, envInt('PHONECHANGE_OTP_REQUEST_LIMIT', 5), envInt('PHONECHANGE_OTP_REQUEST_WINDOW_SECONDS', 600));
             if (!otpRequestLimit.allowed) {
                 response.code = 429;
                 response.message = "Too many codes requested. Please try again later.";
@@ -36,17 +36,19 @@ export default async function pushNewPhoneNumber(oldPhoneNumber, newPhoneNumber,
             }
             else {
                 const genPinCode = Math.floor(Math.random() * 900000) + 100000;
-                await communicateWith.sendSms("1", newPhoneNumber, `Your verification code is ${genPinCode}. Do not share this code with anyone. It expires in 5 minutes.`);
+                const ttlSeconds = envInt('PHONECHANGE_OTP_CODE_TTL_SECONDS', 300);
+                const ttlMinutes = Math.round(ttlSeconds / 60);
+                await communicateWith.sendSms("1", newPhoneNumber, `Your verification code is ${genPinCode}. Do not share this code with anyone. It expires in ${ttlMinutes} minutes.`);
                 await redisDo(async (client) => {
                     await client.set(`${namer.redis.verifyCode}phone:${sessions.currentUserID}`, genPinCode);
-                    await client.expire(`${namer.redis.verifyCode}phone:${sessions.currentUserID}`, 300); // 5 minutes
+                    await client.expire(`${namer.redis.verifyCode}phone:${sessions.currentUserID}`, ttlSeconds);
                 });
                 response.code = 200;
                 response.message = "Verification code sent to your new number.";
             }
         }
         else if (tools.validateIsNumber(verificationCode)) {
-            const otpVerifyLimit = await checkRateLimit(`${namer.ratelimit.phonechange_otp_verify}${sessions.currentUserID}`, 10, 600);
+            const otpVerifyLimit = await checkRateLimit(`${namer.ratelimit.phonechange_otp_verify}${sessions.currentUserID}`, envInt('PHONECHANGE_OTP_VERIFY_LIMIT', 10), envInt('PHONECHANGE_OTP_VERIFY_WINDOW_SECONDS', 600));
             if (!otpVerifyLimit.allowed) {
                 response.code = 429;
                 response.message = "Too many attempts. Please try again later.";

@@ -1,9 +1,7 @@
 import db_pool from "../../global/database.js";
 import { namer, sessions, tools } from "../../global/functions.js";
-import { getActiveSubscription, getRoseStatus } from "../../global/entitlements.js";
+import { getActiveSubscription, getRoseStatus, FREE_LIKE_DAILY_LIMIT } from "../../global/entitlements.js";
 import { peekRateLimit } from "../../global/rateLimit.js";
-
-const FREE_LIKE_LIMIT = 15;
 
 export default async function getProfile() {
   /** @type { any } */
@@ -167,7 +165,7 @@ export default async function getProfile() {
     const roses = await getRoseStatus(sessions.currentUserID);
     let likesRemainingToday = null;
     if (roses.tier === "free") {
-      const likesPeek = await peekRateLimit(`${namer.ratelimit.likes_daily}${sessions.currentUserID}`, FREE_LIKE_LIMIT);
+      const likesPeek = await peekRateLimit(`${namer.ratelimit.likes_daily}${sessions.currentUserID}`, FREE_LIKE_DAILY_LIMIT);
       likesRemainingToday = likesPeek.remaining;
     }
 

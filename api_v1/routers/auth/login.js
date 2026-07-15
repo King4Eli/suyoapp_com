@@ -1,6 +1,6 @@
 import express from 'express';
 import crypto from 'crypto';
-import { namer, sessions  } from '../../global/functions.js';
+import { namer, sessions, envInt } from '../../global/functions.js';
 import db_pool from '../../global/database.js';
 import {communicateWith   }  from '../../global/sendingCommunicate.js';
 import {redisDo} from '../../global/redisClient.js';
@@ -19,7 +19,7 @@ login_router.post('/', async (req, res) => {
         });
     }
 
-    const ipLimit = await checkRateLimit(`${namer.ratelimit.login_ip}${req.ip}`, 30, 600);
+    const ipLimit = await checkRateLimit(`${namer.ratelimit.login_ip}${req.ip}`, envInt('LOGIN_IP_LIMIT', 30), envInt('LOGIN_IP_WINDOW_SECONDS', 600));
     if (!ipLimit.allowed) {
         res.set('Retry-After', String(ipLimit.retryAfterSeconds));
         return res.status(429).json({ code: 429, message: 'Too many requests. Please try again later.' });
@@ -27,7 +27,7 @@ login_router.post('/', async (req, res) => {
 
     // STEP 1: Request verification code
     if (!vpincode || vpincode.length < 6) {
-        const otpRequestLimit = await checkRateLimit(`${namer.ratelimit.login_otp_request}${phonenumber}`, 5, 600);
+        const otpRequestLimit = await checkRateLimit(`${namer.ratelimit.login_otp_request}${phonenumber}`, envInt('LOGIN_OTP_REQUEST_LIMIT', 5), envInt('LOGIN_OTP_REQUEST_WINDOW_SECONDS', 600));
         if (!otpRequestLimit.allowed) {
             res.set('Retry-After', String(otpRequestLimit.retryAfterSeconds));
             return res.status(429).json({ code: 429, message: 'Too many codes requested. Please try again later.' });
@@ -48,13 +48,14 @@ login_router.post('/', async (req, res) => {
             });
         }
         const genPin = Math.floor(100000 + Math.random() * 999999).toString().slice(0, 6);
-        
-        const smsMessage=`Your verification code is ${genPin}. Do not share this code with anyone. It expires in 10 minutes.`;
+
+        const ttlSeconds = envInt('LOGIN_OTP_CODE_TTL_SECONDS', 600);
+        const ttlMinutes = Math.round(ttlSeconds / 60);
+        const smsMessage=`Your verification code is ${genPin}. Do not share this code with anyone. It expires in ${ttlMinutes} minutes.`;
         await communicateWith.sendSms(countryCode, phonenumber, smsMessage);
-        await communicateWith.sendEmail(null,user?.user_email, "Your Verification Code",`<p>Your verification code is <strong>${genPin}</strong>. Do not share this code with anyone. It expires in 10 minutes.</p>`,smsMessage);
-        
-        // set the verification code in Redis with a 10-minute expiration
-        const ttlSeconds = 10 * 60; // 10 minutes
+        await communicateWith.sendEmail(null,user?.user_email, "Your Verification Code",`<p>Your verification code is <strong>${genPin}</strong>. Do not share this code with anyone. It expires in ${ttlMinutes} minutes.</p>`,smsMessage);
+
+        // set the verification code in Redis with a configurable expiration
         const key = `${namer.redis.verifyCode}${phonenumber}`;
         await redisDo(async (client) => {
             await client.set(key, String(genPin), { EX: ttlSeconds })
@@ -67,7 +68,7 @@ login_router.post('/', async (req, res) => {
         });
     }
     // STEP 2: Verify submitted code
-    const otpVerifyLimit = await checkRateLimit(`${namer.ratelimit.login_otp_verify}${phonenumber}`, 10, 600);
+    const otpVerifyLimit = await checkRateLimit(`${namer.ratelimit.login_otp_verify}${phonenumber}`, envInt('LOGIN_OTP_VERIFY_LIMIT', 10), envInt('LOGIN_OTP_VERIFY_WINDOW_SECONDS', 600));
     if (!otpVerifyLimit.allowed) {
         res.set('Retry-After', String(otpVerifyLimit.retryAfterSeconds));
         return res.status(429).json({ code: 429, message: 'Too many attempts. Please try again later.' });

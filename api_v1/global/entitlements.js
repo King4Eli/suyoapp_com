@@ -1,4 +1,11 @@
 import db_pool from "./database.js";
+import { envInt } from "./functions.js";
+
+// Single source of truth for the free-tier daily like cap, shared by pushPeopleToMatch.js
+// (which enforces it) and getProfile.js (which displays "remaining today" from it) --
+// these used to hardcode two different numbers (20 vs 15), silently drifting apart.
+export const FREE_LIKE_DAILY_LIMIT = envInt('LIKES_DAILY_FREE_LIMIT', 20);
+export const FREE_LIKE_WINDOW_SECONDS = envInt('LIKES_DAILY_WINDOW_SECONDS', 24 * 60 * 60);
 
 /**
  * The caller's current active (paid-through) subscription, or null if none.

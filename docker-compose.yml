@@ -14,6 +14,7 @@ services:
       - .env/smtp.env
       - .env/redis.env
       - .env/iap.env
+      - .env/ratelimit.env
 
   suyoapp_com_admin:
     image: kingeli/suyoapp_com_admin:latest

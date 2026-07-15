@@ -2,6 +2,18 @@ import crypto from 'crypto';
 import Stripe from 'stripe';
 import db_pool from "../global/database.js";
 
+/**
+ * Reads a positive integer from process.env, falling back to a default when unset,
+ * empty, or not a valid positive number -- lets every rate-limit/timeout constant be
+ * overridden via .env without each call site duplicating its own parsing/guard logic.
+ * @param {string} name
+ * @param {number} fallback
+ */
+export function envInt(name, fallback) {
+    const value = Number(process.env[name]);
+    return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
 export class tools {
     static algorithm = 'aes-256-cbc';
     static key = crypto.scryptSync('your-strong-secret', 'salt', 32); // 32 bytes key
@@ -97,7 +109,7 @@ export class sessions {
         const ses = {
             rand0: Math.floor(Math.random() * 1e6),
             user_id: userId,
-            timeout: Math.floor(Date.now() / 1000) + 923567, // ~10 days
+            timeout: Math.floor(Date.now() / 1000) + envInt('SESSION_TTL_SECONDS', 923567), // ~10 days
             rand: Math.floor(Math.random() * 1e6)
         };
         return tools.encodeStr(JSON.stringify(ses));
