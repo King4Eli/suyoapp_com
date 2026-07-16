@@ -64,8 +64,14 @@ datingapp-rn-frontend/android/app/src/main/res
     ,privacy-gated getConversation response).
     ,Typing indicators: NOT tier-gated (only read receipts said "for vip"). New 'typing'/'stop-typing' socket
     ,events in realtimedata.js, gated on already having joined the match room (join-match-room already verified
-    ,participant status, so this can't be used to spam an arbitrary match). Shows "typing..." in Conversations.tsx
-    ,in place of the city/bio-hint line.
+    ,participant status, so this can't be used to spam an arbitrary match). UPDATED: shown as an animated
+    ,3-dot bubble in the message list (ListHeaderComponent on the inverted FlatList -> renders at the visual
+    ,bottom, right above the composer) instead of a "typing..." text line in the header.
+- [x] Remove the online/presence indicator (the red/yellow/green dot next to the match's name in
+    ,Conversations.tsx). Removed the dot and the now-dead socketConnected/peerPresent state + the
+    ,match-room-status/peer-joined listener cases that only fed it. Kept join-match-room/leave-match-room and
+    ,the reconnect rejoin -- still required for typing indicators and read receipts, which rely on the socket
+    ,actually being in the match-{matchId} room.
 - [x] add your-strong-secret to .env. FIXED (and went further): the AES key in tools (global/functions.js) was `crypto.scryptSync('your-strong-secret', 'salt', 32)` -- a literal string in source, so anyone with repo access could derive it and decrypt/forge session tokens (session hijacking). Also found+fixed: the IV was a static class field generated ONCE at process start and reused for every token ever issued (CBC requires a fresh IV per encryption). Now: key is derived from SESSION_ENCRYPT_HASH (already a required env var) with a domain-separating salt, IV is fresh crypto.randomBytes(16) per encodeStr() call, and the auth_hash comparison in verifyFullSession uses crypto.timingSafeEqual instead of `!==`. Verified: legit round-trip still works, two tokens now get different IVs, and a token forged with the old hardcoded key is rejected.
 - [x] Any authenticated user can fetch another user's full row by ID. FIXED: getPeopleToMatch.js now selects an explicit safe-column allowlist (CANDIDATE_PROFILE_COLUMNS) instead of SELECT *, for both the getOnePersons_id2 lookup and the main discovery query.
 - [x] sessions.currentUserID was a process-wide static field (global/functions.js), not per-request -- concurrent requests interleaving at `await` could read/write each other's user id, leaking profiles/likes/conversations/payments across users. FIXED: backed by AsyncLocalStorage, wrapped per-request in index.js and per-socket-handshake in realtimedata.js.

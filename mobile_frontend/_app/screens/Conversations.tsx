@@ -58,6 +58,40 @@ const RecordingDot = () => {
     );
 };
 
+// Peer-typing indicator, styled as their message bubble (left-aligned, same blue)
+// with three dots bouncing in sequence -- the standard iMessage/WhatsApp treatment.
+const TypingBubble = () => {
+    const dots = [useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current];
+    useEffect(() => {
+        const loops = dots.map((dot, i) => Animated.loop(
+            Animated.sequence([
+                Animated.delay(i * 150),
+                Animated.timing(dot, { toValue: -4, duration: 300, useNativeDriver: true }),
+                Animated.timing(dot, { toValue: 0, duration: 300, useNativeDriver: true }),
+                Animated.delay((2 - i) * 150),
+            ])
+        ));
+        loops.forEach((loop) => loop.start());
+        return () => loops.forEach((loop) => loop.stop());
+    }, []);
+    return (
+        <View style={[styles.conversation_message_container, styles.conversation_nextUserMessage]}>
+            <View style={[styles.conversation_messageBubble, {
+                borderBottomLeftRadius: 0,
+                backgroundColor: '#0078fe',
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                paddingVertical: 12,
+            }]}>
+                {dots.map((dot, i) => (
+                    <Animated.View key={i} style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#fff', transform: [{ translateY: dot }] }} />
+                ))}
+            </View>
+        </View>
+    );
+};
+
 interface convoInterface {
     messageId: string;
     fromMe: boolean;
@@ -98,8 +132,6 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     const inputTextRef = useRef<TextInput>(null);
     const [isUploadingMedia, setIsUploadingMedia] = useState(false);
     const [reloadIfRealtimeData_File, setReloadIfRealtimeData_File] = useState<boolean>(false);
-    const [socketConnected, setSocketConnected] = useState<boolean>(SocketClient.isConnected());
-    const [peerPresent, setPeerPresent] = useState<boolean>(false);
     const [peerTyping, setPeerTyping] = useState<boolean>(false);
     const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isTypingRef = useRef(false);
@@ -149,32 +181,21 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         if (!matchId) return;
 
         const listenerId = `conversation-presence-${matchId}`;
-        setSocketConnected(SocketClient.isConnected());
 
         SocketClient.addListener(listenerId, (data: any) => {
             switch (data?.event) {
                 case 'connect':
-                    setSocketConnected(true);
                     // Rejoin on reconnect -- the server-side room membership was dropped.
+                    // Still needed even without a presence indicator: typing/read-receipt
+                    // events only reach sockets that are in the match-{matchId} room.
                     SocketClient.socketEmit('join-match-room', { matchId });
                     break;
                 case 'disconnect':
                 case 'connect_error':
-                    setSocketConnected(false);
-                    setPeerPresent(false);
                     setPeerTyping(false);
                     break;
-                case 'match-room-status':
-                    if (data.matchId === matchId) setPeerPresent(Boolean(data.peerPresent));
-                    break;
-                case 'peer-joined':
-                    if (data.matchId === matchId) setPeerPresent(true);
-                    break;
                 case 'peer-left':
-                    if (data.matchId === matchId) {
-                        setPeerPresent(false);
-                        setPeerTyping(false);
-                    }
+                    if (data.matchId === matchId) setPeerTyping(false);
                     break;
                 case 'peer-typing':
                     if (data.matchId === matchId) setPeerTyping(true);
@@ -906,10 +927,6 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
 
 
 
-    // red = our socket is disconnected, yellow = connected but the other person
-    // isn't in this conversation right now, green = both are here.
-    const presenceColor = !socketConnected ? '#ff3b30' : (peerPresent ? '#34c759' : '#f5a623');
-
     useLayoutEffect(() => {
         navigation.setOptions({
             headerTitleAlign: 'left',
@@ -951,7 +968,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             </View>
 
         });
-    }, [getUser2Deets, presenceColor]);
+    }, [getUser2Deets]);
 
 
 
@@ -1344,16 +1361,11 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                         <View style={{ flex: 1, gap: 4 }}>
                             <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                                 <Text style={{ fontSize: 16, fontWeight: 'bold', textTransform: "capitalize" }}>{getUser2Deets?.fullname || "Your match"}</Text>
-                                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: presenceColor }} />
                             </View>
-                            {peerTyping ? (
-                                <Text style={{ color: colors.accent, fontSize: 13, fontStyle: 'italic' }}>typing...</Text>
-                            ) : (<>
-                                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                                    {getUser2Deets?.city && <Text style={{ color: colors.textSecondary }}><IonIcon name="location-outline" size={14} color={colors.accent} /> {getUser2Deets?.city}</Text>}
-                                </View>
-                                <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Read bio for conversation idea.</Text>
-                            </>)}
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                                {getUser2Deets?.city && <Text style={{ color: colors.textSecondary }}><IonIcon name="location-outline" size={14} color={colors.accent} /> {getUser2Deets?.city}</Text>}
+                            </View>
+                            <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Read bio for conversation idea.</Text>
                         </View>
                         <IonIcon name="chevron-forward" size={20} color={colors.accent} />
                     </Pressable>
@@ -1369,6 +1381,9 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                     initialNumToRender={4} maxToRenderPerBatch={4} windowSize={4}
                     showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled"
                     contentContainerStyle={{ gap: 10 }}
+                    // On an inverted list ListHeaderComponent renders at the visual bottom
+                    // (right above the composer), which is where a live typing bubble belongs.
+                    ListHeaderComponent={peerTyping ? <TypingBubble /> : null}
 
                     ListEmptyComponent={<View style={{ paddingVertical: 20, alignItems: "center", width: '100%' }}>
                         <FlatList

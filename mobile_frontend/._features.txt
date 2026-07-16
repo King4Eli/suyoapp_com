@@ -26,8 +26,10 @@
 - 1:1 conversation thread: text, image, video, audio messages (Conversations.tsx / pushConversation.js).
 - Resend on failure: a failed send (text or media) stays on screen with a "tap to retry" affordance instead of
   silently vanishing; each message in a batch sends/retries independently of the others.
-- Real-time delivery over Socket.IO: per-user room + per-match room, live "peer present/joined/left" presence,
-  new-message and new-match/new-like push events, live typing indicator (realtimedata.js).
+- Real-time delivery over Socket.IO: per-user room + per-match room, new-message and new-match/new-like push
+  events, live typing indicator shown as an animated bubble in the message list (realtimedata.js). No visible
+  online/presence indicator (removed by request) -- the underlying per-match room join/leave still happens,
+  it's just not surfaced as a UI dot anymore; typing indicators and read receipts depend on it.
 - Per-message read state (conversations.convo_status) marked read on conversation open, covering the whole
   unread backlog, not just the latest message. See VIP for who actually gets shown this as a receipt.
 - Push notifications for new likes and new matches.
