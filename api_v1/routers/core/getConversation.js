@@ -19,7 +19,6 @@ export default async function getConversation(matchId, io) {
         u.user_image AS other_user_image,
         u.geo_meta AS geo_meta,
         u.user_verified AS other_user_verified,
-        u.user_privacy_read_receipts AS other_user_read_receipts,
         c.convo_id,
         c.convo_message,
         c.convo_by_initiator,
@@ -39,7 +38,11 @@ export default async function getConversation(matchId, io) {
         END
     )
     LEFT JOIN conversations c ON c.convo_match_id = m.match_id
-        AND c.convo_status IN ('0','1')
+        -- 0=unread, 1=read, -99=deleted -- deleted stays IN the thread (the row and its
+        -- original convo_message are left untouched at rest by pushDeleteMessage.js; the
+        -- loop below is what withholds the real content and reports it as deleted instead)
+        -- so the other party sees a "message deleted" placeholder instead of a silent gap.
+        AND c.convo_status IN ('0','1','-99')
     WHERE m.match_id = ?
         AND (m.match_user_id_from = ? OR m.match_user_id_to = ?)
     ORDER BY c.convo_date_added ASC;
@@ -75,10 +78,10 @@ export default async function getConversation(matchId, io) {
     /** @type {string[]} */
     const randomConvoStarter = [];
     let fromMe;
-    // Whether the OTHER party gets to see "did I read their messages" on the messages
-    // I sent them -- mutual (WhatsApp-style): both sides must have read receipts on,
-    // and it's a VIP feature so only the viewer's own tier is checked here (the other
-    // side's flag can only be '1' if they were VIP when they turned it on).
+    // Whether the viewer gets to see "did they read the messages I sent" -- gated on
+    // the viewer's own VIP status and their own read-receipts setting only (not the
+    // other party's setting; this is a single-sided "I get to see" feature, not a
+    // mutual WhatsApp-style handshake).
     let canSeeReadReceipts = false;
 
     // Get user details from the first row (will exist even if no conversations)
@@ -106,14 +109,12 @@ export default async function getConversation(matchId, io) {
             };
         }
 
-        if (row.other_user_read_receipts === '1') {
-            const [[viewerRow]] = await db_pool.query(
-                `SELECT user_privacy_read_receipts FROM users WHERE user_id = ?`,
-                [sessions.currentUserID]
-            );
-            if (viewerRow?.user_privacy_read_receipts === '1') {
-                canSeeReadReceipts = (await getSubscriptionTier(sessions.currentUserID)) === 'vip';
-            }
+        const [[viewerRow]] = await db_pool.query(
+            `SELECT user_privacy_read_receipts FROM users WHERE user_id = ?`,
+            [sessions.currentUserID]
+        );
+        if (viewerRow?.user_privacy_read_receipts === '1') {
+            canSeeReadReceipts = (await getSubscriptionTier(sessions.currentUserID)) === 'vip';
         }
     }
 
@@ -125,7 +126,12 @@ export default async function getConversation(matchId, io) {
         }
 
         try {
-            const convo = row.convo_message ? JSON.parse(row.convo_message) : {};
+            const isDeleted = row.convo_status === '-99';
+            // pushDeleteMessage.js never touches the stored row -- deletion is a status
+            // flip only, so the original convo_message is still sitting there. Withhold
+            // it here at the API boundary instead: never send real content for a deleted
+            // message, regardless of what's actually in the database.
+            const convo = isDeleted ? { t: 'deleted' } : (row.convo_message ? JSON.parse(row.convo_message) : {});
             if (convo?.t) {
                 fromMe = (row.match_user_id_from === sessions.currentUserID) && (Number(row.convo_by_initiator) === 1) ||
                     (row.match_user_id_from !== sessions.currentUserID) && (Number(row.convo_by_initiator) === 0);
@@ -133,8 +139,8 @@ export default async function getConversation(matchId, io) {
                     messageId: row.convo_id,
                     fromMe,
                     type: convo.t,
-                    message: convo.str ?? null,
-                    src: convo.src ?? null,
+                    message: isDeleted ? null : (convo.str ?? null),
+                    src: isDeleted ? null : (convo.src ?? null),
                     dateAdded: row.convo_date_added ?? null,
                     // Only meaningful (and only sent) for messages the viewer sent -- whether
                     // the viewer read something they received is never ambiguous to them.
@@ -167,7 +173,12 @@ export default async function getConversation(matchId, io) {
             // Thin "something changed" ping, no read-status payload -- the sender's
             // next getConversation() call re-derives `read` under the same privacy
             // gate above, so this can't leak receipt data to someone not entitled to it.
-            io.to(`match-${matchId}`).emit('messages-read', { matchId });
+            // readByUserId matters: both participants' sockets are in this room (each
+            // joins on opening the conversation), so without it the READER's own client
+            // would also receive this and could mistake it for "MY sent messages just
+            // got read", flipping their own outgoing messages to read=true regardless
+            // of the other side's actual read state.
+            io.to(`match-${matchId}`).emit('messages-read', { matchId, readByUserId: sessions.currentUserID });
         }
     } catch (error) {
         tools.serverLog(`Error updating message status for match_id ${matchId}: ${error}`,'getConversation-300');

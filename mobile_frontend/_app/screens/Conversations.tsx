@@ -95,7 +95,7 @@ const TypingBubble = () => {
 interface convoInterface {
     messageId: string;
     fromMe: boolean;
-    type: 'media' | 'text' | 'audio' | 'image' | 'video' | 'file';
+    type: 'media' | 'text' | 'audio' | 'image' | 'video' | 'file' | 'deleted';
     message: string | null;
     src: any[] | null;
     isUploading?: boolean;
@@ -135,6 +135,11 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     const [peerTyping, setPeerTyping] = useState<boolean>(false);
     const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isTypingRef = useRef(false);
+    // Read via ref (not state) inside the socket listener below -- that listener is
+    // registered once per matchId and closes over whatever getProfile was AT THAT TIME,
+    // which is usually still null (profile loads via a separate, later effect). A ref
+    // always reads the current value regardless of when the closure was created.
+    const myUserIdRef = useRef<string | null>(null);
 
     const bottomSheet_convotools = {
         ref: useRef<BottomSheet>(null), snap: useMemo(() => ['35%'], [])
@@ -204,11 +209,29 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                     if (data.matchId === matchId) setPeerTyping(false);
                     break;
                 case 'messages-read':
-                    // Thin ping, no payload beyond matchId -- refetching would also work,
-                    // but the sender already knows exactly what state to flip: every
-                    // message they sent just became read.
+                    // readByUserId is whoever just DID the reading. Both participants'
+                    // sockets sit in this room, so without this check my own "I opened
+                    // the conversation" read-pass would broadcast back to me and get
+                    // mistaken for "my sent messages just got read" -- flipping my own
+                    // outgoing messages to read=true regardless of the other side's
+                    // actual read state. Only apply when it was the OTHER person reading.
+                    if (data.matchId === matchId && data.readByUserId !== myUserIdRef.current) {
+                        setConversations((prev) => {
+                            // Only flip messages if we already know (from the last real
+                            // getConversation fetch) that we're entitled to see receipts at
+                            // all -- otherwise this optimistic update would show checkmarks
+                            // to a non-VIP/receipts-off viewer ahead of the server's own gate.
+                            const entitled = prev.some((m) => typeof m.read === 'boolean');
+                            if (!entitled) return prev;
+                            return prev.map((m) => (m.fromMe ? { ...m, read: true } : m));
+                        });
+                    }
+                    break;
+                case 'message-deleted':
                     if (data.matchId === matchId) {
-                        setConversations((prev) => prev.map((m) => (m.fromMe ? { ...m, read: true } : m)));
+                        setConversations((prev) => prev.map((m) => (m.messageId === data.convoId
+                            ? { ...m, type: 'deleted', message: null, src: null }
+                            : m)));
                     }
                     break;
             }
@@ -273,6 +296,10 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
 
         return () => { mounted = false; };
     }, []);
+
+    useEffect(() => {
+        myUserIdRef.current = getProfile?.profile?.id ?? null;
+    }, [getProfile]);
 
     const handleInsertPrompt = (text: string) => {
         setInputText(text);
@@ -1061,6 +1088,46 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         else attemptSendMedia(item);
     };
 
+    // Long-press-to-delete, sender's own messages only. A 'failed' message was never
+    // actually persisted (the insert never happened), so it's a pure local removal;
+    // anything else calls the real delete endpoint and swaps in a "Text deleted" bubble.
+    const deleteMessage = (item: convoInterface) => {
+        if (!item.fromMe || item.type === 'deleted') return;
+
+        Alert.alert(
+            'Delete this message?',
+            "This can't be undone.",
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete', style: 'destructive', onPress: async () => {
+                        if (item.status === 'failed') {
+                            setConversations((prev) => prev.filter((m) => m.messageId !== item.messageId));
+                            return;
+                        }
+                        try {
+                            const response = await _http_request({
+                                customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushDeleteMessage",
+                                reqType: 'POST',
+                                bodyArray: { convoId: item.messageId }
+                            });
+                            if (response?.code === 200) {
+                                setConversations((prev) => prev.map((m) => (m.messageId === item.messageId
+                                    ? { ...m, type: 'deleted', message: null, src: null }
+                                    : m)));
+                            } else {
+                                Toastx.show({ type: 'error', message: response?.message ?? 'Unable to delete message.' });
+                            }
+                        } catch (error) {
+                            logReport({ type: "function -convo", useraction: "deleteMessage", logMessage: 'Delete message error', stackTrace: error });
+                            Toastx.show({ type: 'error', message: 'Unable to delete message.' });
+                        }
+                    }
+                },
+            ]
+        );
+    };
+
     const sendMessage = async (presetText?: string) => {
         if (isUploadingMedia) return;
 
@@ -1191,6 +1258,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         const isAudio = item.type === 'audio' && item.src && item.src.length > 0;
         const isText = item.type === 'text';
         const isFile = item.type === 'file' && item.src && item.src.length > 0;
+        const isDeleted = item.type === 'deleted';
 
         const firstSrc = Array.isArray(item?.src) ? item.src?.[0] : null;
         const firstSrcDuration = firstSrc?.d != null ? Number(firstSrc.d) : 0;
@@ -1214,13 +1282,22 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
 
 
         return (
-            <View style={[styles.conversation_message_container, item.fromMe ? styles.conversation_currentUserMessage : styles.conversation_nextUserMessage]}>
+            <Pressable
+                style={[styles.conversation_message_container, item.fromMe ? styles.conversation_currentUserMessage : styles.conversation_nextUserMessage]}
+                onLongPress={item.fromMe ? () => deleteMessage(item) : undefined}
+                delayLongPress={400}
+            >
                 <View style={[styles.conversation_messageBubble, {
                     borderBottomRightRadius: (item.fromMe) ? 0 : 10,
                     borderBottomLeftRadius: (item.fromMe) ? 10 : 0,
                     backgroundColor: (isImage || isVideo) ? "#a1a1a111" : ((item.fromMe) ? colors.surfaceElevated : '#0078fe')
                 }]}>
-                    {isText && <Text style={[styles.conversation_messageText, {
+                    {isDeleted && <Text style={[styles.conversation_messageText, {
+                        fontStyle: 'italic',
+                        color: (item.fromMe) ? colors.textSecondary : "rgba(255,255,255,0.85)"
+                    }]}>Message deleted</Text>}
+
+                    {!isDeleted && isText && <Text style={[styles.conversation_messageText, {
                         color: (item.fromMe) ? colors.text : "#fff"
                     }]}>{item?.message}</Text>}
 
@@ -1323,12 +1400,12 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                         <Text style={{ color: '#ff3b30', fontSize: 12 }}>Failed to send -- tap to retry</Text>
                     </Pressable>
                 )}
-                {item.fromMe && item.status !== 'failed' && typeof item.read === 'boolean' && (
+                {item.fromMe && !isDeleted && item.status !== 'failed' && typeof item.read === 'boolean' && (
                     <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 2 }}>
                         <IonIcon name={item.read ? "checkmark-done" : "checkmark"} size={14} color={item.read ? colors.accent : colors.textSecondary} />
                     </View>
                 )}
-            </View>
+            </Pressable>
         );
     };
     const pendingPlayback = audioPlayback.id === 'pending-audio';

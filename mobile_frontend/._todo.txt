@@ -44,6 +44,35 @@ datingapp-rn-frontend/android/app/src/main/res
 
 
 # Move COMPLETED HERE
+- [x] Long-press to delete a message, replacing its content with "Text deleted". FIXED: new
+    ,pushDeleteMessage.js endpoint -- sender-only (checked server-side via the same fromMe
+    ,derivation getConversation.js already uses). Status-flip only, per instruction to not
+    ,actually touch the stored content -- convo_message is left untouched at rest;
+    ,getConversation.js/getChatLists.js are what withhold the real content at the API boundary
+    ,once a row is flagged deleted, so it's never sent to a client either way.
+    ,convo_status='-99' is the real deleted sentinel (CORRECTED 2026-07-16: I'd read a stale
+    ,schema dump and used '2' -- the enum comment said -99 but the dump's enum() only listed
+    ,0/1/2, and I trusted the enum over the comment. Live schema is actually enum('0','1','-99'),
+    ,fixed everywhere -- pushDeleteMessage.js, the IN(...) filters in getConversation.js/
+    ,getChatLists.js, and the stale dump itself in admin/global/_sql/conversations.sql).
+    ,Live update via a new 'message-deleted' socket event so the other party's open
+    ,conversation updates immediately. Long-press only active on your own messages
+    ,(Conversations.tsx); a still-'failed' (never-persisted) message deletes locally with no
+    ,API call since it was never actually sent.
+- [x] Fixed: read receipts weren't updating correctly in real time -- two bugs, both fixed:
+    ,(1) the 'messages-read' socket event didn't say WHO did the reading, and both participants'
+    ,sockets sit in the same match room, so opening a conversation and marking the OTHER
+    ,person's messages read would broadcast back to your OWN client too, incorrectly flipping
+    ,YOUR OWN sent messages to read=true regardless of whether the other person had actually
+    ,read them. Fixed via a readByUserId field on the payload, only applied client-side when
+    ,someone else did the reading.
+    ,(2) the checkmark wasn't showing for VIP at all -- I'd built this as a MUTUAL
+    ,(WhatsApp-style) gate requiring BOTH sides to be VIP and have the setting on, which isn't
+    ,what was actually asked for ("if read receipt is off you cannot see others if they read
+    ,you unless you turn on" describes only the VIEWER's own toggle) and in practice is very
+    ,hard to ever satisfy since it needs two VIP accounts both opted in. CORRECTED to
+    ,single-sided: canSeeReadReceipts now only checks the viewer's own VIP status + their own
+    ,privacy_read_receipts setting, not the other party's.
 - [x] Add resend action for failed messages, images or media. FIXED: Conversations.tsx no longer deletes a
     ,failed optimistic message -- it's kept on screen with status:'failed' and a "tap to retry" row (a failed
     ,media message still holds its local file:// uri in `src`, so retry re-uploads from the same file). Each

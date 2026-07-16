@@ -71,7 +71,9 @@ export default async function getChatsListings() {
                 END
             LEFT JOIN conversations latest ON latest.convo_id = m.last_message_id
                 AND latest.convo_match_id = m.match_id
-                AND latest.convo_status IN ('0', '1')
+                -- Include deleted (-99) so a chat whose last message was deleted still shows
+                -- up with a "message deleted" preview instead of reverting to "no messages".
+                AND latest.convo_status IN ('0', '1', '-99')
             WHERE m.match_status = '1'
                 AND (m.match_user_id_from = ? OR m.match_user_id_to = ?)
             ORDER BY COALESCE(latest.convo_date_added, m.match_dateAdded) DESC
@@ -108,8 +110,11 @@ export default async function getChatsListings() {
             // Check if match has messages
             if (row.convo_id && row.convo_message) {
                 try {
-                    const lastMessage = JSON.parse(row.convo_message);
-                    
+                    // pushDeleteMessage.js only flips convo_status -- the original
+                    // convo_message is still sitting there at rest. Withhold it here,
+                    // same as getConversation.js does for the full thread.
+                    const lastMessage = row.convo_status === '-99' ? { t: 'deleted' } : JSON.parse(row.convo_message);
+
                     matchData.user_lastmessage = lastMessage;
                     matchData.user_lastmessage_date = row.convo_date_added;
                     matchData.convo_from_me = Boolean(row.last_message_from_me);

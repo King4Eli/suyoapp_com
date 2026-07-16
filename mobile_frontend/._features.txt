@@ -26,6 +26,10 @@
 - 1:1 conversation thread: text, image, video, audio messages (Conversations.tsx / pushConversation.js).
 - Resend on failure: a failed send (text or media) stays on screen with a "tap to retry" affordance instead of
   silently vanishing; each message in a batch sends/retries independently of the others.
+- Delete a message you sent (long-press) -- status-flip only (original content stays in the DB at rest,
+  by design), but the API never sends the real content back once flagged, so both sides only ever see
+  "Text deleted" / "Message deleted", live via socket for whoever has the conversation open. Only your own
+  messages; the other party's are not deletable by you.
 - Real-time delivery over Socket.IO: per-user room + per-match room, new-message and new-match/new-like push
   events, live typing indicator shown as an animated bubble in the message list (realtimedata.js). No visible
   online/presence indicator (removed by request) -- the underlying per-match room join/leave still happens,
@@ -58,7 +62,7 @@
 
 # VIP
 - 10 roses (super-likes) per day (ROSE_DAILY_ALLOWANCE.vip); everything else Plus has, VIP also has.
-- Read receipts: see whether someone read the message you sent them. VIP-only, and mutual (WhatsApp-style) --
-  requires BOTH you and the other person to have the setting on (Settings.tsx Privacy sheet); VIP status is
-  re-checked server-side on save (pushProfile.js), not just hidden client-side. This is the first live use of
+- Read receipts: see whether someone read the message you sent them. VIP-only, single-sided -- gated on your
+  own VIP status and your own privacy setting (Settings.tsx Privacy sheet) only, not the other person's; VIP
+  status is re-checked server-side on save (pushProfile.js), not just hidden client-side. First live use of
   Settings.tsx's premiumLock toggle mechanism.

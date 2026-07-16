@@ -334,6 +334,13 @@ export function Screen_chat({ navigation }: { navigation: any }) {
                     <Text style={{ fontSize: 13, color: colors.textSecondary, flex: 1, fontWeight: previewWeight }}>Voice message</Text>
                   </View>
                 )
+              case "deleted":
+                return (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                    <MIcon name="close-circle-outline" size={16} color={colors.textSecondary} />
+                    <Text style={{ fontSize: 13, color: colors.textSecondary, flex: 1, fontStyle: 'italic', fontWeight: '400' }}>Message deleted</Text>
+                  </View>
+                )
               default:
                 return (
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>

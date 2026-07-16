@@ -32,7 +32,7 @@ CREATE TABLE `conversations` (
   `convo_match_id` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `convo_message` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   `convo_by_initiator` enum('0','1') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
-  `convo_status` enum('0','1','2') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '0' COMMENT '0=noread 1=read -99=deleted',
+  `convo_status` enum('0','1','-99') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '0' COMMENT '0=noread 1=read -99=deleted',
   `convo_date_added` bigint UNSIGNED NOT NULL DEFAULT (unix_timestamp()),
   `convo_date_updated` bigint UNSIGNED NOT NULL DEFAULT (unix_timestamp())
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

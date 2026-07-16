@@ -10,6 +10,7 @@ import pushProfile from './core/pushProfile.js';
 import getPeopleToMatch from './core/getPeopleToMatch.js';
 import pushPeopleToMatch from './core/pushPeopleToMatch.js';
 import pushConversation from './core/pushConversation.js';
+import pushDeleteMessage from './core/pushDeleteMessage.js';
 import pushNewEmail from './core/pushNewEmail.js';
 import pushLogReport from './core/pushLogReports.js';
 import pushDevice from './core/pushDevice.js';
@@ -97,6 +98,10 @@ core_router.post('/:action', async (req, res) => {
                 file_meta: filemeta
             });
             return res.json(uconvo);
+        case 'pushDeleteMessage':
+            const convoIdToDelete = req.body?.convoId;
+            const deleteResult = await pushDeleteMessage(convoIdToDelete, req.app.get('io'));
+            return res.json(deleteResult);
         case 'pushPeopleToMatch':
             const upersonID = req.body?.user_id2;
             const umatchstatus = req.body?.match_status;
