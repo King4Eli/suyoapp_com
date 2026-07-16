@@ -1,5 +1,6 @@
 import db_pool from "../../global/database.js";
-import { namer, sessions, tools, envInt } from "../../global/functions.js";
+import { namer, tools, envInt } from "../../global/functions.js";
+import { sessions } from "../../global/sessions.js";
 import { redisDo } from "../../global/redisClient.js";
 import {communicateWith} from "../../global/sendingCommunicate.js";
 import { checkRateLimit } from "../../global/rateLimit.js";

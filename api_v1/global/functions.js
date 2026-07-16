@@ -1,6 +1,6 @@
-import crypto from 'crypto';
 import Stripe from 'stripe';
 import db_pool from "../global/database.js";
+import { sessions } from './sessions.js';
 
 /**
  * Reads a positive integer from process.env, falling back to a default when unset,
@@ -15,9 +15,6 @@ export function envInt(name, fallback) {
 }
 
 export class tools {
-    static algorithm = 'aes-256-cbc';
-    static key = crypto.scryptSync('your-strong-secret', 'salt', 32); // 32 bytes key
-    static iv = crypto.randomBytes(16); // initialization vector
     //@ts-ignore
     static generateAlphanumeric(minLength, maxLength, upperCase = false) {
         const chars = (upperCase ? "ABCDEFGHIJKLMNOPQRSTUVWXYZ" : '') + "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -30,30 +27,6 @@ export class tools {
     }
     static randomInt(min=1, max=1000) {
         return Math.floor(Math.random() * (max - min + 1)) + min;
-    }
-    //@ts-ignore
-    static encodeStr(plainText) {
-        const cipher = crypto.createCipheriv(this.algorithm, this.key, this.iv);
-        let encrypted = cipher.update(plainText, 'utf-8', 'base64');
-        encrypted += cipher.final('base64');
-        // Prepend IV for decryption
-        return this.iv.toString('base64') + ':' + encrypted;
-    }
-    //@ts-ignore
-    static decodeStr(encodedText) {
-        try {
-            const [ivStr, encrypted] = encodedText.split(':');
-            if (!ivStr || !encrypted)
-                return false;
-            const iv = Buffer.from(ivStr, 'base64');
-            const decipher = crypto.createDecipheriv(this.algorithm, this.key, iv);
-            let decrypted = decipher.update(encrypted, 'base64', 'utf-8');
-            decrypted += decipher.final('utf-8');
-            return decrypted;
-        }
-        catch {
-            return false;
-        }
     }
 
     static validateIsNumber(value = '') {
@@ -91,64 +64,6 @@ export class tools {
             }
         })();
  
-    }
-}
-export class sessions {
-    static temp_current_session_ID = null;
-    // Static setter
-    static set currentUserID(val) {
-        this.temp_current_session_ID = val;
-    }
-    // Static getter
-    static get currentUserID() {
-        return this.temp_current_session_ID;
-    }
-    // Create session
-    //@ts-ignore
-    static createSession(userId) {
-        const ses = {
-            rand0: Math.floor(Math.random() * 1e6),
-            user_id: userId,
-            timeout: Math.floor(Date.now() / 1000) + envInt('SESSION_TTL_SECONDS', 923567), // ~10 days
-            rand: Math.floor(Math.random() * 1e6)
-        };
-        return tools.encodeStr(JSON.stringify(ses));
-    }
-    // Verify session
-    //@ts-ignore
-    static verifySessionHash(stringV) {
-        if (!stringV)
-            return false;
-        const decoded = tools.decodeStr(stringV);
-        if (!decoded)
-            return false;
-        const ses = JSON.parse(decoded);
-        if (ses.timeout && Math.floor(Date.now() / 1000) < ses.timeout) {
-            this.currentUserID = ses.user_id;
-            return true;
-        }
-        else {
-            this.currentUserID = null;
-        }
-        return false;
-    }
-
-    static verifyFullSession(auth_token="", auth_hash="") {
-        if (!auth_token || !auth_hash) {
-            return { status: false, code: 400, message: "Authentication token and hash are required." };
-        }
-        
-        if (!process.env.SESSION_ENCRYPT_HASH) {
-            return {status:false, code: 500, message: "Unable to verify session#" };
-        }
-
-        const session_hash = crypto.createHash('sha256').update(process.env.SESSION_ENCRYPT_HASH + auth_token + process.env.SESSION_ENCRYPT_HASH).digest('hex');
-        const sessionHash_validate = sessions.verifySessionHash(auth_token);
-
-        if (!sessionHash_validate || (auth_hash !== session_hash)) {
-            return { status: false, code: 401, message: "Unauthorized" };
-        }
-        return { status: true, code: 200, message: "Authorized" };
     }
 }
 

@@ -9,6 +9,7 @@ import realtimedata_router, { setupRealtime } from "./routers/realtimedata.js";
 import webhook_router from './routers/payments/router_hook.js';
 import status_check from './routers/status.js';
 import { startExpirePendingPaymentsJob } from './global/expirePendingPayments.js';
+import { sessions } from './global/sessions.js';
 
 const http_port = 80;
 const app = express();
@@ -19,6 +20,12 @@ const app = express();
 // all users onto a single IP-based rate-limit bucket. Trusts exactly one hop; if another
 // proxy/CDN sits in front of that one, bump this to match the real hop count.
 app.set('trust proxy', 1);
+
+// Gives every request its own isolated sessions.currentUserID store (see
+// global/functions.js) so concurrent requests can never read/overwrite each
+// other's user id across an await. Must be the very first middleware so it
+// wraps the entire request lifecycle, including the webhook route below.
+app.use((req, res, next) => sessions.runInContext(next));
 
 app.use('/api/secure/stripe/webhook', express.raw({ type: "application/json" }), webhook_router);
 app.use(express.json());

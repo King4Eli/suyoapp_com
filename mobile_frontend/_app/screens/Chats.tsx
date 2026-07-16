@@ -196,7 +196,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
           {hasLikes && (
             <Animated.View style={{ transform: [{ translateY: bounceInterpolate }] }}>
               <Pressable onPress={() => navigation.navigate(namer.navigation.likes)} style={{ width: 110, height: 180, borderRadius: 10, overflow: 'hidden', backgroundColor: '#0ea5e9', justifyContent: 'center', alignItems: 'center' }}>
-                <ImageBackground progressiveRenderingEnabled={true} blurRadius={Platform.OS === "android" ? 60 : 30}
+                <ImageBackground progressiveRenderingEnabled={true} blurRadius={activeSubscription ? 0 : (Platform.OS === "android" ? 60 : 30)}
                   style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}
                   source={{ cache: 'default', uri: imageDomain + String(getImageLikes?.p) }} >
                   <View style={{ backgroundColor: 'rgba(15,23,42,0.7)', borderRadius: 18, paddingHorizontal: 12, paddingVertical: 8, alignItems: 'center' }}>
@@ -245,7 +245,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
         </View>
       </View>
     );
-  }, [bounceInterpolate, getCountLikes, getNewMatches, getProfile, colors]);
+  }, [activeSubscription, bounceInterpolate, getCountLikes, getNewMatches, getProfile, colors]);
 
 
 

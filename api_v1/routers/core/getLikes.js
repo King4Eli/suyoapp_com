@@ -1,5 +1,6 @@
 import db_pool from "../../global/database.js";
-import { sessions, tools } from "../../global/functions.js";
+import { tools } from "../../global/functions.js";
+import { sessions } from "../../global/sessions.js";
 export default async function getLikes() {
     /** @type { any } */
     const response = { code: 404, message: "No likes found." };

@@ -51,8 +51,7 @@ export const xxa_logggingReport = ({ type, extra, useraction, url, logMessage, r
                     headers: {
                         'Content-Type': 'application/json', // Specify content type
                         'Accept': 'application/json', // Specify accepted response type
-                        'X-omi-Auth': sessionManager.getCurrentSession()?.x_omi_payload ?? '',
-                        'X-omi-Hash': sessionManager.getCurrentSession()?.x_omi_payload_hash ?? ''
+                        'X-omi-Auth': sessionManager.getCurrentSession()?.x_omi_payload ?? ''
                     },
                     body: JSON.stringify({ // Properly stringify the entire body
                         action: 'generateLogStats',

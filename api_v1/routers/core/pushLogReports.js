@@ -1,5 +1,6 @@
 import db_pool from "../../global/database.js";
-import { sessions, tools } from "../../global/functions.js";
+import { tools } from "../../global/functions.js";
+import { sessions } from "../../global/sessions.js";
 // @ts-ignore
 import variables from "../../global/variables.json" with { type: "json" };
 /**

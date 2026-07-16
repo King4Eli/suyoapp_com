@@ -1,6 +1,6 @@
 import express from 'express';
-import crypto from 'crypto';
-import { namer, sessions, envInt } from '../../global/functions.js';
+import { namer, envInt } from '../../global/functions.js';
+import { sessions } from '../../global/sessions.js';
 import db_pool from '../../global/database.js';
 import {communicateWith   }  from '../../global/sendingCommunicate.js';
 import {redisDo} from '../../global/redisClient.js';
@@ -94,9 +94,7 @@ login_router.post('/', async (req, res) => {
     // @ts-ignore
     const userId = rows[0].user_id;
     const sessionToken = sessions.createSession(userId);
-    const sessionHash = crypto.createHash('sha256').update(process.env.SESSION_ENCRYPT_HASH + sessionToken + process.env.SESSION_ENCRYPT_HASH).digest('hex');
     res.set('x-omi-auth', sessionToken);
-    res.set('x-omi-hash', sessionHash);
     return res.json({
         code: 200,
         message: 'ok'

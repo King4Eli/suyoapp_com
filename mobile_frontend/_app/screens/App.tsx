@@ -80,14 +80,13 @@ const MainApp: React.FC = () => {
       try {
         setAllGood(false);
         // Reset session and fetch mapper data
-        const [_, sessIdStorage, sessIdVerifyStorage] = await Promise.all([
-          sessionManager.updateSession({ x_omi_payload: null, x_omi_payload_hash: null }),
+        const [_, sessIdStorage] = await Promise.all([
+          sessionManager.updateSession({ x_omi_payload: null }),
           AsyncStorage.getItem(namer.storage.sessionId),
-          AsyncStorage.getItem(namer.storage.sessionIdVerify),
         ]);
 
         if (sessIdStorage !== null) {
-          await sessionManager.updateSession({ x_omi_payload: sessIdStorage, x_omi_payload_hash: sessIdVerifyStorage });
+          await sessionManager.updateSession({ x_omi_payload: sessIdStorage });
         }
       } catch (error: any) {
         logReport({
@@ -157,9 +156,9 @@ const MainApp: React.FC = () => {
     <>
       <StatusBar barStyle={colors.statusBarStyle} backgroundColor={colors.background} />
       <NavigationContainer ref={navigationRef} theme={navigationTheme}>
-        <Stack.Navigator initialRouteName={currentSession?.x_omi_payload_hash ? "Home" : namer.navigation.login}>
+        <Stack.Navigator initialRouteName={currentSession?.x_omi_payload ? "Home" : namer.navigation.login}>
 
-          {!currentSession?.x_omi_payload_hash ?
+          {!currentSession?.x_omi_payload ?
             (
               <>
                 <Stack.Screen name={namer.navigation.login} component={Auth_Login} options={{ headerShown: false }} />

@@ -1,5 +1,6 @@
 import express from 'express';
-import { sessions, tools } from '../global/functions.js';
+import { tools } from '../global/functions.js';
+import { sessions } from '../global/sessions.js';
 import db_pool from '../global/database.js';
 
 const realtimedata_router = express.Router();
@@ -18,9 +19,8 @@ const blockedMatchStatuses = ["2", "3", "4"];
 async function verifyActiveMatchWith(req, targetUserID, matchId) {
     const headers = req.headers;
     const auth_token = Array.isArray(headers['x-omi-auth']) ? headers['x-omi-auth'][0] : (headers['x-omi-auth'] ?? "");
-    const auth_hash = Array.isArray(headers['x-omi-hash']) ? headers['x-omi-hash'][0] : (headers['x-omi-hash'] ?? "");
 
-    const sessionValidation = sessions.verifyFullSession(auth_token, auth_hash);
+    const sessionValidation = sessions.verifyFullSession(auth_token);
     if (!sessionValidation.status) {
         return { ok: false, code: sessionValidation.code, message: sessionValidation.message };
     }
@@ -133,18 +133,23 @@ export function setupRealtime(io) {
     // Authenticate every connection before it's accepted. The client identity
     // (userID) is derived from the verified session, never trusted from the client.
     io.use((socket, next) => {
-        const auth = socket.handshake.auth ?? {};
-        const auth_token = auth.auth_token ?? "";
-        const auth_hash = auth.auth_hash ?? "";
-        console.log(`🟨 [SOCKET][AUTH] handshake attempt -> socket=${socket.id} hasToken=${Boolean(auth_token)} hasHash=${Boolean(auth_hash)} query=${JSON.stringify(socket.handshake.query)}`);
-        const validation = sessions.verifyFullSession(auth_token, auth_hash);
-        if (!validation.status) {
-            console.log(`🟥 [SOCKET][AUTH] REJECTED -> socket=${socket.id} reason=${validation.message}`);
-            return next(new Error('Unauthorized'));
-        }
-        socket.data.userID = sessions.currentUserID;
-        console.log(`🟩 [SOCKET][AUTH] OK -> socket=${socket.id} userID=${socket.data.userID}`);
-        next();
+        // Handshakes aren't wrapped by the Express request middleware, so give
+        // this one its own isolated store too -- otherwise verifyFullSession's
+        // currentUserID write below would have nowhere safe to land (see
+        // sessions.runInContext in global/functions.js).
+        sessions.runInContext(() => {
+            const auth = socket.handshake.auth ?? {};
+            const auth_token = auth.auth_token ?? "";
+            console.log(`🟨 [SOCKET][AUTH] handshake attempt -> socket=${socket.id} hasToken=${Boolean(auth_token)} query=${JSON.stringify(socket.handshake.query)}`);
+            const validation = sessions.verifyFullSession(auth_token);
+            if (!validation.status) {
+                console.log(`🟥 [SOCKET][AUTH] REJECTED -> socket=${socket.id} reason=${validation.message}`);
+                return next(new Error('Unauthorized'));
+            }
+            socket.data.userID = sessions.currentUserID;
+            console.log(`🟩 [SOCKET][AUTH] OK -> socket=${socket.id} userID=${socket.data.userID}`);
+            next();
+        });
     });
 
     io.on('connection', (socket) => {

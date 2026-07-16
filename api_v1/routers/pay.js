@@ -1,5 +1,6 @@
 import express from 'express';
-import { sessions, tools, stripe_gateway } from '../global/functions.js';
+import { tools, stripe_gateway } from '../global/functions.js';
+import { sessions } from '../global/sessions.js';
 import GatewayPay from './payments/gateway.js';
 import db_pool from '../global/database.js';
 import { fulfillOnetimePurchase } from './payments/router_hook.js';
@@ -27,9 +28,8 @@ pay_router.post('/:division', async (req, res) => {
     // if division !== "webhook" doesnt require auth
 
     const auth_token = Array.isArray(headers['x-omi-auth']) ? headers['x-omi-auth'][0] : (headers['x-omi-auth'] ?? "");
-    const auth_hash = Array.isArray(headers['x-omi-hash']) ? headers['x-omi-hash'][0] : (headers['x-omi-hash'] ?? "");
 
-    const sessionValidation = sessions.verifyFullSession(auth_token, auth_hash);
+    const sessionValidation = sessions.verifyFullSession(auth_token);
     if (!sessionValidation.status) {
         return res.status(sessionValidation.code).json({ code: sessionValidation.code, message: sessionValidation.message });
     }

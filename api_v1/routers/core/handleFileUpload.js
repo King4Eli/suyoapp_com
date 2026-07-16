@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
-import { sessions, tools } from "../../global/functions.js";
+import { tools } from "../../global/functions.js";
+import { sessions } from "../../global/sessions.js";
 import * as Minio from "minio";
 
 const MINIO_TOOLS = {

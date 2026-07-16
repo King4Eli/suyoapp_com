@@ -1,4 +1,5 @@
-import { sessions, stripe_gateway, tools } from "../../global/functions.js";
+import { stripe_gateway, tools } from "../../global/functions.js";
+import { sessions } from "../../global/sessions.js";
 
 
 function normalizedDurationFunc(cycle = -1) { 

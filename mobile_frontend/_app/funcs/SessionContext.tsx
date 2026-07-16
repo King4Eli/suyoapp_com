@@ -1,7 +1,6 @@
 // SessionManager.ts
 export type SessionTypes = {
-  x_omi_payload: string | null;
-  x_omi_payload_hash: string | null;
+  x_omi_payload: string | null; // JWT session token
 };
 
 type Subscriber = (session: SessionTypes | null) => void;

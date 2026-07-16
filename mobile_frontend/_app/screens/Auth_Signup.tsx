@@ -633,16 +633,13 @@ export const Auth_Signup = ({route}:{route: any}) => {
       }
 
       const auth = response.headers.get('x-omi-auth') ?? '';
-      const hash = response.headers.get('x-omi-hash') ?? '';
-      if (!auth || !hash) {
+      if (!auth) {
         Toastx.show({ type: 'error', message: 'Signup succeeded, but login session was not returned.' });
         return false;
       }
       await AsyncStorage.setItem(namer.storage.sessionId, auth);
-      await AsyncStorage.setItem(namer.storage.sessionIdVerify, hash);
       await sessionManager.updateSession({
         x_omi_payload: auth,
-        x_omi_payload_hash: hash,
       });
       await Promise.all([
         __init__app(),

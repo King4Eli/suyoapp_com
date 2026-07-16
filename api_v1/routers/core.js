@@ -1,5 +1,5 @@
 import express from 'express';
-import { sessions } from '../global/functions.js';
+import { sessions } from '../global/sessions.js';
 import getChatsListings from './core/getChatLists.js';
 import getConversation from './core/getConversation.js';
 import getProfile from './core/getProfile.js';
@@ -29,9 +29,6 @@ core_router.post('/:action', async (req, res) => {
 
     const headers = req.headers;
     const auth_token = Array.isArray(headers['x-omi-auth']) ? headers['x-omi-auth'][0] : (headers['x-omi-auth'] ?? "");
-    const auth_hash = Array.isArray(headers['x-omi-hash']) ? headers['x-omi-hash'][0] : (headers['x-omi-hash'] ?? "");
-
-
 
     switch (action){
         case 'getMapper':
@@ -47,7 +44,7 @@ core_router.post('/:action', async (req, res) => {
             break;
     }
 
-    const sessionValidation = sessions.verifyFullSession(auth_token, auth_hash);
+    const sessionValidation = sessions.verifyFullSession(auth_token);
     if (!sessionValidation.status) {
         return res.status(sessionValidation.code).json({ code: sessionValidation.code, message: sessionValidation.message });
     }

@@ -23,7 +23,6 @@ export const xxa__http_requests = async ({ reqType, bodyArray, headerArray, cust
         headers: headerArray ?? {
             'Content-Type': 'application/json',
             'X-omi-Auth': currentSession?.x_omi_payload,
-            'X-omi-Hash': currentSession?.x_omi_payload_hash,
             "Accept-Encoding": "identity"
         },
         timeout: 60000, // 1 minute timeout
@@ -66,8 +65,8 @@ export const xxa__http_requests = async ({ reqType, bodyArray, headerArray, cust
         const status = err.response?.status;
         if (err.response) {
             if (status === 401) {
-                //session expired 
-                sessionManager?.updateSession({ x_omi_payload: null, x_omi_payload_hash: null });
+                //session expired
+                sessionManager?.updateSession({ x_omi_payload: null });
                 await AsyncStorage.removeItem(namer.storage.sessionId);
                 Toastx.show({ type: 'info', message: 'Session expired, login again.' });
                 return;

@@ -1058,7 +1058,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                   title="Log Out"
                   onPress={async () => {
                     await AsyncStorage.removeItem(namer.storage.sessionId);
-                    sessionManager.updateSession({ x_omi_payload: null, x_omi_payload_hash: null });
+                    sessionManager.updateSession({ x_omi_payload: null });
                     navigation.canGoBack() ? navigation.goBack() : null;
                   }}
                   danger />

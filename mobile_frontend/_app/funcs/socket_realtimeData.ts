@@ -66,10 +66,9 @@ export class SocketClient {
             timeout: 20000,
             auth: (cb: (data: any) => void) => {
                 const currentSession = sessionManager.getCurrentSession();
-                console.log(`🟨 [SOCKET] auth() handshake fn invoked -> hasToken=${Boolean(currentSession?.x_omi_payload)} hasHash=${Boolean(currentSession?.x_omi_payload_hash)}`);
+                console.log(`🟨 [SOCKET] auth() handshake fn invoked -> hasToken=${Boolean(currentSession?.x_omi_payload)}`);
                 cb({
                     auth_token: currentSession?.x_omi_payload,
-                    auth_hash: currentSession?.x_omi_payload_hash,
                 });
             },
             path: '/socket.io/', // Use default path

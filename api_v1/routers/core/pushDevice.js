@@ -1,5 +1,6 @@
 import db_pool from "../../global/database.js";
-import { sessions, tools } from "../../global/functions.js";
+import { tools } from "../../global/functions.js";
+import { sessions } from "../../global/sessions.js";
 
 /**
  * Registers or refreshes a device row, called once on app init rather than

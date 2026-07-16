@@ -1,5 +1,6 @@
 import db_pool from "../../global/database.js";
-import { namer, sessions, tools } from "../../global/functions.js";
+import { namer, tools } from "../../global/functions.js";
+import { sessions } from "../../global/sessions.js";
 import { checkRateLimit } from "../../global/rateLimit.js";
 import { getSubscriptionTier, spendRose, FREE_LIKE_DAILY_LIMIT, FREE_LIKE_WINDOW_SECONDS } from "../../global/entitlements.js";
 

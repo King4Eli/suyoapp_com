@@ -54,10 +54,9 @@ export function Zz_devv({ route, navigation }: { route: any, navigation: any }) 
  
 
                 <Pressable style={modernStyles.dangerSection} onPress={async () => {
-                    Clipboard.setString(getSession?.x_omi_payload + "\n" + getSession?.x_omi_payload_hash);
+                    Clipboard.setString(getSession?.x_omi_payload ?? "");
                 }}>
-                    <Text>session id: {getSession?.x_omi_payload} </Text>
-                    <Text>session hash: {getSession?.x_omi_payload_hash} </Text>
+                    <Text>session token: {getSession?.x_omi_payload} </Text>
                 </Pressable>
 
                 <Pressable style={modernStyles.dangerSection} onPress={() => {

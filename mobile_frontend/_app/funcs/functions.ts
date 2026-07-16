@@ -173,8 +173,7 @@ export const __init__app = async (): Promise<void> => {
 
   // get session and verify
   const getSession_omi = sessionManager.getCurrentSession()?.x_omi_payload;
-  const getSession_hash = sessionManager.getCurrentSession()?.x_omi_payload_hash;
-  const notSessionAndNavigation = (!getSession_omi || !getSession_hash || navigationRef === null)
+  const notSessionAndNavigation = (!getSession_omi || navigationRef === null)
   
   // 111111
   // update location
@@ -419,7 +418,6 @@ export const _handle_Signin = async (phoneNumber: string, callingCode: string, v
       if (loginRes?.code === 200) {
         await sessionManager.updateSession({
           x_omi_payload: "",
-          x_omi_payload_hash: null,
         });
         return {
           code: 200,
@@ -455,13 +453,10 @@ export const _handle_Signin = async (phoneNumber: string, callingCode: string, v
 
         if (response?.code === 200) {
           const auth = headers.get('x-omi-auth') ?? '';
-          const hash = headers.get('x-omi-hash') ?? '';
 
           await AsyncStorage.setItem(namer.storage.sessionId, auth);
-          await AsyncStorage.setItem(namer.storage.sessionIdVerify, hash);
           await sessionManager.updateSession({
             x_omi_payload: auth,
-            x_omi_payload_hash: hash,
           });
 
           return {
