@@ -96,7 +96,7 @@ core_router.post('/:action', async (req, res) => {
                 match_id: umatchid,
                 messagee: textsms,
                 file_meta: filemeta
-            });
+            }, req.app.get('io'));
             return res.json(uconvo);
         case 'pushDeleteMessage':
             const convoIdToDelete = req.body?.convoId;
