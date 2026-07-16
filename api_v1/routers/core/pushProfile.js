@@ -1,6 +1,7 @@
 import db_pool from "../../global/database.js";
 import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
+import { getSubscriptionTier } from "../../global/entitlements.js";
 /**
  * @param {string | number} val
  */
@@ -142,6 +143,17 @@ export default async function pushProfile(input = {}) {
       if (typeof val === "boolean") {
         profUpdates.push({ field: dbField, value: val ? "1" : "0" });
       }
+    }
+
+    // Read receipts is VIP-only. The client UI already hides this toggle from
+    // non-VIP users, but that's not an authorization boundary -- anyone could
+    // still hit this endpoint directly, so re-check the tier server-side
+    // before honoring a request to turn it ON. Turning it off never needs the
+    // tier check -- it's always allowed.
+    const readReceiptsVal = input.prof_privacy["readReceipts"];
+    if (typeof readReceiptsVal === "boolean") {
+      const canTurnOn = readReceiptsVal && (await getSubscriptionTier(sessions.currentUserID)) === "vip";
+      profUpdates.push({ field: "user_privacy_read_receipts", value: canTurnOn ? "1" : "0" });
     }
   }
 

@@ -1,14 +1,16 @@
 import db_pool from "../../global/database.js";
 import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
+import { getSubscriptionTier } from "../../global/entitlements.js";
 
 /**
  * @param {string} matchId
+ * @param {import("socket.io").Server} [io]
  */
-export default async function getConversation(matchId) {
+export default async function getConversation(matchId, io) {
     matchId = matchId?.trim() || 'ERRNAME';
 
-    const sql = `SELECT 
+    const sql = `SELECT
         m.match_id,
         m.match_status,
         m.match_dateAdded AS match_date,
@@ -17,6 +19,7 @@ export default async function getConversation(matchId) {
         u.user_image AS other_user_image,
         u.geo_meta AS geo_meta,
         u.user_verified AS other_user_verified,
+        u.user_privacy_read_receipts AS other_user_read_receipts,
         c.convo_id,
         c.convo_message,
         c.convo_by_initiator,
@@ -24,18 +27,18 @@ export default async function getConversation(matchId) {
         c.convo_date_added,
         c.convo_date_updated,
         m.match_user_id_from,
-        CASE 
+        CASE
             WHEN m.match_user_id_from = ? THEN 1
-            ELSE 0 
+            ELSE 0
         END AS is_from_me
     FROM matches m
     INNER JOIN users u ON (
-        u.user_id = CASE 
-            WHEN m.match_user_id_from = ? THEN m.match_user_id_to 
-            ELSE m.match_user_id_from 
+        u.user_id = CASE
+            WHEN m.match_user_id_from = ? THEN m.match_user_id_to
+            ELSE m.match_user_id_from
         END
     )
-    LEFT JOIN conversations c ON c.convo_match_id = m.match_id 
+    LEFT JOIN conversations c ON c.convo_match_id = m.match_id
         AND c.convo_status IN ('0','1')
     WHERE m.match_id = ?
         AND (m.match_user_id_from = ? OR m.match_user_id_to = ?)
@@ -71,11 +74,12 @@ export default async function getConversation(matchId) {
     let user2Details = null;
     /** @type {string[]} */
     const randomConvoStarter = [];
-    // Variables to track the last message for update
     let fromMe;
-    let lastMessageId = null;
-    let lastMessageFromMe = false;
-    let lastMessageStatus = null;
+    // Whether the OTHER party gets to see "did I read their messages" on the messages
+    // I sent them -- mutual (WhatsApp-style): both sides must have read receipts on,
+    // and it's a VIP feature so only the viewer's own tier is checked here (the other
+    // side's flag can only be '1' if they were VIP when they turned it on).
+    let canSeeReadReceipts = false;
 
     // Get user details from the first row (will exist even if no conversations)
     if (rows[0]) {
@@ -91,7 +95,7 @@ export default async function getConversation(matchId) {
                 uid: row.other_user_id || '',
                 city: geo_meta?.city || null,
             };
-        } catch (error) { 
+        } catch (error) {
             tools.serverLog(`Error parsing user data for match_id ${row.match_id}: ${error}`,"getConversation-100");
             user2Details = {
                 fullname: row.other_user_fullname || '',
@@ -100,6 +104,16 @@ export default async function getConversation(matchId) {
                 uid: row.other_user_id || '',
                 city: null,
             };
+        }
+
+        if (row.other_user_read_receipts === '1') {
+            const [[viewerRow]] = await db_pool.query(
+                `SELECT user_privacy_read_receipts FROM users WHERE user_id = ?`,
+                [sessions.currentUserID]
+            );
+            if (viewerRow?.user_privacy_read_receipts === '1') {
+                canSeeReadReceipts = (await getSubscriptionTier(sessions.currentUserID)) === 'vip';
+            }
         }
     }
 
@@ -122,26 +136,43 @@ export default async function getConversation(matchId) {
                     message: convo.str ?? null,
                     src: convo.src ?? null,
                     dateAdded: row.convo_date_added ?? null,
+                    // Only meaningful (and only sent) for messages the viewer sent -- whether
+                    // the viewer read something they received is never ambiguous to them.
+                    read: (fromMe && canSeeReadReceipts) ? (row.convo_status === '1') : undefined,
                 });
-                // Track the last message (messages are ordered ASC, so last one wins)
-                lastMessageId = row.convo_id;
-                lastMessageFromMe = fromMe;
-                lastMessageStatus = row.convo_status;
             }
         } catch (error) {
              tools.serverLog(`Error parsing conversation message for convo_id ${row.convo_id}: ${error}`,"getConversation-200");
         }
     }
 
-    // UPDATE: Mark last message as read if it's not from me and is currently unread
-    if (lastMessageId && !lastMessageFromMe && lastMessageStatus === '0') {
-        try {
-            const updateSql = `UPDATE conversations SET convo_status = '1' WHERE convo_id = ?`;
-            await db_pool.query(updateSql, [lastMessageId]);
-        } catch (error) {
-            tools.serverLog(`Error updating message status for convo_id ${lastMessageId}: ${error}`,'getConversation-300');
+    // Mark every unread message NOT sent by the viewer as read -- covers the whole
+    // backlog, not just the latest message, so earlier messages don't stay stuck
+    // "unread" forever once the viewer has actually seen the conversation.
+    try {
+        const [updateResult] = await db_pool.query(
+            `UPDATE conversations c
+             INNER JOIN matches m ON m.match_id = c.convo_match_id
+             SET c.convo_status = '1'
+             WHERE c.convo_match_id = ?
+               AND c.convo_status = '0'
+               AND (
+                 (m.match_user_id_from = ? AND c.convo_by_initiator = '0') OR
+                 (m.match_user_id_from != ? AND c.convo_by_initiator = '1')
+               )`,
+            [matchId, sessions.currentUserID, sessions.currentUserID]
+        );
+        // @ts-ignore
+        if (updateResult?.affectedRows > 0 && io) {
+            // Thin "something changed" ping, no read-status payload -- the sender's
+            // next getConversation() call re-derives `read` under the same privacy
+            // gate above, so this can't leak receipt data to someone not entitled to it.
+            io.to(`match-${matchId}`).emit('messages-read', { matchId });
         }
+    } catch (error) {
+        tools.serverLog(`Error updating message status for match_id ${matchId}: ${error}`,'getConversation-300');
     }
+
     response.code = 200;
     response.message = messages.length > 0 ? 'ok' : 'No messages yet';
     response.u2deets = user2Details;

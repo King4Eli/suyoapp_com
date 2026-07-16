@@ -55,7 +55,7 @@ core_router.post('/:action', async (req, res) => {
             return res.json(chats);
         case 'getConversation':
             const matchID = req.body?.matchID;
-            const convo = await getConversation(matchID);
+            const convo = await getConversation(matchID, req.app.get('io'));
             return res.json(convo);
         case 'getProfile':
             const profile = await getProfile();

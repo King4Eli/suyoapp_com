@@ -65,6 +65,13 @@ interface convoInterface {
     message: string | null;
     src: any[] | null;
     isUploading?: boolean;
+    // 'failed' keeps the bubble on screen (instead of deleting it) with a retry
+    // affordance -- `src`/`message` still hold the original local data needed to
+    // retry, since a failed upload never gets overwritten with a server URL.
+    status?: 'sending' | 'failed';
+    // Only ever present on fromMe messages, and only when the viewer is entitled
+    // to see it (VIP + mutual read-receipts privacy setting) -- see getConversation.js.
+    read?: boolean;
 }
 
 export function Screen_conversation({ navigation, route }: { navigation: any, route: any }) {
@@ -93,6 +100,9 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     const [reloadIfRealtimeData_File, setReloadIfRealtimeData_File] = useState<boolean>(false);
     const [socketConnected, setSocketConnected] = useState<boolean>(SocketClient.isConnected());
     const [peerPresent, setPeerPresent] = useState<boolean>(false);
+    const [peerTyping, setPeerTyping] = useState<boolean>(false);
+    const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const isTypingRef = useRef(false);
 
     const bottomSheet_convotools = {
         ref: useRef<BottomSheet>(null), snap: useMemo(() => ['35%'], [])
@@ -152,6 +162,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                 case 'connect_error':
                     setSocketConnected(false);
                     setPeerPresent(false);
+                    setPeerTyping(false);
                     break;
                 case 'match-room-status':
                     if (data.matchId === matchId) setPeerPresent(Boolean(data.peerPresent));
@@ -160,7 +171,24 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                     if (data.matchId === matchId) setPeerPresent(true);
                     break;
                 case 'peer-left':
-                    if (data.matchId === matchId) setPeerPresent(false);
+                    if (data.matchId === matchId) {
+                        setPeerPresent(false);
+                        setPeerTyping(false);
+                    }
+                    break;
+                case 'peer-typing':
+                    if (data.matchId === matchId) setPeerTyping(true);
+                    break;
+                case 'peer-stop-typing':
+                    if (data.matchId === matchId) setPeerTyping(false);
+                    break;
+                case 'messages-read':
+                    // Thin ping, no payload beyond matchId -- refetching would also work,
+                    // but the sender already knows exactly what state to flip: every
+                    // message they sent just became read.
+                    if (data.matchId === matchId) {
+                        setConversations((prev) => prev.map((m) => (m.fromMe ? { ...m, read: true } : m)));
+                    }
                     break;
             }
         });
@@ -170,10 +198,40 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         }
 
         return () => {
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+            if (isTypingRef.current) {
+                isTypingRef.current = false;
+                SocketClient.socketEmit('stop-typing', { matchId });
+            }
             SocketClient.socketEmit('leave-match-room', { matchId });
             SocketClient.removeListener(listenerId);
         };
     }, [route.params?.matchId]);
+
+    // Emits 'typing' at most once per typing "burst" and auto-emits 'stop-typing'
+    // after a short pause, so the peer's indicator doesn't get stuck on if the
+    // sender stops typing without sending (or backgrounds the app).
+    const handleTextChange = (text: string) => {
+        setInputText(text);
+        const matchId = route.params?.matchId;
+        if (!matchId) return;
+
+        if (text.trim().length > 0) {
+            if (!isTypingRef.current) {
+                isTypingRef.current = true;
+                SocketClient.socketEmit('typing', { matchId });
+            }
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = setTimeout(() => {
+                isTypingRef.current = false;
+                SocketClient.socketEmit('stop-typing', { matchId });
+            }, 2500);
+        } else if (isTypingRef.current) {
+            isTypingRef.current = false;
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+            SocketClient.socketEmit('stop-typing', { matchId });
+        }
+    };
 
     // profile
     useEffect(() => {
@@ -897,6 +955,95 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
 
 
 
+    // Tells the peer's socket room a new message arrived (best-effort toast on their side).
+    const notifyPeerRealtime = (lastMessage: string) => {
+        const jy = getProfile?.profile?.fullname ?? "";
+        if (!getUser2Deets?.uid) return;
+        SocketClient.emit("/pushUser/" + getUser2Deets?.uid, {
+            matchId: funt.matchId,
+            type: "single-convo",
+            payload: {
+                firstName: (jy.split(" ")?.[0]) ?? jy,
+                lastMessage,
+            }
+        });
+    };
+
+    // Sends (or resends) a single text bubble. Independent of any other bubble in
+    // the batch -- one failing doesn't affect the others, and each can be retried
+    // on its own by tapping it.
+    const attemptSendText = async (msg: convoInterface) => {
+        setConversations((prev) => prev.map((m) => (m.messageId === msg.messageId ? { ...m, status: 'sending' } : m)));
+        try {
+            const response = await _http_request({
+                customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushConversation",
+                reqType: 'POST',
+                bodyArray: { messagee: msg.message, match_id: funt.matchId }
+            });
+            if (response?.code === 200) {
+                setConversations((prev) => prev.map((m) => (m.messageId === msg.messageId ? { ...m, status: undefined } : m)));
+                notifyPeerRealtime(msg.message ?? '');
+            } else {
+                setConversations((prev) => prev.map((m) => (m.messageId === msg.messageId ? { ...m, status: 'failed' } : m)));
+            }
+        } catch (error) {
+            logReport({ type: "function -convo", useraction: "attemptSendText", logMessage: 'Send message error: ', stackTrace: error });
+            setConversations((prev) => prev.map((m) => (m.messageId === msg.messageId ? { ...m, status: 'failed' } : m)));
+        }
+    };
+
+    // Sends (or resends) a single media bubble. `msg.src` still holds the local
+    // file:// uri(s) until a send actually succeeds (success overwrites them with
+    // the uploaded server path), so a failed/retried bubble always has what it
+    // needs to re-upload from scratch.
+    const attemptSendMedia = async (msg: convoInterface) => {
+        setConversations((prev) => prev.map((m) => (m.messageId === msg.messageId ? { ...m, status: 'sending', isUploading: true } : m)));
+        const mediaType: UploadDescriptor['mediaType'] = msg.type === 'audio' ? 'audio' : (msg.type === 'video' ? 'video' : 'img');
+        try {
+            const uploaded: UploadedMedia[] = [];
+            for (const srcItem of (msg.src ?? [])) {
+                if (!srcItem?.p) continue;
+                const { name } = buildUploadTarget(srcItem?.original ?? null, mediaType);
+                uploaded.push(await uploadWithPresigned({
+                    uri: srcItem.p,
+                    name,
+                    type: mediaType === 'audio' ? 'audio/m4a' : (mediaType === 'video' ? 'video/mp4' : 'image/jpeg'),
+                    mediaType,
+                    meta: { w: srcItem.w ?? null, h: srcItem.h ?? null, size: srcItem.size ?? null, d: srcItem.d ?? null, original: srcItem.original ?? null },
+                }));
+            }
+
+            const file_meta = uploaded.map((item) => ({
+                url: item.src.p, path: item.src.p, w: item.src.w ?? null, h: item.src.h ?? null,
+                size: item.src.size ?? null, d: item.src.d ?? null, original: item.src.original ?? null,
+            }));
+
+            const response = await _http_request({
+                customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushConversation",
+                reqType: 'POST',
+                bodyArray: { match_id: funt.matchId, file_meta }
+            });
+
+            if (response?.code === 200) {
+                setConversations((prev) => prev.map((m) => (m.messageId === msg.messageId
+                    ? { ...m, src: uploaded.map((u) => u.src), status: undefined, isUploading: false }
+                    : m)));
+                notifyPeerRealtime(mediaType === 'video' ? '>>>video' : (mediaType === 'img' ? '>>>photo' : '>>>audio'));
+            } else {
+                setConversations((prev) => prev.map((m) => (m.messageId === msg.messageId ? { ...m, status: 'failed', isUploading: false } : m)));
+            }
+        } catch (error) {
+            logReport({ type: "function -convo", useraction: "attemptSendMedia", logMessage: 'Send/retry media error', stackTrace: error });
+            setConversations((prev) => prev.map((m) => (m.messageId === msg.messageId ? { ...m, status: 'failed', isUploading: false } : m)));
+        }
+    };
+
+    const retryMessage = (item: convoInterface) => {
+        if (item.status !== 'failed') return;
+        if (item.type === 'text') attemptSendText(item);
+        else attemptSendMedia(item);
+    };
+
     const sendMessage = async (presetText?: string) => {
         if (isUploadingMedia) return;
 
@@ -914,11 +1061,10 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         // Process images/videos
         getInputImageVideo.forEach((file, index) => {
             const mediaType: UploadDescriptor['mediaType'] = (file.type ?? '').startsWith('video') ? 'video' : 'img';
-            const { name } = buildUploadTarget(file.fileName ?? `media_${index}`, mediaType);
             if (!file.uri) return;
             uploadDescriptors.push({
                 uri: file.uri,
-                name,
+                name: `media_${index}`,
                 type: file.type ?? (mediaType === 'video' ? 'video/mp4' : 'image/jpeg'),
                 mediaType,
                 meta: {
@@ -933,68 +1079,64 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
 
         // Process audio
         if (hasAudio && getInputAudio) {
-            const { name, } = buildUploadTarget(getInputAudio.split('/').pop() ?? `voice_note_${Date.now()}.m4a`, 'audio');
             uploadDescriptors.push({
                 uri: getInputAudio,
-                name,
+                name: getInputAudio.split('/').pop() ?? `voice_note_${Date.now()}.m4a`,
                 type: 'audio/m4a',
                 mediaType: 'audio',
                 meta: {
                     d: recordingMs,
                     size: null,
-                    original: name,
+                    original: getInputAudio.split('/').pop() ?? null,
                 },
             });
         }
 
-        // Prepare optimistic messages with local data
+        // Prepare optimistic messages with local data -- src holds the LOCAL uri
+        // until attemptSendMedia successfully uploads it, which is also what lets
+        // a failed send retry from the same local file.
         let outgoingMessages: convoInterface[] = [];
-        let messageIdsToUpdate: string[] = [];
 
-        // Add media messages with local uris
         if (uploadDescriptors.length > 0) {
-            // Group by media type
             const imagesVideos = uploadDescriptors.filter((d) => d.mediaType === 'img' || d.mediaType === 'video');
             const audios = uploadDescriptors.filter((d) => d.mediaType === 'audio');
 
             if (imagesVideos.length > 0) {
                 const hasVideo = imagesVideos.some(d => d.mediaType === 'video');
-                const messageId = help.randomAlphanumeric(29);
-                messageIdsToUpdate.push(messageId);
                 outgoingMessages.push({
-                    messageId,
+                    messageId: help.randomAlphanumeric(29),
                     fromMe: true,
                     type: hasVideo ? "video" : "image",
                     message: null,
                     src: imagesVideos.map((d) => ({ p: d.uri, w: d.meta.w, h: d.meta.h, size: d.meta.size, d: d.meta.d, original: d.meta.original })),
-                    isUploading: true
+                    isUploading: true,
+                    status: 'sending',
                 });
             }
 
             if (audios.length > 0) {
-                const messageId = help.randomAlphanumeric(29);
-                messageIdsToUpdate.push(messageId);
                 outgoingMessages.push({
-                    messageId,
+                    messageId: help.randomAlphanumeric(29),
                     fromMe: true,
                     type: "audio",
                     message: null,
                     src: audios.map((d) => ({ p: d.uri, d: d.meta.d, size: d.meta.size, original: d.meta.original })),
-                    isUploading: true
+                    isUploading: true,
+                    status: 'sending',
                 });
             }
         }
 
         // Add text message if exists
         if (messageText.length > 0) {
-            const messageId = help.randomAlphanumeric(29);
             outgoingMessages.push({
-                messageId,
+                messageId: help.randomAlphanumeric(29),
                 fromMe: true,
                 type: "text",
                 message: messageText,
                 src: null,
-                isUploading: false
+                isUploading: false,
+                status: 'sending',
             });
         }
 
@@ -1003,112 +1145,18 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         setInputText('');
         setInputAudio(null);
         setRecordingSamples([]);
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        if (isTypingRef.current) {
+            isTypingRef.current = false;
+            SocketClient.socketEmit('stop-typing', { matchId: funt.matchId });
+        }
 
         // Add optimistic messages to UI
         setConversations((prev) => [...outgoingMessages, ...prev]);
-
         setIsUploadingMedia(true);
 
-        let uploadedMedia: UploadedMedia[] = [];
         try {
-            for (const descriptor of uploadDescriptors) {
-                const aa = await uploadWithPresigned(descriptor);
-                uploadedMedia.push(aa);
-            }
-        } catch (error) {
-            Toastx.show({ message: 'Unable to upload media. Please try again.', type: 'error' });
-            logReport({
-                type: "function -convo",
-                useraction: "uploadWithPresigned",
-                logMessage: "Unknown error during uploadWithPresigned",
-                stackTrace: error
-            });
-
-            // Remove optimistic messages on upload error
-            setConversations((prev) => prev.filter(msg => !messageIdsToUpdate.includes(msg.messageId)));
-            setIsUploadingMedia(false);
-            return;
-        }
-
-        // Update messages with uploaded src
-        setConversations((prev) => prev.map(msg => {
-            if (messageIdsToUpdate.includes(msg.messageId)) {
-                // Find corresponding uploaded media
-                const mediaType = msg.type === 'image' || msg.type === 'video' ? (msg.type === 'video' ? 'video' : 'img') : 'audio';
-                const uploadedForType = uploadedMedia.filter(m => m.mediaType === mediaType);
-                return {
-                    ...msg,
-                    src: uploadedForType.map(m => m.src),
-                    isUploading: false
-                };
-            }
-            return msg;
-        }));
-
-        // Prepare file_meta array for backend
-        const file_meta: any[] = uploadedMedia.map((item) => ({
-            url: item.src.p,
-            path: item.src.p,
-            w: item.src.w ?? null,
-            h: item.src.h ?? null,
-            size: item.src.size ?? null,
-            d: item.src.d ?? null,
-            original: item.src.original ?? null,
-        }));
-
-        const hasUploadedVideo = uploadedMedia.some((m) => m.mediaType === 'video');
-        const realTimeData_updates = messageText.length > 0 ? messageText : (hasUploadedVideo ? ">>>video" : (uploadedMedia.some(m => m.mediaType === 'img') ? ">>>photo" : (uploadedMedia.some(m => m.mediaType === 'audio') ? ">>>audio" : "")));
-
-        try {
-            const response = await _http_request({
-                customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushConversation",
-                reqType: 'POST',
-                bodyArray: {
-                    messagee: messageText,
-                    match_id: funt.matchId,
-                    file_meta: file_meta.length > 0 ? file_meta : undefined
-                }
-            });
-
-            if (response?.code === 200) {
-                const jy = getProfile?.profile?.fullname ?? "";
-                if (getUser2Deets?.uid) {
-                    SocketClient.emit("/pushUser/" + getUser2Deets?.uid, {
-                        matchId: funt.matchId,
-                        type: "single-convo",
-                        payload:
-                        {
-                            firstName: (jy.split(" ")?.[0]) ?? jy,
-                            lastMessage: realTimeData_updates,
-                        }
-                    });
-                    const d = new Date();
-                    const hours24 = d.getHours();
-                    const hours12 = hours24 % 12 || 12;
-                    const minutes = String(d.getMinutes()).padStart(2, "0");
-                    const ampm = hours24 >= 12 ? "pm" : "am";
-                }
-            } else if (response !== null) {
-                Alert.alert('Error!', response?.message ?? 'Unable to send message.');
-                // Remove optimistic update on error
-                setConversations((prev) => prev.filter(msg =>
-                    !outgoingMessages.some(out => out.messageId === msg.messageId)
-                ));
-            } else {
-                //setConvoSendingstatus(null);
-            }
-        } catch (error) {
-            logReport({
-                type: "function -convo",
-                useraction: "sendMessage",
-                logMessage: 'Send message error: ',
-                stackTrace: error
-            });
-            // Remove optimistic update on error
-            setConversations((prev) => prev.filter(msg =>
-                !outgoingMessages.some(out => out.messageId === msg.messageId)
-            ));
-            Alert.alert('Error!', 'Failed to send message.');
+            await Promise.allSettled(outgoingMessages.map((m) => (m.type === 'text' ? attemptSendText(m) : attemptSendMedia(m))));
         } finally {
             flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
             setRecordingMs(0);
@@ -1251,6 +1299,18 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                         </View>
                     )}
                 </View>
+
+                {item.status === 'failed' && (
+                    <Pressable onPress={() => retryMessage(item)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4, alignSelf: item.fromMe ? 'flex-end' : 'flex-start' }}>
+                        <IonIcon name="alert-circle" size={14} color="#ff3b30" />
+                        <Text style={{ color: '#ff3b30', fontSize: 12 }}>Failed to send -- tap to retry</Text>
+                    </Pressable>
+                )}
+                {item.fromMe && item.status !== 'failed' && typeof item.read === 'boolean' && (
+                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 2 }}>
+                        <IonIcon name={item.read ? "checkmark-done" : "checkmark"} size={14} color={item.read ? colors.accent : colors.textSecondary} />
+                    </View>
+                )}
             </View>
         );
     };
@@ -1286,10 +1346,14 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                                 <Text style={{ fontSize: 16, fontWeight: 'bold', textTransform: "capitalize" }}>{getUser2Deets?.fullname || "Your match"}</Text>
                                 <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: presenceColor }} />
                             </View>
-                            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                                {getUser2Deets?.city && <Text style={{ color: colors.textSecondary }}><IonIcon name="location-outline" size={14} color={colors.accent} /> {getUser2Deets?.city}</Text>}
-                            </View>
-                            <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Read bio for conversation idea.</Text>
+                            {peerTyping ? (
+                                <Text style={{ color: colors.accent, fontSize: 13, fontStyle: 'italic' }}>typing...</Text>
+                            ) : (<>
+                                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                                    {getUser2Deets?.city && <Text style={{ color: colors.textSecondary }}><IonIcon name="location-outline" size={14} color={colors.accent} /> {getUser2Deets?.city}</Text>}
+                                </View>
+                                <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Read bio for conversation idea.</Text>
+                            </>)}
                         </View>
                         <IonIcon name="chevron-forward" size={20} color={colors.accent} />
                     </Pressable>
@@ -1501,7 +1565,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                         ref={inputTextRef}
                         style={styles.conversation_textInput}
                         value={inputText}
-                        onChangeText={setInputText}
+                        onChangeText={handleTextChange}
                         placeholder="Send a message"
                         placeholderTextColor={colors.placeholder}
                         multiline

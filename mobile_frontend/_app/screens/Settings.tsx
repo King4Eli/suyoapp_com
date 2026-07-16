@@ -25,6 +25,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   const [privacyShowDistance, setPrivacyShowDistance] = useState(true);
   const [privacyShowAge, setPrivacyShowAge] = useState(true);
   const [privacyIncognitoMode, setPrivacyIncognitoMode] = useState(false);
+  const [privacyReadReceipts, setPrivacyReadReceipts] = useState(false);
   const [notifyPushEnabled, setNotifyPushEnabled] = useState(true);
   const [notifyEmailEnabled, setNotifyEmailEnabled] = useState(true);
 
@@ -59,6 +60,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     showDistance: true,
     showAge: true,
     incognitoMode: false,
+    readReceipts: false,
   };
   const notificationDefaults = {
     pushEnabled: true,
@@ -76,6 +78,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         setPrivacyShowDistance(privacy?.showDistance ?? privacyDefaults.showDistance);
         setPrivacyShowAge(privacy?.showAge ?? privacyDefaults.showAge);
         setPrivacyIncognitoMode(privacy?.incognitoMode ?? privacyDefaults.incognitoMode);
+        setPrivacyReadReceipts(privacy?.readReceipts ?? privacyDefaults.readReceipts);
       } catch {
         if (mounted) setProfile(null);
       }
@@ -160,6 +163,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
             showDistance: privacyShowDistance,
             showAge: privacyShowAge,
             incognitoMode: privacyIncognitoMode,
+            readReceipts: privacyReadReceipts,
           }
         }
       });
@@ -184,6 +188,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     setPrivacyShowDistance(privacyDefaults.showDistance);
     setPrivacyShowAge(privacyDefaults.showAge);
     setPrivacyIncognitoMode(privacyDefaults.incognitoMode);
+    setPrivacyReadReceipts(privacyDefaults.readReceipts);
     try {
       const response = await _http_request({
         customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushProfile",
@@ -1245,6 +1250,14 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 subtitle="Only people you liked can see you"
                 value={privacyIncognitoMode}
                 onValueChange={setPrivacyIncognitoMode}
+              />
+              <ModernSwitch
+                icon="checkmark-done-outline"
+                title="Read receipts"
+                subtitle="See when they've read your messages -- only works if they have it on too"
+                value={privacyReadReceipts}
+                onValueChange={setPrivacyReadReceipts}
+                premiumLock
                 hr={false}
               />
             </View>

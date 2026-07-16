@@ -1,0 +1,62 @@
+# FEATURES — generated from a read-through of api_v1/routers + mobile_frontend/_app/screens
+# not a marketing doc -- this reflects what the code actually does, including what's stubbed/broken.
+# tiers are additive: VIP gets everything PREMIUM gets, PREMIUM gets everything FREE gets, plus what's listed under each.
+
+# CORE (ALL TIERS)
+- Phone-number + SMS OTP login and signup (no password). login.js / signup.js, Auth_Login.tsx / Auth_Signup.tsx.
+- Session via signed JWT (HS256), sent as x-omi-auth header, ~10 day expiry (SESSION_TTL_SECONDS).
+- Change phone number / change email, each gated behind its own OTP re-verification (pushNewPhonenumber.js, pushNewEmail.js).
+- Per-IP and per-phone-number rate limiting on every OTP request/verify step (login, signup, phone change, email change).
+- Full bio: about, height, gender, ethnicity, education, relationship goal, school, political view,
+  hometown, languages, job, smoking/drinking/children/pet, religion, plus up to 6 photos.
+- Profile prompts (question + answer, pick from an admin-curated prompt list) -- ProfileEditPrompts.tsx.
+- Interests (pick from an admin-curated tag list, grouped by category) -- ProfileEditInterests.tsx.
+- Preferences: age range, height range, distance radius, gender/ethnicity/education/religion/etc. filters -- PreferenceEdit.tsx.
+- Privacy toggles: show/hide age, show/hide distance, incognito mode (hide from discovery unless already matched).
+- Verified badge (user_verified flag; nothing in the codebase currently sets this automatically -- admin/manual
+  only, no in-app verification flow yet -- see todo.txt).
+- Streak tracker UI (7-day dot ring) -- BROKEN, see todo.txt.
+- Swipe deck (Peoples.tsx) sourced from a geohash-bucketed radius search joined against the caller's
+  preferences (age/gender/education/ethnicity/religion/etc.), excluding anyone already liked/passed/matched.
+- Like / pass / super-like ("rose"). Roses are a spendable resource -- daily allowance differs by tier, see below.
+- Single-profile deep-link lookup (tap into one candidate's full card from the deck).
+- Report user, with a reason and a snapshot of recent client-side debug stats attached (pushLogReports.js).
+- Block via match-status transition (matches.match_status: 0=waiting,1=match,2=not-interested,3=block,4=reported,5=superlike).
+- Match list with unread/your-turn/all filters, new-connections rail, likes-received teaser card (Chats.tsx).
+- 1:1 conversation thread: text, image, video, audio messages (Conversations.tsx / pushConversation.js).
+- Resend on failure: a failed send (text or media) stays on screen with a "tap to retry" affordance instead of
+  silently vanishing; each message in a batch sends/retries independently of the others.
+- Real-time delivery over Socket.IO: per-user room + per-match room, live "peer present/joined/left" presence,
+  new-message and new-match/new-like push events, live typing indicator (realtimedata.js).
+- Per-message read state (conversations.convo_status) marked read on conversation open, covering the whole
+  unread backlog, not just the latest message. See VIP for who actually gets shown this as a receipt.
+- Push notifications for new likes and new matches.
+- Device registration (push token + device stats) -- pushDevice.js.
+- Client-side error/action logging shipped to the server (pushLogReports.js) for debugging without a full APM.
+- Location updates for discovery radius -- pushLocation.js.
+- Config/lookup mapper endpoint (interests, prompts, religions, bucket-type config) fetched once per app session.
+- Payment history screen; subscription and one-time purchases via Stripe (web/Android) and native IAP
+  (Apple App Store / Google Play) -- Purchase_Subscribe.tsx, Purchase_Consumable.tsx, pay.js, payments/gateway.js,
+  global/iapVerify.js. Webhook-driven fulfillment + a background job that expires abandoned/pending checkout
+  attempts (expirePendingPayments.js).
+- "Boost visibility" button on the Chats hero card -- currently just an upsell link to the subscription screen
+  for every tier, no distinct boost mechanic implemented behind it yet.
+
+# FREE
+- Daily like cap (FREE_LIKE_DAILY_LIMIT, default 20/day).
+- 2 roses (super-likes) per day (ROSE_DAILY_ALLOWANCE.free), no free rewind -- must buy a one-time rewind per
+  match instead (global/entitlements.js).
+- "Who liked you" preview image is blurred (Chats.tsx) until upgrading.
+
+# PREMIUM (PLUS)
+- Unlimited likes -- the free-tier daily cap check is skipped entirely for any non-free tier (pushPeopleToMatch.js).
+- 5 roses (super-likes) per day (ROSE_DAILY_ALLOWANCE.plus).
+- Free rewind (undo last swipe) on every match, no purchase needed.
+- "Who liked you" preview image unblurred as soon as any active subscription exists (Plus or VIP).
+
+# VIP
+- 10 roses (super-likes) per day (ROSE_DAILY_ALLOWANCE.vip); everything else Plus has, VIP also has.
+- Read receipts: see whether someone read the message you sent them. VIP-only, and mutual (WhatsApp-style) --
+  requires BOTH you and the other person to have the setting on (Settings.tsx Privacy sheet); VIP status is
+  re-checked server-side on save (pushProfile.js), not just hidden client-side. This is the first live use of
+  Settings.tsx's premiumLock toggle mechanism.

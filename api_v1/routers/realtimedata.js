@@ -219,6 +219,19 @@ export function setupRealtime(io) {
             socket.to(roomName).emit('peer-left', { matchId, userID });
         });
 
+        // Typing indicator -- ephemeral, no persistence. Gated on having already
+        // joined the match room (join-match-room already verified the caller is an
+        // active participant), so this can't be used to spam an arbitrary match's
+        // room without first passing that check.
+        socket.on('typing', ({ matchId } = {}) => {
+            if (!matchId || !socket.data.matchRooms.has(matchId)) return;
+            socket.to(`match-${matchId}`).emit('peer-typing', { matchId, userID });
+        });
+        socket.on('stop-typing', ({ matchId } = {}) => {
+            if (!matchId || !socket.data.matchRooms.has(matchId)) return;
+            socket.to(`match-${matchId}`).emit('peer-stop-typing', { matchId, userID });
+        });
+
         // Disconnect handler
         socket.on('disconnect', (reason) => {
             console.log(`🟨 [SOCKET] DISCONNECTED -> socket=${socket.id} userID=${userID} reason=${reason}`);
