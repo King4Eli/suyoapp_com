@@ -1427,7 +1427,6 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         <SafeAreaView style={[styles.container, { paddingTop: headerHeight, backgroundColor: colors.background }]} edges={['bottom']}>
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
                 style={{ flex: 1 }} >
 
                 <View style={{ paddingVertical: 5 }}>

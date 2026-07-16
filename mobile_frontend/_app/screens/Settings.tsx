@@ -110,7 +110,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
 
       useLayoutEffect(() => {
           navigation.setOptions({
-              headerTransparent: true,
               headerTitle: ''
           });
       }, []);

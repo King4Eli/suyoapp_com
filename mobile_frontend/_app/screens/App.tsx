@@ -135,6 +135,7 @@ const MainApp: React.FC = () => {
         }} />
  
       <TabBottom.Screen name={namer.navigation.profile} component={Screen_profile} options={{
+        headerTransparent: true,
         tabBarIcon: () => <IIcon name="person-outline" size={30} color="#4F8EF7" />,
       }} />
     </TabBottom.Navigator>
@@ -189,7 +190,7 @@ const MainApp: React.FC = () => {
                     fontFamily: 'Helvetica',
                   }, headerStyle: { backgroundColor: '#1a1919ff' }
                 }} />
-                <Stack.Screen name={namer.navigation.settings} component={Screen_settings} options={{ headerBackTitle: '' }} />
+                <Stack.Screen name={namer.navigation.settings} component={Screen_settings} options={{ headerBackTitle: '', headerTransparent: true }} />
 
               </>
             )}

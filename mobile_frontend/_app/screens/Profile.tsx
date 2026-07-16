@@ -141,7 +141,6 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
     useLayoutEffect(() => {
         navigation.setOptions({
-            headerTransparent: true,
             headerTitle: '',
             headerRight:()=>  <Pressable style={stylesx.headerButton} onPress={() => navigation.navigate(namer.navigation.settings)}>
                     <MIcon name="cog-outline" size={25} color={colors.text} />
