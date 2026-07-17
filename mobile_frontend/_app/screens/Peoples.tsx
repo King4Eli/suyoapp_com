@@ -138,6 +138,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
     useLayoutEffect(() => {
         navigation.setOptions({
             headerShadowVisible: false,
+            headerStyle: { backgroundColor: colors.background },
             headerTitleAlign: 'left',
             headerTitle: () => <View style={{ alignItems: "center", flexDirection: "row", gap: 2 }}>
                     {getPeopleToMatch?.[0]?.user_verified === 1 && <IIcon name="checkmark-done-circle-sharp" size={20} color={colors.accent} />}
