@@ -17,7 +17,6 @@ import FastImage from 'react-native-fast-image';
 import { SafeImage } from '../funcs/customImage';
 import { SocketClient } from '../funcs/socket_realtimeData';
 import ImageViewing from 'react-native-image-viewing';
-import { useStableHeaderHeight } from '../funcs/useStableHeaderHeight';
 import { useTheme } from '../funcs/theme';
 
 const CONFIG = {
@@ -112,7 +111,6 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     const ajjj=useCallback(bottomsheet_renderBackdrop,[]);
     const { colors } = useTheme();
 
-    const headerHeight = useStableHeaderHeight();
     const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
     const imageDomain = __MAPPER?.img_domain[0];
     const [getProfile, setProfile] = useState<any>(null);
@@ -956,6 +954,8 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
 
     useLayoutEffect(() => {
         navigation.setOptions({
+            headerStyle: { backgroundColor: colors.background },
+            headerShadowVisible: false,
             headerTitleAlign: 'left',
             headerTitle: () => <View style={{ alignItems: "center", flexDirection: "row", gap: 5 }}>
                 <Text style={{ fontSize: 18, fontWeight: 'bold', textTransform: "capitalize" }}>{getUser2Deets?.fullname}</Text> 
@@ -1424,7 +1424,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     }));
 
     return (<>
-        <SafeAreaView style={[styles.container, { paddingTop: headerHeight, backgroundColor: colors.background }]} edges={['bottom']}>
+        <SafeAreaView style={[styles.container, {backgroundColor: colors.background }]} edges={['bottom']}>
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={{ flex: 1 }} >

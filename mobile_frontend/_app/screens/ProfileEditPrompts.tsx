@@ -5,7 +5,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import IIcon from 'react-native-vector-icons/Ionicons';
-import { useStableHeaderHeight } from '../funcs/useStableHeaderHeight';
 import { _http_request } from '../funcs/functions';
 import { __CONFIG__ } from '../funcs/static';
 import { MAX_PROMPTS, PromptEntry } from './ProfileEdit';
@@ -14,7 +13,6 @@ import { useTheme, ThemeColors } from '../funcs/theme';
 export function Screen_editProfilePrompts({ navigation, route }: { navigation: any; route: any }) {
     const { colors } = useTheme();
     const styles = useMemo(() => createStyles(colors), [colors]);
-    const headerHeight = useStableHeaderHeight();
     const existingPrompts: PromptEntry[] = route.params?.existingPrompts ?? [];
     const onSave: ((updated: PromptEntry[]) => void) | undefined = route.params?.onSave;
 
@@ -86,7 +84,7 @@ export function Screen_editProfilePrompts({ navigation, route }: { navigation: a
             <KeyboardAvoidingView
                 style={{ flex: 1 }}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 1 : 0}
             >
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                     {prompts.length > 0 && (

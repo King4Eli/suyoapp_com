@@ -23,7 +23,6 @@ import MIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { namer, __CONFIG__ } from '../funcs/static';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { _http_request, cacheStorage, help, mediaHandler, sleep, uploadHandler } from '../funcs/functions';
-import { useStableHeaderHeight } from '../funcs/useStableHeaderHeight';
 import BottomSheet, { BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
 import LinearGradient from 'react-native-linear-gradient';
@@ -412,7 +411,6 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
     const { colors } = useTheme();
     const photoStyles = useMemo(() => createPhotoStyles(colors), [colors]);
     const pgStyles = useMemo(() => createPgStyles(colors), [colors]);
-    const headerHeight = useStableHeaderHeight();
 
     const [getProfile, setProfile] = useState<any>(null);
     const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
@@ -556,6 +554,8 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
     // ── Header ─────────────────────────────────────────────────────────────
     useLayoutEffect(() => {
         navigation.setOptions({
+            headerStyle: { backgroundColor: colors.background },
+            headerShadowVisible: false,
             headerTitle: () => (
                 <Text style={pgStyles.headerTitle}>Edit Profile</Text>
             ),
@@ -805,11 +805,11 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
 
     // ─────────────────────────────────────────────────────────────────────
     return (
-        <SafeAreaView style={[pgStyles.screen, { paddingTop: headerHeight }]} edges={['bottom']} >
+        <SafeAreaView style={[pgStyles.screen, {   }]} edges={['bottom']} >
 
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 1 : 0}
                 style={{ flex: 1 }}
             >
                 <ScrollView

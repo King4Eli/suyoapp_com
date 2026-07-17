@@ -12,12 +12,10 @@ import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
 import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
 import { bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
-import { useStableHeaderHeight } from '../funcs/useStableHeaderHeight';
 import { useTheme, ThemeMode, ThemeColors } from '../funcs/theme';
 
 export function Screen_settings({ navigation }: { navigation: any }) {
   const [getProfile, setProfile] = useState<any>(null);
-  const headerHeight = useStableHeaderHeight();
   const { colors, mode, setMode } = useTheme();
   const MODERN_COLORS = colors;
   const modernStyles = useMemo(() => createModernStyles(colors), [colors]);
@@ -110,6 +108,8 @@ export function Screen_settings({ navigation }: { navigation: any }) {
 
       useLayoutEffect(() => {
           navigation.setOptions({
+              headerStyle: { backgroundColor: colors.background },
+              headerShadowVisible: false,
               headerTitle: ''
           });
       }, []);
@@ -969,7 +969,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   // Main render
   return (
     <>
-      <SafeAreaView style={{ backgroundColor:colors.background , flex:1, paddingTop: headerHeight}} edges={["bottom"]}>
+      <SafeAreaView style={{ backgroundColor:colors.background , flex:1}} edges={["bottom"]}>
         <ScrollView 
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.conainerScrollView}

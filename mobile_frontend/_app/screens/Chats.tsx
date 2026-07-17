@@ -1,11 +1,10 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useLayoutEffect } from 'react';
 import { View, Text, Pressable, StyleSheet, Animated, Easing, Platform, ImageBackground, FlatList, ScrollView, ActivityIndicator } from 'react-native';
 import { Loaderx } from '../funcs/functions_stateful';
 import { useFocusEffect } from '@react-navigation/native';
 import { namer, resourceMap, styles, __CONFIG__ } from '../funcs/static';
 import { _http_request, cacheStorage, help, logReport } from '../funcs/functions';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useStableHeaderHeight } from '../funcs/useStableHeaderHeight';
 import MIcon from "react-native-vector-icons/MaterialCommunityIcons";
 import IIcon from 'react-native-vector-icons/Ionicons';
 import FastImage from 'react-native-fast-image'
@@ -25,7 +24,6 @@ export function Screen_chat({ navigation }: { navigation: any }) {
   const [getEngagedMessages, setEngagedMessages] = useState<any>([]);
   const [getCountLikes, setCountLikes] = useState<number>(0);
   const [getImageLikes, setImageLikes] = useState<{ p: string, w: string, h: string }>({ p: "", w: "", h: "" });
-  const headerHeight = useStableHeaderHeight();
   const activeSubscription = help.getSubscriptionState(getProfile).hasActive;
   const [activeFilter, setActiveFilter] = useState<'all' | 'yourTurn' | 'verified' | 'unread'>('all');
   const [visibleMessages, setVisibleMessages] = useState<number>(6);
@@ -33,7 +31,12 @@ export function Screen_chat({ navigation }: { navigation: any }) {
   const hasLikes = getCountLikes > 0;
   const hasNewMatches = Array.isArray(getNewMatches) && getNewMatches.length > 0;
 
-
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerStyle: { backgroundColor: colors.background },
+      headerShadowVisible: false
+    })
+  });
 
   useFocusEffect(
     React.useCallback(() => {
@@ -138,7 +141,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
   const countNewMatches = getNewMatches?.length ?? 0;
   // const countTotalConvo = getEngagedMessages?.length ?? 0;
 
-  const renderHeroSection = useCallback(() => { 
+  const renderHeroSection = useCallback(() => {
     return (
       <View style={{ backgroundColor: '#0f172a', borderRadius: 16, padding: 14, overflow: 'hidden' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -154,7 +157,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
             <Text style={{ color: '#fff', fontWeight: '700' }}>Boost visibility</Text>
           </Pressable>
           {!activeSubscription && (
-          <Pressable onPress={() => navigation.navigate(namer.navigation.subscription)} style={{ flex: 1, backgroundColor: '#1d4ed8', borderRadius: 12, padding: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <Pressable onPress={() => navigation.navigate(namer.navigation.subscription)} style={{ flex: 1, backgroundColor: '#1d4ed8', borderRadius: 12, padding: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
               <IIcon name="diamond" size={18} color="#fff" />
               <Text style={{ color: '#fff', fontWeight: '700' }}>Unlock premium</Text>
             </Pressable>
@@ -200,7 +203,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
                   style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}
                   source={{ cache: 'default', uri: imageDomain + String(getImageLikes?.p) }} >
                   <View style={{ backgroundColor: 'rgba(15,23,42,0.7)', borderRadius: 18, paddingHorizontal: 12, paddingVertical: 8, alignItems: 'center' }}>
-                    <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>{getCountLikes > 99 ? '99+' : '+'+ getCountLikes}</Text>
+                    <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>{getCountLikes > 99 ? '99+' : '+' + getCountLikes}</Text>
                   </View>
                   <Text style={{ color: '#fff', marginTop: 10, fontWeight: '700' }}>See likes</Text>
                 </ImageBackground>
@@ -295,7 +298,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
   // Replace the entire FlatList section (around line 290-330) with this:
 
   return (
-    <View style={[styles.container, { paddingTop: headerHeight, backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.zcircle1} />
       <View style={styles.zcircle2} />
       <View style={styles.zcircle3} />
@@ -381,7 +384,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
           );
         }}
         ListHeaderComponent={
-          <View style={{ gap: 10}}>
+          <View style={{ gap: 10 }}>
             {renderHeroSection()}
             {renderConnectionsSection()}
             {<Text style={{ fontSize: 17, fontWeight: '700', }}>Conversations</Text>}

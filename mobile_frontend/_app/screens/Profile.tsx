@@ -1,7 +1,6 @@
 import React, { useLayoutEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { useStableHeaderHeight } from '../funcs/useStableHeaderHeight';
 import { SafeImage } from '../funcs/customImage';
 import LinearGradient from 'react-native-linear-gradient';
 import LottieView from 'lottie-react-native';
@@ -22,7 +21,6 @@ const PLAN_UI: Record<string, { icon: string; color: string; cardColors: string[
 const getPlanUi = (plan?: string | null) => PLAN_UI[String(plan ?? '').trim().toLowerCase()] ?? PLAN_UI.free;
 
 export function Screen_profile({ navigation }: { navigation: any }) {
-    const headerHeight = useStableHeaderHeight();
     const { colors } = useTheme();
     const stylesx = useMemo(() => createStylesx(colors), [colors]);
     const [profile, setProfile] = useState<any>(null);
@@ -141,6 +139,8 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
     useLayoutEffect(() => {
         navigation.setOptions({
+            headerStyle: { backgroundColor: colors.background },
+            headerShadowVisible: false,
             headerTitle: '',
             headerRight:()=>  <Pressable style={stylesx.headerButton} onPress={() => navigation.navigate(namer.navigation.settings)}>
                     <MIcon name="cog-outline" size={25} color={colors.text} />
@@ -157,7 +157,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
     }
 
     return (
-        <View style={[styles.container, {paddingTop: headerHeight,paddingLeft:0,paddingRight:0, backgroundColor: colors.background }]}>
+        <View style={[styles.container, {paddingLeft:0,paddingRight:0, backgroundColor: colors.background }]}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.conainerScrollView,{gap:14, paddingBottom:10}]}>
                 <View style={stylesx.profileCard}>
                     <View style={stylesx.profileRow}>

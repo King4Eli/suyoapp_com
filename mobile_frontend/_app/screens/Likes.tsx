@@ -7,7 +7,6 @@ import IIcon from 'react-native-vector-icons/Ionicons';
 import { BlurView } from '@react-native-community/blur';
 
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useStableHeaderHeight } from '../funcs/useStableHeaderHeight';
 import FastImage from 'react-native-fast-image';
 import { SafeImage } from '../funcs/customImage';
 import { Skeleton } from '../funcs/functions_stateful';
@@ -41,7 +40,6 @@ export function Screen_likes({ navigation }: { navigation: any }) {
     const subscriptionState = help.getSubscriptionState(getProfile);
     const activeSubscription = subscriptionState.hasActive;
  
-    const headerHeight = useStableHeaderHeight();
     const [getNewLikes, setNewLikes] = useState<any>(null);
     const [activeFilter, setActiveFilter] = useState<LikesFilter>('all');
     const [layout, setLayout] = useState({
@@ -77,6 +75,8 @@ export function Screen_likes({ navigation }: { navigation: any }) {
     }, []);
     useLayoutEffect(() => {
         navigation.setOptions({
+            headerStyle: { backgroundColor: colors.background },
+            headerShadowVisible: false,
             headerTitleAlign: 'center',
             headerTitle: () => <View style={{ alignItems: "center", flexDirection: "row", gap: 5 }}>
                 <Text style={{ fontSize: 18, fontWeight: 'bold', textTransform: "capitalize" }}>See who likes you</Text>
@@ -217,7 +217,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
         const skeletonCols = skeletonWidth >= 600 ? 3 : 2;
         const skeletonItemWidth = (skeletonWidth - 24 - (skeletonCols - 1) * 12) / skeletonCols;
         return (
-            <View style={[styles.container, { paddingTop: headerHeight, backgroundColor: colors.background }]}>
+            <View style={[styles.container, {backgroundColor: colors.background }]}>
                 <Skeleton style={{ height: 96, borderRadius: 16, marginBottom: 12 }} />
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
                     {Array.from({ length: skeletonCols * 3 }).map((_, i) => (
@@ -229,7 +229,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
     }
 
     return (
-        <View style={[styles.container, { paddingTop: headerHeight, backgroundColor: colors.background }]}>
+        <View style={[styles.container, {backgroundColor: colors.background }]}>
 
             <View style={styles.zcircle1} />
             <View style={styles.zcircle2} />

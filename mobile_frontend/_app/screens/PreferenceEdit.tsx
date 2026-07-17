@@ -8,7 +8,6 @@ import { namer, styles, __CONFIG__ } from '../funcs/static';
 import { _http_request, cacheStorage, help } from '../funcs/functions';
 import { AccordionItem } from '../funcs/customAccordion';
 import { Toastx } from '../funcs/customNotification';
-import { useStableHeaderHeight } from '../funcs/useStableHeaderHeight';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme, ThemeColors } from '../funcs/theme';
 
@@ -34,7 +33,6 @@ const defaultPreferences = {
 export function Screen_editpreference({ navigation }: { navigation: any }) {
     const { colors } = useTheme();
     const localStyles = useMemo(() => createLocalStyles(colors), [colors]);
-    const headerHeight = useStableHeaderHeight();
     const [getProfile, setProfile] = useState<any>(null);
 
     const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
@@ -173,7 +171,8 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
     useLayoutEffect(() => {
         navigation.setOptions({
             headerTitleAlign: 'center',
-            headerTransparent: true,
+            headerStyle: { backgroundColor: colors.background },
+            headerShadowVisible: false,
             headerTitle: () => <Text style={{ fontSize: 18, fontWeight: '700' }}>Edit Preferences</Text>,
             headerRight: () => (
                 <Pressable style={{ gap: 3, paddingRight: 10 }} onPress={savePreferences}>
@@ -208,7 +207,7 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
     );
 
     return (
-        <SafeAreaView style={[styles.container, localStyles.root, { paddingTop: headerHeight + 10 }]} edges={['bottom']}>
+        <SafeAreaView style={[styles.container, localStyles.root, {}]} edges={['bottom']}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.conainerScrollView, localStyles.contentContainer]}>
 
 
@@ -310,141 +309,141 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
 
 function createLocalStyles(colors: ThemeColors) {
     return StyleSheet.create({
-    root: {
-        paddingHorizontal: 0,
-        backgroundColor: colors.background,
-    },
-    contentContainer: {
-        gap: 12,
-    },
-    heroCard: {
-        backgroundColor: '#0f172a',
-        borderRadius: 18,
-        padding: 16,
-        marginHorizontal: 10,
-    },
-    heroTopRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 10,
-    },
-    heroBadge: {
-        backgroundColor: '#0ea5e9',
-        borderRadius: 999,
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-    },
-    heroBadgeText: {
-        color: '#082f49',
-        fontSize: 12,
-        fontWeight: '800',
-        textTransform: 'uppercase',
-    },
-    heroHint: {
-        color: '#cbd5e1',
-        fontSize: 12,
-    },
-    heroTitle: {
-        color: '#fff',
-        fontSize: 22,
-        fontWeight: '800',
-    },
-    heroSubtitle: {
-        color: '#cbd5e1',
-        fontSize: 13,
-        marginTop: 6,
-        lineHeight: 18,
-    },
-    tabWrap: {
-        flexDirection: 'row',
-        backgroundColor: colors.backgroundSecondary,
-        borderRadius: 14, 
-        padding: 4,
-        gap: 4,
-    },
-    tabBtn: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-        borderRadius: 10,
-        paddingVertical: 10,
-    },
-    tabBtnActive: {
-        backgroundColor: colors.surface,
-    },
-    tabText: {
-        color: colors.textSecondary,
-        fontSize: 15,
-        fontWeight: '700',
-    },
-    tabTextActive: {
-        color: colors.text,
-    },
-    card: {
-        marginHorizontal: 0,
-        borderRadius: 14,
-    },
-    inputTitle: {
-        fontSize: 16,
-        marginTop: 10,
-        fontWeight: '700',
-        textTransform: 'capitalize',
-        color: colors.text,
-    },
-    inputSubTitle: {
-        fontSize: 13,
-        marginTop: 5,
-        marginBottom: 10,
-        textTransform: 'capitalize',
-        color: colors.textSecondary,
-    },
-    paywallCard: {
-        marginHorizontal: 10,
-        borderRadius: 18,
-        backgroundColor: '#fff7ed',
-        borderWidth: 1,
-        borderColor: '#fed7aa',
-        padding: 16,
-        alignItems: 'center',
-        gap: 10,
-    },
-    moreDisabledBlock: {
-        opacity: 0.5,
-    },
-    paywallIconWrap: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#ffedd5',
-    },
-    paywallTitle: {
-        fontSize: 20,
-        fontWeight: '800',
-        color: '#9a3412',
-    },
-    paywallSubTitle: {
-        fontSize: 14,
-        lineHeight: 20,
-        textAlign: 'center',
-        color: '#7c2d12',
-    },
-    upgradeBtn: {
-        backgroundColor: '#ea580c',
-        borderRadius: 12,
-        width: '100%',
-        paddingVertical: 13,
-        alignItems: 'center',
-        marginTop: 6,
-    },
-    upgradeBtnText: {
-        color: '#fff',
-        fontSize: 15,
-        fontWeight: '800',
-    },
+        root: {
+            paddingHorizontal: 0,
+            backgroundColor: colors.background,
+        },
+        contentContainer: {
+            gap: 12,
+        },
+        heroCard: {
+            backgroundColor: '#0f172a',
+            borderRadius: 18,
+            padding: 16,
+            marginHorizontal: 10,
+        },
+        heroTopRow: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 10,
+        },
+        heroBadge: {
+            backgroundColor: '#0ea5e9',
+            borderRadius: 999,
+            paddingHorizontal: 10,
+            paddingVertical: 5,
+        },
+        heroBadgeText: {
+            color: '#082f49',
+            fontSize: 12,
+            fontWeight: '800',
+            textTransform: 'uppercase',
+        },
+        heroHint: {
+            color: '#cbd5e1',
+            fontSize: 12,
+        },
+        heroTitle: {
+            color: '#fff',
+            fontSize: 22,
+            fontWeight: '800',
+        },
+        heroSubtitle: {
+            color: '#cbd5e1',
+            fontSize: 13,
+            marginTop: 6,
+            lineHeight: 18,
+        },
+        tabWrap: {
+            flexDirection: 'row',
+            backgroundColor: colors.backgroundSecondary,
+            borderRadius: 14,
+            padding: 4,
+            gap: 4,
+        },
+        tabBtn: {
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            borderRadius: 10,
+            paddingVertical: 10,
+        },
+        tabBtnActive: {
+            backgroundColor: colors.surface,
+        },
+        tabText: {
+            color: colors.textSecondary,
+            fontSize: 15,
+            fontWeight: '700',
+        },
+        tabTextActive: {
+            color: colors.text,
+        },
+        card: {
+            marginHorizontal: 0,
+            borderRadius: 14,
+        },
+        inputTitle: {
+            fontSize: 16,
+            marginTop: 10,
+            fontWeight: '700',
+            textTransform: 'capitalize',
+            color: colors.text,
+        },
+        inputSubTitle: {
+            fontSize: 13,
+            marginTop: 5,
+            marginBottom: 10,
+            textTransform: 'capitalize',
+            color: colors.textSecondary,
+        },
+        paywallCard: {
+            marginHorizontal: 10,
+            borderRadius: 18,
+            backgroundColor: '#fff7ed',
+            borderWidth: 1,
+            borderColor: '#fed7aa',
+            padding: 16,
+            alignItems: 'center',
+            gap: 10,
+        },
+        moreDisabledBlock: {
+            opacity: 0.5,
+        },
+        paywallIconWrap: {
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#ffedd5',
+        },
+        paywallTitle: {
+            fontSize: 20,
+            fontWeight: '800',
+            color: '#9a3412',
+        },
+        paywallSubTitle: {
+            fontSize: 14,
+            lineHeight: 20,
+            textAlign: 'center',
+            color: '#7c2d12',
+        },
+        upgradeBtn: {
+            backgroundColor: '#ea580c',
+            borderRadius: 12,
+            width: '100%',
+            paddingVertical: 13,
+            alignItems: 'center',
+            marginTop: 6,
+        },
+        upgradeBtnText: {
+            color: '#fff',
+            fontSize: 15,
+            fontWeight: '800',
+        },
     });
 }

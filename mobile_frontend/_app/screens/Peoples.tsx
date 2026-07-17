@@ -8,7 +8,6 @@ import { styles, namer, colors as staticColors, __CONFIG__ } from '../funcs/stat
 import { useTheme, ThemeColors } from '../funcs/theme';
 import { _http_request, cacheStorage,    help, logReport, screenHeight, sleep } from '../funcs/functions';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useStableHeaderHeight } from '../funcs/useStableHeaderHeight';
 import { TextInput } from 'react-native-gesture-handler';
 import { LinearGradient } from 'react-native-linear-gradient';
 import { Toastx } from '../funcs/customNotification';
@@ -33,7 +32,6 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
     const [gptmd, sptmd] = useState<boolean>(false);
     const scrollViewRef = useRef<ScrollView>(null);
     const isActionLockedRef = useRef(false);
-    const headerHeight = useStableHeaderHeight();
     const [getSkippedLastPerson, setSkippedLastPerson] = useState<any|null>(null);
     const [photoIndex, setPhotoIndex] = useState(0);
     const [getFullscreenClickImageIndex, setFullscreenClickImageIndex] = useState<number | null>(null);
@@ -139,8 +137,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
     // header options
     useLayoutEffect(() => {
         navigation.setOptions({
-            headerShown: true,
-            headerTransparent: true,
+            headerShadowVisible: false,
             headerTitleAlign: 'left',
             headerTitle: () => <View style={{ paddingVertical: 6, }}>
                 <View style={{ alignItems: "center", flexDirection: "row", gap: 2 }}>
@@ -477,10 +474,10 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
 
     if (getPeopleToMatch === null) {
         return (
-            <View style={[styles.container, { paddingHorizontal: 0, paddingTop: headerHeight, backgroundColor: colors.background }]}>
+            <View style={[styles.container, { paddingHorizontal: 0 , backgroundColor: colors.background }]}>
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.conainerScrollView}>
                     <View style={[{ borderRadius: 20, overflow: 'hidden' }, deckStyles.cardShadow]}>
-                        <Skeleton style={{ width: '100%', height: (screenHeight * .94) - headerHeight - insets.bottom, borderRadius: 20 }} />
+                        <Skeleton style={{ width: '100%', height: (screenHeight * .94) - insets.bottom, borderRadius: 20 }} />
                     </View>
                     <View style={deckStyles.detailCard}>
                         <Skeleton style={{ width: '55%', height: 20, marginBottom: 12 }} />
@@ -499,7 +496,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
 
 
     return (
-        <><View style={[styles.container, { paddingHorizontal: 0, paddingTop: headerHeight, backgroundColor: colors.background }]}>
+        <><View style={[styles.container, { paddingHorizontal: 0, backgroundColor: colors.background }]}>
 
             {getPeopleToMatch?.length === 0 ? (
                 <View style={deckStyles.emptyStateWrap}>
@@ -541,7 +538,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
 
                             <ControlledCarousel ref={carouselRef} onPageChange={setPhotoIndex}
                                 pages={(currentPhotos.length > 0 ? currentPhotos : [null]).map((photo: any, idx: number) => (
-                                    <View key={`photo-${idx}`} style={{ width: '100%', height: (screenHeight * .94) - headerHeight - insets.bottom }}>
+                                    <View key={`photo-${idx}`} style={{ width: '100%', height: (screenHeight * .94) - insets.bottom }}>
                                         {photo && (<SafeImage source={{ uri: imageDomain + (photo?.p ?? "") }}
                                             onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: imageDomain + (photo?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }}
                                             style={StyleSheet.absoluteFill} resizeMode={FastImage.resizeMode.cover} fallbackIconSize={48} />)}

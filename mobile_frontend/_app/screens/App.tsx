@@ -119,23 +119,19 @@ const MainApp: React.FC = () => {
 
       <TabBottom.Screen name={namer.navigation.likes} component={Screen_likes}
         options={{
-          headerTransparent: true,
           tabBarIcon: () => <IIcon name="heart-half-outline" size={32} color="#4F8EF7" />
         }} />
       <TabBottom.Screen name={namer.navigation.chat} component={Screen_chat}
         options={{
-          headerTransparent: true,
           tabBarIcon: () => <IIcon name="chatbubble-ellipses-outline" size={30} color="#4F8EF7" />,
           headerTitleAlign: 'center',
         }} />
       <TabBottom.Screen name={namer.navigation.peoples} component={Peoples_Screen}
         options={{
-          headerShown: false,
           tabBarIcon: () => <MIcon name="cards-outline" size={30} color="#4F8EF7" />,
         }} />
  
       <TabBottom.Screen name={namer.navigation.profile} component={Screen_profile} options={{
-        headerTransparent: true,
         tabBarIcon: () => <IIcon name="person-outline" size={30} color="#4F8EF7" />,
       }} />
     </TabBottom.Navigator>
@@ -168,8 +164,8 @@ const MainApp: React.FC = () => {
             ) : (
               <>
                 <Stack.Screen name="Home" component={BottomTabNavigator} options={{ headerShown: false }} />
-                <Stack.Screen name={namer.navigation.conversation} component={Screen_conversation} options={{ headerBackTitle: '', headerTransparent: true }} />
-                <Stack.Screen name={namer.navigation.editprofile} component={Screen_editprofile} options={{ headerBackTitle: '', headerTransparent: true }} />
+                <Stack.Screen name={namer.navigation.conversation} component={Screen_conversation} options={{ headerBackTitle: '' }} />
+                <Stack.Screen name={namer.navigation.editprofile} component={Screen_editprofile} options={{ headerBackTitle: '' }} />
                 <Stack.Screen name={namer.navigation.editProfilePrompts} component={Screen_editProfilePrompts} options={{ headerBackTitle: '' }} />
                 <Stack.Screen name={namer.navigation.editProfileInterests} component={Screen_editProfileInterests} options={{ headerBackTitle: '' }} />
                 <Stack.Screen name={namer.navigation.editpreference} component={Screen_editpreference} />
@@ -190,7 +186,7 @@ const MainApp: React.FC = () => {
                     fontFamily: 'Helvetica',
                   }, headerStyle: { backgroundColor: '#1a1919ff' }
                 }} />
-                <Stack.Screen name={namer.navigation.settings} component={Screen_settings} options={{ headerBackTitle: '', headerTransparent: true }} />
+                <Stack.Screen name={namer.navigation.settings} component={Screen_settings} options={{ headerBackTitle: '' }} />
 
               </>
             )}
