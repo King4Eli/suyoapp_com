@@ -392,8 +392,8 @@ function createStylesx(colors: ThemeColors) {
         backgroundColor: colors.surface,
     },
     headerButton: {
-        width: 42,
-        height: 42,
+        width: 30,
+        height: 30,
         borderRadius: 21,
         alignItems: 'center',
         justifyContent: 'center',

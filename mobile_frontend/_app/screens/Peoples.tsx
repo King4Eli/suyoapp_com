@@ -139,18 +139,17 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
         navigation.setOptions({
             headerShadowVisible: false,
             headerTitleAlign: 'left',
-            headerTitle: () => <View style={{ paddingVertical: 6, }}>
-                <View style={{ alignItems: "center", flexDirection: "row", gap: 2 }}>
+            headerTitle: () => <View style={{ alignItems: "center", flexDirection: "row", gap: 2 }}>
                     {getPeopleToMatch?.[0]?.user_verified === 1 && <IIcon name="checkmark-done-circle-sharp" size={20} color={colors.accent} />}
                     <Text style={{ fontSize: 20, fontWeight: 'bold', textTransform: "capitalize", color: colors.text }}>{(getPeopleToMatch?.[0]?.user_fullname ?? "") + (getPeopleToMatch?.[0]?.user_bio_dob ? ", " + help.getageFromDOB(getPeopleToMatch?.[0]?.user_bio_dob) : "")}</Text>
-                </View>
-            </View>,
+                </View>,
 
             headerRight: () => !functs.onePersonProfile && (
-                <View style={[{ paddingRight: 10, flexDirection: "row", gap: 14, alignItems: "center" },
-                    {
-                        padding: 6,
-                        borderRadius: 21,
+                <View style={[
+                    {flexDirection: "row", gap: 10,
+                    
+                        paddingHorizontal: 5,
+                        borderRadius: 18,
                         alignItems: 'center',
                         justifyContent: 'center',
                         backgroundColor: colors.surface,
@@ -162,11 +161,11 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                         elevation: 3,
                     }
                 ]}>
-                    {getSkippedLastPerson !== null && <Pressable style={{ gap: 3 }} onPress={attemptRestore}>
-                        <MIcon name="backup-restore" size={30} color={colors.text} />
+                    {getSkippedLastPerson !== null && <Pressable onPress={attemptRestore}>
+                        <MIcon name="backup-restore" size={25} color={colors.text} />
                     </Pressable>}
-                    <Pressable style={{ gap: 3 }} onPress={() => { navigation.navigate(namer.navigation.editpreference); }}>
-                        <IIcon name="filter-outline" size={30} color={colors.text} />
+                    <Pressable onPress={() => { navigation.navigate(namer.navigation.editpreference); }}>
+                        <IIcon name="filter-outline" size={25} color={colors.text} />
                     </Pressable>
                 </View>),
         });
