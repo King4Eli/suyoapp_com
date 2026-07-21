@@ -175,12 +175,22 @@ signup_router.post('/', async (req, res) => {
     catch (err) {
         await connection.rollback();
         // @ts-ignore
-        if (err?.code === 'ER_DUP_ENTRY') {
-            return res.json({ code: 409, message: 'Account already exists. Please log in.' });
-        }
+        const errCode = err?.code;
         // @ts-ignore
         tools.serverLog("Error creating user: " + err.message, "signup_error_100");
-        return res.json({ code: 400, message: 'Account not created.' });
+        if (errCode === 'ER_DUP_ENTRY') {
+            return res.json({ code: 409, message: 'Account already exists. Please log in.' });
+        }
+        if (errCode === 'ER_LOCK_DEADLOCK' || errCode === 'ER_LOCK_WAIT_TIMEOUT') {
+            return res.json({ code: 409, message: 'Signup is busy right now. Please try again.' });
+        }
+        if (errCode === 'ER_DATA_TOO_LONG' || errCode === 'ER_BAD_NULL_ERROR' || errCode === 'ER_TRUNCATED_WRONG_VALUE') {
+            return res.json({ code: 400, message: 'Some profile details are invalid or too long.' });
+        }
+        if (errCode === 'ECONNREFUSED' || errCode === 'PROTOCOL_CONNECTION_LOST' || errCode === 'ETIMEDOUT') {
+            return res.json({ code: 503, message: 'Could not reach the server. Please try again shortly.' });
+        }
+        return res.json({ code: 400, message: 'Account not created due to a server error. Please try again.' });
     }
     finally {
         connection.release();

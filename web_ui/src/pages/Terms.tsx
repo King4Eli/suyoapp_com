@@ -1,8 +1,11 @@
+import { Link } from 'react-router-dom'
+import site from '../config/site.json'
+
 function Terms() {
   return (
     <section className="legal">
       <h1>Terms of Service</h1>
-      <p className="legal-updated">Last updated: July 9, 2026</p>
+      <p className="legal-updated">Last updated: {site.legal.lastUpdated}</p>
 
       <p>
         These Terms govern your use of SuyoApp. By creating an account, you
@@ -66,7 +69,8 @@ function Terms() {
 
       <h2>Contact</h2>
       <p>
-        Questions about these Terms? Reach us on the <a href="/contact">Contact</a> page.
+        Questions about these Terms? Reach us on the{' '}
+        <Link to={site.routes.contact}>Contact</Link> page.
       </p>
     </section>
   )

@@ -566,7 +566,9 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                   });
 
                   if (response?.code === 200) {
-                    Toastx.show({ type: "success", message: "New code sent!" });
+                    Toastx.show({ type: "success", message: response.message ?? "New code sent!" });
+                  } else {
+                    Toastx.show({ type: "error", message: response?.message ?? "Failed to resend code" });
                   }
                 } catch (err) {
                   Toastx.show({ type: "error", message: "Failed to resend code" });
@@ -848,7 +850,9 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                   });
 
                   if (response?.code === 200) {
-                    Toastx.show({ type: "success", message: "New code sent!" });
+                    Toastx.show({ type: "success", message: response.message ?? "New code sent!" });
+                  } else {
+                    Toastx.show({ type: "error", message: response?.message ?? "Failed to resend code" });
                   }
                 } catch (err) {
                   Toastx.show({ type: "error", message: "Failed to resend code" });

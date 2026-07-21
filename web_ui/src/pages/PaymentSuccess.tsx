@@ -1,3 +1,5 @@
+import site from '../config/site.json'
+
 function PaymentSuccess() {
   return (
     <section className="legal status-page">
@@ -9,7 +11,7 @@ function PaymentSuccess() {
         Your purchase is confirmed. Head back to the SuyoApp app to see it
         reflected on your profile.
       </p>
-      <a className="store-button status-cta" target="_blank" rel="noopener noreferrer" href="https://suyoapp.com/payment/success">
+      <a className="store-button status-cta" target="_blank" rel="noopener noreferrer" href={site.urls.site}>
         Open SuyoApp
       </a>
       <p className="status-hint">

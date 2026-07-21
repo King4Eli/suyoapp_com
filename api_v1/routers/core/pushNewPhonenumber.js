@@ -89,8 +89,16 @@ export default async function pushNewPhoneNumber(oldPhoneNumber, newPhoneNumber,
     }
     catch (err) {
         tools.serverLog(`Error in pushNewPhoneNumber: ${err}`,'pushNewPhoneNumber-0');
+        // @ts-ignore
+        const errCode = err?.code;
         response.code = 500;
-        response.message = "Database error.";
+        if (errCode === 'ECONNREFUSED' || errCode === 'PROTOCOL_CONNECTION_LOST' || errCode === 'ETIMEDOUT') {
+            response.message = "Could not reach the server. Please try again shortly.";
+        } else if (requestNewCode) {
+            response.message = "Could not send verification code. Please try again.";
+        } else {
+            response.message = "Could not update your phone number. Please try again.";
+        }
     }
     return response;
 }

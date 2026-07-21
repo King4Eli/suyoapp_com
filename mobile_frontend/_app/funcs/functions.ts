@@ -421,7 +421,7 @@ export const _handle_Signin = async (phoneNumber: string, callingCode: string, v
         });
         return {
           code: 200,
-          message: "Login sus"
+          message: loginRes?.message ?? "Login sus"
         };
       } else if (loginRes?.code === 404) {
         return {

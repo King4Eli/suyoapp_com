@@ -1,3 +1,5 @@
+import site from '../config/site.json'
+
 function PaymentCancelled() {
   return (
     <section className="legal status-page">
@@ -9,7 +11,7 @@ function PaymentCancelled() {
         No charge was made. You can pick a plan again anytime from inside the
         app.
       </p>
-      <a className="store-button status-cta" href="https://suyoapp.com/payment/cancelled">
+      <a className="store-button status-cta" href={site.urls.site}>
         Open SuyoApp
       </a>
       <p className="status-hint">

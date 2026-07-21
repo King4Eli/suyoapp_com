@@ -4,8 +4,8 @@ import nodemailer from 'nodemailer';
 
 export class communicateWith {
     // @ts-ignore
-   static sendSms = async (countryCode, phoneNumber, message)  => {
-        if (!countryCode || !phoneNumber || !message) {
+   static sendSms = async (callingCountryCode, phoneNumber, message)  => {
+        if (!callingCountryCode || !phoneNumber || !message) {
             tools.serverLog("Missing parameters for sendSms", "sms_error_3g6");
             return {code: 400, message: "Missing parameters for sendSms"};
         }
@@ -25,11 +25,9 @@ export class communicateWith {
         // **
         // remove on prod
         // **
-        const numberIsTesting=/^0*[0-9]/.test(phoneNumber);
-        // countryCode here is a numeric calling code (e.g. "1"), not an ISO country
-        // like "US" that parsePhoneNumberFromString's 2nd arg expects. Build a full
-        // E.164-ish string instead so validation doesn't need an ISO country at all.
-        const fullNumber = phoneNumber.startsWith('+') ? phoneNumber : `+${countryCode}${phoneNumber}`;
+        const numberIsTesting=/^0+/.test(phoneNumber);
+        
+        const fullNumber = phoneNumber.startsWith('+') ? phoneNumber : `+${callingCountryCode}${phoneNumber}`;
         const parsedNumber = parsePhoneNumberFromString(fullNumber);
         // remove numberIsTesting on prod
         // // remove on prod
@@ -49,15 +47,16 @@ export class communicateWith {
                     "Content-Type": "application/json" 
                 },
                 body: JSON.stringify({
-                    countryphonecode: numberIsTesting ? "+1" : countryCode,
+                    countryphonecode: numberIsTesting ? "+1" : callingCountryCode,
                     phonenumber: numberIsTesting ? "8506317422" : phoneNumber,
                     message: message,
 
-                    country: countryCode,
-                    shortcountry: countryCode
+                    country: callingCountryCode,
+                    shortcountry: parsedNumber?.country
                 })
             });
 
+            
             const data = await response.text();
 
             if (!response.ok) {
@@ -68,7 +67,7 @@ export class communicateWith {
             return { code: 200, message: "SMS queued successfully", data };
         } catch (error) {
             // @ts-ignore
-            tools.serverLog("Error sending SMS: " + error.message, "sms_error_3g3");
+            tools.serverLog(error.message, "sms_error_3g3");
             return { code: 500, message: "Error sending SMS" };
         }
     };
@@ -117,8 +116,9 @@ export class communicateWith {
 
             return {code: 200, message: "Email sent successfully", data: { messageId: info?.messageId }};
         }
-        catch {
-            tools.serverLog("Error sending email", "email_error_300");
+        catch(e) {
+            // @ts-ignore
+            tools.serverLog(e?.message, "email_error_300");
             return {code: 500, message: "Error sending email"};
         }
     }

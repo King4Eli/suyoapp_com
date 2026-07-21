@@ -39,8 +39,25 @@ export class tools {
             return false;
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     }
- 
-     
+
+    static maskEmail(email = '') {
+        if (!tools.validateIsEmail(email)) return email;
+        const [local, domain] = email.split('@');
+        const maskedLocal = local.length <= 2
+            ? local.charAt(0) + '*'.repeat(Math.max(local.length - 1, 1))
+            : local.slice(0, 2) + '*'.repeat(Math.max(local.length - 3, 1)) + local.slice(-1);
+        const domainParts = domain.split('.');
+        const tld = domainParts.pop();
+        return `${maskedLocal}@***.${tld}`;
+    }
+
+    static maskPhone(countryCode = '', phoneNumber = '') {
+        const digits = String(phoneNumber).replace(/\D/g, '');
+        const lastTwo = digits.slice(-2);
+        const maskedLength = Math.min(Math.max(digits.length - 2, 3), 6);
+        return `+${countryCode} ${'*'.repeat(maskedLength)}${lastTwo}`;
+    }
+
     static serverLog(message="", title="log_") {
         // Implementation for server logging
         (async ()=>{

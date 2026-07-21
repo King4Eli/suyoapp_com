@@ -1,8 +1,11 @@
+import { Link } from 'react-router-dom'
+import site from '../config/site.json'
+
 function Privacy() {
   return (
     <section className="legal">
       <h1>Privacy Policy</h1>
-      <p className="legal-updated">Last updated: July 9, 2026</p>
+      <p className="legal-updated">Last updated: {site.legal.lastUpdated}</p>
 
       <p>
         SuyoApp ("we", "us") helps you meet and connect with other people.
@@ -54,7 +57,15 @@ function Privacy() {
 
       <h2>Contact</h2>
       <p>
-        Questions about this policy? Reach us on the <a href="/contact">Contact</a> page.
+        {site.legal.contactPrompt.split('Contact').length > 1 ? (
+          <>
+            {site.legal.contactPrompt.replace('Contact', '')}
+            <Link to={site.routes.contact}>Contact</Link>
+            {site.legal.contactPrompt.includes('page.') ? ' page.' : ''}
+          </>
+        ) : (
+          site.legal.contactPrompt
+        )}
       </p>
     </section>
   )

@@ -7,13 +7,13 @@ function Layout() {
     <>
       <header className="nav">
         <div className="nav-inner">
-          <Link className="logo" to="/">
+          <Link className="logo" to={site.routes.home}>
             {site.brand.nameParts.base}
             <span className="logo-accent">{site.brand.nameParts.accent}</span>
           </Link>
-          <a className="nav-cta" href="/#download">
-            Get the app
-          </a>
+          <Link className="nav-cta" to={site.routes.downloadAnchor}>
+            {site.nav.headerCtaLabel}
+          </Link>
         </div>
       </header>
 

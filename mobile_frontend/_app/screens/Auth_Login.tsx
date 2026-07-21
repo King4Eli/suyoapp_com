@@ -30,6 +30,7 @@ export const Auth_Login = () => {
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [verificationCode, setVerificationCode] = useState<string[]>(() => Array(CODE_LENGTH).fill(''));
   const [showCreateAccountPrompt, setShowCreateAccountPrompt] = useState(false);
+  const [codeSentMessage, setCodeSentMessage] = useState('');
   const [timer, setTimer] = useState(INITIAL_RESEND_SECONDS);
   const [isResendDisabled, setIsResendDisabled] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -114,7 +115,8 @@ export const Auth_Login = () => {
     }
 
     if (response.code === 200) {
-      if (showSuccessToast) Toastx.show({ type: 'info', message: 'Code resent' });
+      if (response.message) setCodeSentMessage(response.message);
+      if (showSuccessToast) Toastx.show({ type: 'info', message: response.message ?? 'Code resent' });
       return true;
     }
 
@@ -233,6 +235,7 @@ export const Auth_Login = () => {
     carouselRef.current?.goToPrevious();
     animatePageChange();
     resetCodeState();
+    setCodeSentMessage('');
   };
 
   const renderLoginPage = () => (
@@ -243,7 +246,7 @@ export const Auth_Login = () => {
 
       <View style={stylesx.header}>
         <Text style={stylesx.title}>Find your next favorite person.</Text>
-        <Text style={stylesx.subtitle}>Sign in with your phone number to keep your matches and chats close.</Text>
+        <Text style={stylesx.subtitle}>Sign in with your phone number.</Text>
       </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={stylesx.formCard}>
@@ -313,10 +316,6 @@ export const Auth_Login = () => {
   );
 
   const renderVerificationPage = () => {
-    const maskedNumber = normalizedPhone
-      ? `+${callingCode} *** *** ${normalizedPhone.substring(Math.max(normalizedPhone.length - 4, 0))}`
-      : '';
-
     return (
       <AuthPage fadeAnim={fadeAnim} slideAnim={slideAnim} stylesx={stylesx}>
         <TouchableOpacity style={stylesx.backButton} onPress={editPhoneNumber}>
@@ -329,7 +328,7 @@ export const Auth_Login = () => {
 
         <View style={stylesx.header}>
           <Text style={stylesx.title}>Enter your code</Text>
-          <Text style={stylesx.subtitle}>We sent a 6-digit code to {maskedNumber}</Text>
+          <Text style={stylesx.subtitle}>{codeSentMessage || 'Enter the 6-digit code we sent you.'}</Text>
         </View>
 
         <View style={stylesx.formCard}>
@@ -544,8 +543,7 @@ function createStylesx(colors: ThemeColors) {
   },
   subtitle: {
     color: colors.textSecondary,
-    fontSize: 16,
-    lineHeight: 23,
+    fontSize: 16, 
     textAlign: 'center',
     maxWidth: 330,
   },

@@ -15,18 +15,34 @@
     "site": "https://suyoapp.com",
     "sitemap": "https://suyoapp.com/sitemap.xml"
   },
+  "routes": {
+    "home": "/",
+    "privacy": "/privacy",
+    "terms": "/terms",
+    "contact": "/contact",
+    "downloadAnchor": "/#download",
+    "paymentSuccess": "/payment/success",
+    "paymentCancelled": "/payment/cancelled"
+  },
   "contact": {
     "supportEmail": "support@suyoapp.com",
-    "safetyEmail": "safety@suyoapp.com"
+    "safetyEmail": "safety@suyoapp.com",
+    "headline": "Questions, feedback, or need help with your account? We're happy to hear from you.",
+    "supportTitle": "Support",
+    "supportBody": "Email {email} for account issues, billing questions, or bug reports.",
+    "safetyTitle": "Trust & safety",
+    "safetyBody": "To report a user, use the report option in the app. For anything else safety-related, email {email}."
   },
   "app": {
     "ios": {
       "appId": "Z7KVPVQ369.com.suyoapp.app",
-      "storeUrl": "https://example.com/TODO-app-store-url"
+      "storeUrl": "https://example.com/TODO-app-store-url",
+      "downloadLabel": "Download on the App Store"
     },
     "android": {
       "packageName": "com.vintolab.suyoapp",
-      "storeUrl": "https://example.com/TODO-google-play-url"
+      "storeUrl": "https://example.com/TODO-google-play-url",
+      "downloadLabel": "Get it on Google Play"
     }
   },
   "social": {
@@ -51,11 +67,40 @@
     }
   },
   "nav": {
+    "headerCtaLabel": "Get the app",
     "footerLinks": [
       { "label": "Privacy", "to": "/privacy" },
       { "label": "Terms", "to": "/terms" },
       { "label": "Contact", "to": "/contact" }
     ]
+  },
+  "home": {
+    "hero": {
+      "headline": "Find your next favorite person.",
+      "body": "Sign in with your phone number to start matching, chatting, and meeting people who are actually worth your time."
+    },
+    "features": [
+      {
+        "title": "Smart matches",
+        "body": "We surface people who actually fit what you’re looking for, not just who’s nearby."
+      },
+      {
+        "title": "Real conversations",
+        "body": "Chat, share photos, and send voice notes the moment you match — no waiting around."
+      },
+      {
+        "title": "Verified profiles",
+        "body": "Phone-verified sign-in and moderation keep the people you meet real."
+      },
+      {
+        "title": "Your privacy first",
+        "body": "Block and report anyone, anytime. You’re always in control of who can reach you."
+      }
+    ]
+  },
+  "legal": {
+    "lastUpdated": "July 9, 2026",
+    "contactPrompt": "Questions about this policy? Reach us on the Contact page."
   },
   "seo": {
     "title": "SuyoApp — Find your next favorite person",
