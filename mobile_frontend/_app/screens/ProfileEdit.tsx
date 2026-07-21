@@ -647,7 +647,8 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
             if (response?.code === 200) {
                 Toastx.show({ type: 'success', message: response?.userpreferences?.message ?? 'Profile updated!' });
                 await cacheStorage.getCurrentUserProfile(true);
-                await sleep(2000);
+                // await sleep(2000);
+                // cacheStorage.getCurrentUserProfile(true);
                 Loaderx.hide();
                 navigation.goBack();
             } else {

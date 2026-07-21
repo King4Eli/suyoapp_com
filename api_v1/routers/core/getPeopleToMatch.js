@@ -73,6 +73,41 @@ async function attachPrompts(rows) {
 }
 
 /**
+ * Batch-fetches each user's selected interests, grouped by category, and
+ * attaches them as `user_bio_interests` on the matching row.
+ * @param {any[]} rows
+ */
+async function attachInterests(rows) {
+  const userIds = rows.map((u) => u.user_id).filter(Boolean);
+  if (userIds.length === 0) return;
+
+  /** @type {[any[], any]} */
+  const [interestRows] = await db_pool.query(
+    `SELECT ui.user_id, iv.id_ai, iv.category, iv.interested_in
+     FROM users_interests ui
+     INNER JOIN interests_variant iv ON ui.interests_variant_ref_id = iv.id_ai
+     WHERE ui.user_id IN (${userIds.map(() => "?").join(",")}) AND iv.status = 1
+     ORDER BY iv.category ASC, iv.id_ai ASC`,
+    userIds
+  );
+
+  /** @type {Record<string, Record<string, any[]>>} */
+  const groupedByUser = {};
+  for (const r of interestRows) {
+    const userGroups = (groupedByUser[r.user_id] ??= {});
+    (userGroups[r.category] ??= []).push({ id_ai: r.id_ai, interested_in: r.interested_in });
+  }
+
+  rows.forEach((u) => {
+    const userGroups = groupedByUser[u.user_id] ?? {};
+    u.user_bio_interests = Object.keys(userGroups).map((category) => ({
+      category,
+      items: userGroups[category],
+    }));
+  });
+}
+
+/**
  * @param {string} [getOnePersons_id2]
  */
 export default async function getPeopleToMatch(getOnePersons_id2) {
@@ -99,6 +134,7 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
           delete u.user_privacy_incognito;
         });
         await attachPrompts(rows);
+        await attachInterests(rows);
         response.code           = 200;
         response.message        = "ok";
         response.matchespeoples = rows;
@@ -207,6 +243,7 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
         delete u.user_privacy_incognito;
       });
       await attachPrompts(rows);
+      await attachInterests(rows);
       response.code           = 200;
       response.message        = "ok";
       response.matchespeoples = rows;

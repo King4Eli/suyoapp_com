@@ -466,6 +466,13 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
         { icon: <MIcon name="dog-side" size={18} color={colors.accent} />, value: __MAPPER?.bio_pets?.[currentPerson?.user_bio_haspet] },
     ].filter((item) => item.value);
 
+    const interestGroups: { category: string; items: { id_ai: number; interested_in: string }[] }[] =
+        currentPerson?.user_bio_interests ?? [];
+    const interestItems: { id_ai: number; interested_in: string }[] = interestGroups.flatMap((group) => group.items);
+    const myInterestIds = useMemo(() => new Set(
+        (getProfile?.bio?.interests ?? []).flatMap((group: any) => group?.items ?? []).map((item: any) => item.id_ai)
+    ), [getProfile]);
+
     const writableFields = !currentPerson ? [] : [
         { icon: <MIcon name="briefcase-variant-outline" size={22} color={colors.accent} />, value: (currentPerson?.user_bio_jobrole) },
         { icon: <MIcon name="home-outline" size={22} color={colors.accent} />, value: currentPerson?.user_bio_hometown },
@@ -584,6 +591,21 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                                 </View>
                             )}
                         </View>
+                        {interestItems.length > 0 && (
+                            <View style={[deckStyles.detailCard, deckStyles.cardShadow]}>
+                                <Text style={deckStyles.sectionTitle}>Interests</Text>
+                                <View style={[deckStyles.chipRowWrap, { marginTop: 12 }]}>
+                                    {interestItems.map((item) => {
+                                        const shared = myInterestIds.has(item.id_ai);
+                                        return (
+                                            <View key={item.id_ai} style={[deckStyles.interestChip, shared && deckStyles.interestChipShared]}>
+                                                <Text style={[deckStyles.interestChipText, shared && deckStyles.interestChipTextShared]}>{item.interested_in}</Text>
+                                            </View>
+                                        );
+                                    })}
+                                </View>
+                            </View>
+                        )}
                         {writableFields.length > 0 && (
                             <View style={[deckStyles.detailCard, deckStyles.cardShadow]}>
                                 <Text style={deckStyles.sectionTitle}>More about {currentPerson?.user_fullname?.split(" ")?.[0] || "them"}</Text>
@@ -904,6 +926,11 @@ function createDeckStyles(colors: ThemeColors) {
     detailGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
     detailItem: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, backgroundColor: colors.backgroundSecondary, borderRadius: 12, flexBasis: '48%' },
     detailText: { color: colors.text, fontSize: 14, flexShrink: 1 },
+    chipRowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    interestChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.backgroundSecondary, borderWidth: 1, borderColor: colors.border },
+    interestChipText: { fontSize: 13, color: colors.textSecondary, fontWeight: '800' },
+    interestChipShared: { backgroundColor: colors.primary, borderColor: colors.primary },
+    interestChipTextShared: { color: '#fff' },
     galleryImage: { width: 160, height: 200, borderRadius: 16, backgroundColor: staticColors.gray1 },
     actionDock: { position: 'absolute', bottom: 16, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 16 },
     circleBtn: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center', shadowColor: colors.shadow, shadowOpacity: 0.15, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
