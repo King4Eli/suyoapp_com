@@ -89,8 +89,9 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
     const currentPhotos = currentUserImages.filter((img: any) => img?.p);
     const prompts = [currentPerson?.user_bio_prompt?.[0], currentPerson?.user_bio_prompt?.[1], currentPerson?.user_bio_prompt?.[2],].filter(Boolean);
 
-    // profile
-    useEffect(() => {
+    // profile - reloaded on every focus so edits made on ProfileEdit (e.g. interests)
+    // are reflected here as soon as the user navigates back, not just on first mount.
+    useFocusEffect(React.useCallback(() => {
         let mounted = true;
         (async () => {
             try {
@@ -112,7 +113,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
         })();
 
         return () => { mounted = false; };
-    }, []);
+    }, []));
 
 
  

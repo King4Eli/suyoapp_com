@@ -95,7 +95,7 @@ $params = [];
 $where = [];
 $sql = $view === 'group'
     ? 'SELECT r.report_type, COUNT(*) AS report_count FROM logs_application r LEFT JOIN users u ON u.user_id = r.report_currentuser'
-    : 'SELECT r.report_id, r.report_type, r.report_status, r.report_data, r.created_at, r.updated_at, r.report_currentuser, u.user_fullname, d.device_model, d.device_brand, d.device_os, d.app_version, d.is_emulator FROM logs_application r LEFT JOIN users u ON u.user_id = r.report_currentuser LEFT JOIN users_devices d ON d.device_id = r.device_id';
+    : 'SELECT r.report_id, r.report_type, r.report_status, r.report_data, r.created_at, r.updated_at, r.report_currentuser, u.user_fullname, d.device_id, d.device_model, d.device_brand, d.device_os, d.app_version, d.is_emulator FROM logs_application r LEFT JOIN users u ON u.user_id = r.report_currentuser LEFT JOIN users_devices d ON d.device_id = r.device_id';
 if ($query !== '') {
     $where[] = '(r.report_id LIKE :q OR r.report_type LIKE :q OR r.report_currentuser LIKE :q OR u.user_fullname LIKE :q)';
     $params[':q'] = '%' . $query . '%';
@@ -294,13 +294,22 @@ try {
                                         <a class="btn btn-sm btn-outline-primary"
                                             href="singleuser.php?id=<?php echo urlencode($report['report_currentuser']); ?>">User</a>
                                     <?php endif; ?>
+                                    <?php if (!empty($report['device_id'])): ?>
+                                        <a class="btn btn-sm btn-outline-secondary"
+                                            href="devices.php?q=<?php echo urlencode($report['device_id']); ?>">Device</a>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                             <tr class="collapse bg-light" id="<?php echo $collapse_id; ?>">
                                 <td colspan="6">
                                     <?php if (!empty($report['device_model']) || !empty($report['device_os'])): ?>
                                         <div class="small text-muted mb-2">
-                                            Device: <?php echo htmlspecialchars(trim(($report['device_brand'] ?? '') . ' ' . ($report['device_model'] ?? ''))); ?>
+                                            Device:
+                                            <?php if (!empty($report['device_id'])): ?>
+                                                <a href="devices.php?q=<?php echo urlencode($report['device_id']); ?>"><?php echo htmlspecialchars(trim(($report['device_brand'] ?? '') . ' ' . ($report['device_model'] ?? ''))); ?></a>
+                                            <?php else: ?>
+                                                <?php echo htmlspecialchars(trim(($report['device_brand'] ?? '') . ' ' . ($report['device_model'] ?? ''))); ?>
+                                            <?php endif; ?>
                                             &middot; <?php echo htmlspecialchars($report['device_os'] ?? 'unknown os'); ?>
                                             <?php if (!empty($report['app_version'])): ?>
                                                 &middot; app v<?php echo htmlspecialchars($report['app_version']); ?>
