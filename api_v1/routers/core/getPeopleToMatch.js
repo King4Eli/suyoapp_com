@@ -1,6 +1,7 @@
 import db_pool from "../../global/database.js";
 import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
+import { getSubscriptionTier } from "../../global/entitlements.js";
 import ngeohash from "ngeohash";
 
 // Fields safe to hand back about ANOTHER user (a match candidate). Deliberately
@@ -16,6 +17,7 @@ const CANDIDATE_PROFILE_COLUMNS = [
   "user_bio_language", "user_bio_company", "user_bio_jobrole", "user_bio_smoking",
   "user_bio_drinking", "user_bio_children", "user_bio_religion", "user_bio_haspet",
   "user_privacy_show_distance", "user_privacy_show_age", "user_privacy_incognito",
+  "user_bio_social_links",
 ];
 
 /**
@@ -108,6 +110,31 @@ async function attachInterests(rows) {
 }
 
 /**
+ * Parses each candidate's `user_bio_social_links` JSON and replaces it with a
+ * viewer-appropriate version: VIP viewers get the real url, everyone else gets
+ * just the platform name (locked) -- the url itself must never reach a non-VIP
+ * client, since withholding it only in the UI would be trivial to bypass.
+ * @param {any[]} rows
+ * @param {boolean} viewerIsVip
+ */
+function attachSocialLinks(rows, viewerIsVip) {
+  rows.forEach((u) => {
+    /** @type {any[]} */
+    let links = [];
+    try {
+      links = u.user_bio_social_links
+        ? (typeof u.user_bio_social_links === 'string' ? JSON.parse(u.user_bio_social_links) : u.user_bio_social_links)
+        : [];
+    } catch {
+      links = [];
+    }
+    u.user_bio_social_links = (Array.isArray(links) ? links : []).map((link) => (
+      viewerIsVip ? { platform: link.platform, url: link.url } : { platform: link.platform, locked: true }
+    ));
+  });
+}
+
+/**
  * @param {string} [getOnePersons_id2]
  */
 export default async function getPeopleToMatch(getOnePersons_id2) {
@@ -118,6 +145,8 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
   };
 
   try {
+    const viewerIsVip = (await getSubscriptionTier(sessions.currentUserID)) === 'vip';
+
     // ── Single person lookup (getOnePersons_id2 mode) ──────────────────────
     if (getOnePersons_id2) {
       const sql = `SELECT ${CANDIDATE_PROFILE_COLUMNS.join(", ")} FROM users WHERE user_id = ?`;
@@ -135,6 +164,7 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
         });
         await attachPrompts(rows);
         await attachInterests(rows);
+        attachSocialLinks(rows, viewerIsVip);
         response.code           = 200;
         response.message        = "ok";
         response.matchespeoples = rows;
@@ -244,6 +274,7 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
       });
       await attachPrompts(rows);
       await attachInterests(rows);
+      attachSocialLinks(rows, viewerIsVip);
       response.code           = 200;
       response.message        = "ok";
       response.matchespeoples = rows;

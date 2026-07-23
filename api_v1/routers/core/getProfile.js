@@ -65,7 +65,8 @@ export default async function getProfile() {
       user_privacy_show_distance,
       user_privacy_show_age,
       user_privacy_incognito,
-      user_privacy_read_receipts
+      user_privacy_read_receipts,
+      user_bio_social_links
     FROM users
     WHERE user_id = ?
     LIMIT 1`;
@@ -219,6 +220,9 @@ export default async function getProfile() {
         haspet: userProfile.user_bio_haspet === '1',
         prompts: userPrompts,
         interests: userInterests,
+        socialLinks: userProfile.user_bio_social_links
+          ? (typeof userProfile.user_bio_social_links === 'string' ? JSON.parse(userProfile.user_bio_social_links) : userProfile.user_bio_social_links)
+          : [],
       },
 
       preferences: {

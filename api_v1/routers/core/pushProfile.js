@@ -2,6 +2,36 @@ import db_pool from "../../global/database.js";
 import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
 import { getSubscriptionTier } from "../../global/entitlements.js";
+// Platforms the client offers a field for. Keep in sync with ProfileEdit.tsx's SOCIAL_PLATFORMS.
+const ALLOWED_SOCIAL_PLATFORMS = ["instagram", "snapchat", "tiktok", "twitter"];
+
+/**
+ * Validates+normalizes the user's social links input into a safe {platform, url}[]
+ * (one entry per platform max, http/https only) or null if there's nothing valid to save.
+ * @param {any} rawLinks
+ */
+function normalizeSocialLinks(rawLinks) {
+  if (!Array.isArray(rawLinks)) return [];
+  const seenPlatforms = new Set();
+  const normalized = [];
+  for (const entry of rawLinks) {
+    const platform = String(entry?.platform ?? "").trim().toLowerCase();
+    const url = String(entry?.url ?? "").trim();
+    if (!ALLOWED_SOCIAL_PLATFORMS.includes(platform) || seenPlatforms.has(platform)) continue;
+    if (!url) continue;
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      continue;
+    }
+    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") continue;
+    seenPlatforms.add(platform);
+    normalized.push({ platform, url: parsedUrl.toString() });
+  }
+  return normalized;
+}
+
 /**
  * @param {string | number} val
  */
@@ -29,7 +59,7 @@ export default async function pushProfile(input = {}) {
   }
   const profUpdates = [];
   // Parse JSON fields
-  for (const key of ["prof_prompts", "prof_interests", "prof_images_meta", "prof_location", "pref_languages", "pref_language"]) {
+  for (const key of ["prof_prompts", "prof_interests", "prof_social_links", "prof_images_meta", "prof_location", "pref_languages", "pref_language"]) {
     if (input[key] && typeof input[key] === "string") {
       try {
         input[key] = JSON.parse(input[key]);
@@ -199,6 +229,17 @@ export default async function pushProfile(input = {}) {
       const interestRows = interestIds.map((id) => [sessions.currentUserID, id]);
       await db_pool.query("INSERT INTO users_interests (user_id, interests_variant_ref_id) VALUES ?", [interestRows]);
     }
+    savedSomething = true;
+  }
+
+  // Social links: stored inline as JSON on the user row (small fixed platform set,
+  // unlike interests/prompts which reference a growing catalog table).
+  if (hasKey(input, "prof_social_links")) {
+    const socialLinks = normalizeSocialLinks(input.prof_social_links);
+    await db_pool.query("UPDATE users SET user_bio_social_links = ? WHERE user_id = ?", [
+      JSON.stringify(socialLinks),
+      sessions.currentUserID,
+    ]);
     savedSomething = true;
   }
 

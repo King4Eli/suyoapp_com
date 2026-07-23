@@ -1,10 +1,10 @@
 import React, { useState, useRef, useLayoutEffect, useEffect, useMemo } from 'react';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import MIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { View, Text, Pressable, ScrollView, Alert, TouchableOpacity, StyleSheet, Modal } from 'react-native';
+import { View, Text, Pressable, ScrollView, Alert, TouchableOpacity, StyleSheet, Modal, Linking } from 'react-native';
 import { Loaderx, Skeleton, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import { useFocusEffect } from '@react-navigation/native';
-import { styles, namer, colors as staticColors, __CONFIG__ } from '../funcs/static';
+import { styles, namer, colors as staticColors, __CONFIG__, SOCIAL_PLATFORMS } from '../funcs/static';
 import { useTheme, ThemeColors } from '../funcs/theme';
 import { _http_request, cacheStorage,    help, logReport, screenHeight, sleep } from '../funcs/functions';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,7 +18,7 @@ import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
 import ImageViewing from 'react-native-image-viewing';
 import { ActionBurstKind, ActionBurstOverlay, ConfettiBurst } from '../funcs/customCelebration';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring, withTiming } from 'react-native-reanimated';
-
+ 
 
 export default function Peoples_Screen({ route, navigation }: { route: any, navigation: any }) {
     const { colors } = useTheme();
@@ -474,6 +474,16 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
         (getProfile?.bio?.interests ?? []).flatMap((group: any) => group?.items ?? []).map((item: any) => item.id_ai)
     ), [getProfile]);
 
+    const socialLinks: { platform: string; url?: string; locked?: boolean }[] =
+        currentPerson?.user_bio_social_links ?? [];
+    const onPressSocialLink = (link: { platform: string; url?: string; locked?: boolean }) => {
+        if (link.url) {
+            Linking.openURL(link.url);
+        } else {
+            Toastx.show({ type: 'warning', message: 'Upgrade to VIP to open social links' });
+        }
+    };
+
     const writableFields = !currentPerson ? [] : [
         { icon: <MIcon name="briefcase-variant-outline" size={22} color={colors.accent} />, value: (currentPerson?.user_bio_jobrole) },
         { icon: <MIcon name="home-outline" size={22} color={colors.accent} />, value: currentPerson?.user_bio_hometown },
@@ -602,6 +612,28 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                                             <View key={item.id_ai} style={[deckStyles.interestChip, shared && deckStyles.interestChipShared]}>
                                                 <Text style={[deckStyles.interestChipText, shared && deckStyles.interestChipTextShared]}>{item.interested_in}</Text>
                                             </View>
+                                        );
+                                    })}
+                                </View>
+                            </View>
+                        )}
+                        {socialLinks.length > 0 && (
+                            <View style={[deckStyles.detailCard, deckStyles.cardShadow]}>
+                                <Text style={deckStyles.sectionTitle}>Social Links</Text>
+                                <View style={[deckStyles.chipRowWrap, { marginTop: 12 }]}>
+                                    {socialLinks.map((link) => {
+                                        const meta = SOCIAL_PLATFORMS.find((p) => p.key === link.platform);
+                                        if (!meta) return null;
+                                        return (
+                                            <Pressable
+                                                key={link.platform}
+                                                style={[deckStyles.interestChip, { flexDirection: 'row', alignItems: 'center' }]}
+                                                onPress={() => onPressSocialLink(link)}
+                                            >
+                                                <IIcon name={meta.icon} size={15} color={colors.textSecondary} />
+                                                <Text style={[deckStyles.interestChipText, { marginLeft: 6 }]}>{meta.label}</Text>
+                                                {!link.url && <IIcon name="lock-closed" size={12} color={colors.textSecondary} style={{ marginLeft: 6 }} />}
+                                            </Pressable>
                                         );
                                     })}
                                 </View>

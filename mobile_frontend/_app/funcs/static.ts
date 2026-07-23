@@ -302,3 +302,12 @@ export const __CONFIG__ = [
   }
 // remove on prod
 ][(DeviceInfo.isEmulatorSync() && Platform.OS === "android") ? 1 : 0];
+
+
+// Keep in sync with ALLOWED_SOCIAL_PLATFORMS in api_v1/routers/core/pushProfile.js.
+export const SOCIAL_PLATFORMS = [
+    { key: 'instagram', label: 'Instagram', icon: 'logo-instagram', baseUrl: 'https://instagram.com/' },
+    { key: 'snapchat', label: 'Snapchat', icon: 'logo-snapchat', baseUrl: 'https://www.snapchat.com/add/' },
+    { key: 'tiktok', label: 'TikTok', icon: 'logo-tiktok', baseUrl: 'https://www.tiktok.com/@' },
+    { key: 'twitter', label: 'Twitter / X', icon: 'logo-twitter', baseUrl: 'https://twitter.com/' },
+] as const;

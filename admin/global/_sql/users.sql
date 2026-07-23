@@ -84,7 +84,8 @@ CREATE TABLE `users` (
   `user_privacy_show_distance` enum('0','1') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '1',
   `user_privacy_show_age` enum('0','1') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '1',
   `user_privacy_incognito` enum('0','1') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '0',
-  `user_privacy_read_receipts` enum('0','1') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '0' COMMENT 'VIP-only; mutual -- both sides must have this on to see each others read receipts'
+  `user_privacy_read_receipts` enum('0','1') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '0' COMMENT 'VIP-only; mutual -- both sides must have this on to see each others read receipts',
+  `user_bio_social_links` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin COMMENT 'JSON array of {platform, url}; platform one of instagram/snapchat/tiktok/twitter. Viewing another user''s url is VIP-only -- getPeopleToMatch omits it for non-VIP viewers.'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --

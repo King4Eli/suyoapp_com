@@ -20,7 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import MIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { namer, __CONFIG__ } from '../funcs/static';
+import { namer, __CONFIG__, SOCIAL_PLATFORMS } from '../funcs/static';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { _http_request, cacheStorage, help, mediaHandler, sleep, uploadHandler } from '../funcs/functions';
 import BottomSheet, { BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
@@ -52,6 +52,22 @@ interface CellDim {
 
 export type PromptEntry = { id_ai: number; question: string; answer: string };
 export type InterestEntry = { id_ai: number; interested_in: string };
+
+
+
+function socialHandleFromUrl(platform: string, url: string): string {
+    const meta = SOCIAL_PLATFORMS.find(p => p.key === platform);
+    if (!meta || !url.startsWith(meta.baseUrl)) return url;
+    return url.slice(meta.baseUrl.length);
+}
+
+function socialUrlFromHandle(platform: string, handle: string): string {
+    const trimmed = handle.trim().replace(/^@/, '');
+    if (!trimmed) return '';
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    const meta = SOCIAL_PLATFORMS.find(p => p.key === platform);
+    return meta ? meta.baseUrl + trimmed : trimmed;
+}
 
 type PickerOption = {
     id: string;
@@ -470,6 +486,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
     // ── Profile state ──────────────────────────────────────────────────────
     const [getPrompts, setPrompts] = useState<PromptEntry[]>([]);
     const [getInterests, setInterests] = useState<InterestEntry[]>([]);
+    const [getSocialHandles, setSocialHandles] = useState<Record<string, string>>({});
     const [promptErrors, setPromptErrors] = useState<Record<number, string>>({});
 
 
@@ -517,6 +534,11 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                             ? profile.bio.interests.flatMap((group: any) => group?.items ?? [])
                             : []
                     );
+                    const handles: Record<string, string> = {};
+                    (Array.isArray(profile?.bio?.socialLinks) ? profile.bio.socialLinks : []).forEach((link: any) => {
+                        if (link?.platform && link?.url) handles[link.platform] = socialHandleFromUrl(link.platform, link.url);
+                    });
+                    setSocialHandles(handles);
                 }
             } catch (error) {
                 console.error("Error loading profile:", error);
@@ -641,6 +663,11 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                     prof_political: getProfileEdit?.politicalview,
                     prof_prompts: JSON.stringify((getPrompts ?? []).map(p => ({ id_ai: p.id_ai, answer: p.answer }))),
                     prof_interests: JSON.stringify((getInterests ?? []).map(i => i.id_ai)),
+                    prof_social_links: JSON.stringify(
+                        SOCIAL_PLATFORMS
+                            .map(p => ({ platform: p.key, url: socialUrlFromHandle(p.key, getSocialHandles[p.key] ?? '') }))
+                            .filter(link => link.url)
+                    ),
                     prof_images_meta: JSON.stringify(orderedImageMeta),
                 },
             });
@@ -986,6 +1013,28 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                 )}
                             </Pressable>
                         </View>
+
+                        <FormGroup title="Social Links" hint="Only VIP members can open these on your profile." pgStyles={pgStyles}>
+                            {SOCIAL_PLATFORMS.map((platform) => (
+                                <View key={platform.key} style={pgStyles.inlineField}>
+                                    <View style={pgStyles.pickerFieldIcon}>
+                                        <IIcon name={platform.icon} size={18} color={colors.primary} />
+                                    </View>
+                                    <View style={{ flex: 1, gap: 6 }}>
+                                        <Text style={pgStyles.fieldLabel}>{platform.label}</Text>
+                                        <TextInput
+                                            style={pgStyles.inlineInput}
+                                            value={getSocialHandles[platform.key] ?? ''}
+                                            onChangeText={(text) => setSocialHandles(prev => ({ ...prev, [platform.key]: text }))}
+                                            placeholder="username"
+                                            placeholderTextColor={colors.textTertiary}
+                                            autoCapitalize="none"
+                                            maxLength={200}
+                                        />
+                                    </View>
+                                </View>
+                            ))}
+                        </FormGroup>
 
                         <FormGroup title="Background" hint="A few real-world details for better context." pgStyles={pgStyles}>
                             <StaticField
