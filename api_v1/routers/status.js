@@ -44,7 +44,7 @@ status_check.get('/', async (req, res) => {
     
     const isHealthy = checks.database.status === 'ok';
     const response = {
-        version: varr.site.api_version,
+        version: os.hostname(),
         status: isHealthy ? 'ok' : 'degraded',
         checks,
         system: getSystemInfo(),
@@ -53,12 +53,6 @@ status_check.get('/', async (req, res) => {
     };
     
     return res.status(isHealthy ? 200 : 503).json(response);
-});
-
-
-status_check.get('/do1', async (req, res) => {
-    //db_pool.query('SELECT user_location FROM users LIMIT 1')
-   return res.json({ status: 'ok', message: 'This is a test endpoint.' });
 });
 
 export default status_check;

@@ -20,7 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import MIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { namer, __CONFIG__, SOCIAL_PLATFORMS } from '../funcs/static';
+import { namer, __CONFIG__, SOCIAL_PLATFORMS, styles } from '../funcs/static';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { _http_request, cacheStorage, help, mediaHandler, sleep, uploadHandler } from '../funcs/functions';
 import BottomSheet, { BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
@@ -582,7 +582,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                 <Text style={pgStyles.headerTitle}>Edit Profile</Text>
             ),
             headerRight: () => (
-                <View style={pgStyles.headerActions}>
+                <View style={{flexDirection: 'row', gap: 10}}>
                     {getProfileEdit.id && <Pressable
                         style={pgStyles.previewBtn}
                         onPress={() =>
@@ -842,7 +842,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
             >
                 <ScrollView
                     style={{ flex: 1 }}
-                    contentContainerStyle={pgStyles.scrollContent}
+                    contentContainerStyle={styles.conainerScrollView}
                     keyboardShouldPersistTaps="handled"
                     keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
                     automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
@@ -1363,12 +1363,7 @@ function createPgStyles(colors: ThemeColors) {
         flex: 1,
         backgroundColor: colors.backgroundSecondary,
         paddingHorizontal: 0,
-    },
-    scrollContent: {
-        flexGrow: 1,
-        paddingHorizontal: 14,
-        paddingBottom: 96,
-    },
+    }, 
     formStack: {
         gap: 14,
         marginBottom: 12,
@@ -1377,13 +1372,7 @@ function createPgStyles(colors: ThemeColors) {
         fontSize: 18,
         fontWeight: '900',
         color: colors.text,
-    },
-    headerActions: {
-        paddingRight: 12,
-        flexDirection: 'row',
-        gap: 10,
-        alignItems: 'center',
-    },
+    }, 
     previewBtn: {
         minHeight: 36,
         justifyContent: 'center',
