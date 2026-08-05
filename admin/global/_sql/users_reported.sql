@@ -31,6 +31,7 @@ CREATE TABLE `users_reported` (
   `id_ai` bigint NOT NULL,
   `user_id` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT 'the reported user',
   `reporter_user_id` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT 'the user who filed the report',
+  `reported_post_id` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT 'the feed post this report originated from, if any (NULL for profile-level reports)',
   `status` tinyint NOT NULL DEFAULT '0' COMMENT '0=open,1=resolved,2=escalated',
   `reason` text NOT NULL,
   `date_created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -47,7 +48,8 @@ CREATE TABLE `users_reported` (
 ALTER TABLE `users_reported`
   ADD PRIMARY KEY (`id_ai`),
   ADD KEY `fk_userid_reported` (`user_id`),
-  ADD KEY `fk_reporter_userid` (`reporter_user_id`);
+  ADD KEY `fk_reporter_userid` (`reporter_user_id`),
+  ADD KEY `fk_reportedpost_id` (`reported_post_id`);
 
 --
 -- AUTO_INCREMENT for dumped tables
@@ -68,7 +70,8 @@ ALTER TABLE `users_reported`
 --
 ALTER TABLE `users_reported`
   ADD CONSTRAINT `fk_userid_reported` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
-  ADD CONSTRAINT `fk_reporter_userid` FOREIGN KEY (`reporter_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
+  ADD CONSTRAINT `fk_reporter_userid` FOREIGN KEY (`reporter_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE RESTRICT,
+  ADD CONSTRAINT `fk_reportedpost_id` FOREIGN KEY (`reported_post_id`) REFERENCES `feed_posts` (`post_id`) ON DELETE SET NULL ON UPDATE RESTRICT;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

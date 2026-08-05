@@ -9,6 +9,7 @@ const FEED_POST_DAILY_LIMIT = envInt('FEED_POST_DAILY_LIMIT', 10);
 const FEED_POST_DAILY_WINDOW_SECONDS = envInt('FEED_POST_DAILY_WINDOW_SECONDS', 24 * 60 * 60);
 
 const ALLOWED_MEDIA_TYPES = new Set(['image', 'video']);
+const MAX_POST_MEDIA = 5;
 
 /**
  * @param {{ caption?: string; media?: { type: string; p: string }[] }} data
@@ -26,6 +27,7 @@ export default async function pushFeedPost(data) {
             ? data.media
                 .filter((m) => m && ALLOWED_MEDIA_TYPES.has(m.type) && typeof m.p === 'string' && m.p)
                 .map((m) => ({ type: m.type, p: m.p }))
+                .slice(0, MAX_POST_MEDIA)
             : [];
 
         if (!caption && media.length === 0) {

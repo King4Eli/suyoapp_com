@@ -25,6 +25,7 @@ import getEntitlement from './core/getEntitlement.js';
 import getFeed from './core/getFeed.js';
 import pushFeedPost from './core/pushFeedPost.js';
 import pushFeedReaction from './core/pushFeedReaction.js';
+import pushDeleteFeedPost from './core/pushDeleteFeedPost.js';
 
 const core_router = express.Router();
 core_router.post('/:action', async (req, res) => {
@@ -130,6 +131,10 @@ core_router.post('/:action', async (req, res) => {
             const reactionType = req.body?.reaction;
             const reactionResult = await pushFeedReaction({ post_id: reactionPostId, reaction: reactionType });
             return res.json(reactionResult);
+        case 'pushDeleteFeedPost':
+            const deleteFeedPostId = req.body?.post_id;
+            const deleteFeedPostResult = await pushDeleteFeedPost({ post_id: deleteFeedPostId });
+            return res.json(deleteFeedPostResult);
         case 'pushLocation':
             const location_coords = req.body?.longlatd;
             const location = await pushLocation(location_coords);

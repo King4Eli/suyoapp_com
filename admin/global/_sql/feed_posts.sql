@@ -31,7 +31,7 @@ CREATE TABLE `feed_posts` (
   `post_id` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `post_user_id` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `post_caption` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `post_media` json DEFAULT NULL COMMENT '[{"type":"image","p":"/bucket/key"}] (video type reserved for a future pass, not implemented now)',
+  `post_media` json DEFAULT NULL COMMENT '[{"type":"image"|"video","p":"/bucket/key"}, ...] up to 5 items, in display order',
   `post_status` enum('1','-99') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '1' COMMENT '1=active,-99=deleted',
   `post_dateAdded` bigint UNSIGNED NOT NULL DEFAULT (unix_timestamp()),
   `post_dateUpdated` bigint UNSIGNED NOT NULL DEFAULT (unix_timestamp())
