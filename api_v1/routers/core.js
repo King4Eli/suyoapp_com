@@ -91,7 +91,8 @@ core_router.post('/:action', async (req, res) => {
             return res.json(religions);
         case 'getFeed':
             const feedCursor = req.body?.cursor;
-            const feed = await getFeed({ cursor: feedCursor });
+            const feedOnlyMine = req.body?.onlyMine === true;
+            const feed = await getFeed({ cursor: feedCursor, onlyMine: feedOnlyMine });
             return res.json(feed);
 
 

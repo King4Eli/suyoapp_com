@@ -116,7 +116,7 @@ const MainApp: React.FC = () => {
 
 
   const BottomTabNavigator = () => (
-    <TabBottom.Navigator initialRouteName={namer.navigation.peoples}>
+    <TabBottom.Navigator initialRouteName={namer.navigation.peoples} screenOptions={{ tabBarShowLabel: false }}>
 
       <TabBottom.Screen name={namer.navigation.likes} component={Screen_likes}
         options={{
@@ -175,6 +175,7 @@ const MainApp: React.FC = () => {
                 <Stack.Screen name={namer.navigation.editProfileInterests} component={Screen_editProfileInterests} options={{ headerBackTitle: '' }} />
                 <Stack.Screen name={namer.navigation.editpreference} component={Screen_editpreference} />
                 <Stack.Screen name={namer.navigation.peoplesOnePerson} component={Peoples_Screen} options={{ headerBackTitle: '' }} />
+                <Stack.Screen name={namer.navigation.myTimeline} component={Screen_feed} options={{ headerBackTitle: '' }} />
                 <Stack.Screen name={namer.navigation.subscription} component={Screen_PurchaseSubscribe} options={{
                   headerTintColor: "#6d6139ff", title: "Upgrade Your Experience", headerBackTitle: '', headerTitleAlign: "center", headerTitleStyle: {
                     fontSize: 20,

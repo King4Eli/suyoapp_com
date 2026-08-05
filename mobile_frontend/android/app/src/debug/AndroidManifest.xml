@@ -1,0 +1,12 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!--
+      Debug-only manifest, merged only into debug builds (standard React Native template
+      pattern). Allows plain-HTTP traffic to Metro (10.0.2.2/localhost:8081); without this,
+      Android blocks cleartext traffic by default for apps targeting API 28+, so the app's own
+      network layer can't reach the dev server (isMetroRunning silently fails), causing it to
+      fall back to a nonexistent bundled JS asset ("Unable to load script."). Release builds are
+      unaffected since this file isn't merged into them.
+    -->
+    <application android:usesCleartextTraffic="true" tools:ignore="GoogleAppIndexingWarning" />
+</manifest>

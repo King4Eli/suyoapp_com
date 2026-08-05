@@ -3,10 +3,8 @@ import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
 
 /**
- * Like/unlike/dislike a feed post. A dislike is one-directional from the UI (no "un-dislike")
- * because it doubles as a permanent block on that poster's whole feed presence -- see
- * getFeed.js's `reaction_post_owner_id` exclusion.
- * @param {{ post_id?: string; reaction?: 'like' | 'unlike' | 'dislike' }} data
+ * Like/unlike a feed post.
+ * @param {{ post_id?: string; reaction?: 'like' | 'unlike' }} data
  */
 export default async function pushFeedReaction(data) {
     /** @type {any} */
@@ -19,7 +17,7 @@ export default async function pushFeedReaction(data) {
         const postId = data?.post_id ?? "";
         const reaction = data?.reaction ?? "";
 
-        if (!postId || !['like', 'unlike', 'dislike'].includes(reaction)) {
+        if (!postId || !['like', 'unlike'].includes(reaction)) {
             response.message = "Invalid post or reaction.";
             return response;
         }
@@ -43,22 +41,20 @@ export default async function pushFeedReaction(data) {
 
         if (reaction === 'unlike') {
             await db_pool.query(
-                `DELETE FROM feed_reactions WHERE reaction_post_id = ? AND reaction_user_id = ? AND reaction_type = '1'`,
+                `DELETE FROM feed_reactions WHERE reaction_post_id = ? AND reaction_user_id = ?`,
                 [postId, sessions.currentUserID]
             );
         } else {
-            const reactionType = reaction === 'like' ? '1' : '-1';
             await db_pool.query(
-                `INSERT INTO feed_reactions (reaction_post_id, reaction_user_id, reaction_post_owner_id, reaction_type)
-         VALUES (?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE reaction_type = VALUES(reaction_type)`,
-                [postId, sessions.currentUserID, post.post_user_id, reactionType]
+                `INSERT IGNORE INTO feed_reactions (reaction_post_id, reaction_user_id)
+         VALUES (?, ?)`,
+                [postId, sessions.currentUserID]
             );
         }
 
         /** @type {[any[], any]} */
         const [[counts]] = await db_pool.query(
-            `SELECT COUNT(*) AS like_count FROM feed_reactions WHERE reaction_post_id = ? AND reaction_type = '1'`,
+            `SELECT COUNT(*) AS like_count FROM feed_reactions WHERE reaction_post_id = ?`,
             [postId]
         );
 

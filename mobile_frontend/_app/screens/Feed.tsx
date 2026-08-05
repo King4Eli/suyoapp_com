@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from 'react';
-import { View, Text, Pressable, FlatList, TextInput, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, Pressable, FlatList, TextInput, ActivityIndicator, StyleSheet } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { _http_request, cacheStorage, help, logReport, mediaHandler, uploadHandler } from '../funcs/functions';
 import { styles, namer, __CONFIG__ } from '../funcs/static';
@@ -7,8 +7,9 @@ import IIcon from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import RNFS from 'react-native-fs';
 import Video from 'react-native-video';
+import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { SafeImage } from '../funcs/customImage';
-import { Skeleton, Loaderx } from '../funcs/functions_stateful';
+import { Skeleton, Loaderx, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import { Toastx } from '../funcs/customNotification';
 import { useTheme, ThemeColors } from '../funcs/theme';
 
@@ -48,11 +49,12 @@ function FeedPostMedia({ item, imgDomain, style }: { item: { type: string; p: st
     return <SafeImage style={style} source={{ uri }} />;
 }
 
-export function Screen_feed({ navigation }: { navigation: any }) {
+export function Screen_feed({ navigation, route }: { navigation: any; route?: any }) {
     const { colors } = useTheme();
     const stylesoy = useMemoStyles(colors);
     const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
     const imgDomain = __MAPPER?.img_domain?.[0] ?? '';
+    const isMyTimeline = Boolean(route?.params?.onlyMine);
 
     const [feedPosts, setFeedPosts] = useState<any[] | null>(null);
     const [nextCursor, setNextCursor] = useState<number | null>(null);
@@ -62,16 +64,20 @@ export function Screen_feed({ navigation }: { navigation: any }) {
     const [composerText, setComposerText] = useState('');
     const [composerMedia, setComposerMedia] = useState<PickedMedia | null>(null);
     const [isPosting, setIsPosting] = useState(false);
+    const composerSheetRef = useRef<BottomSheet>(null);
+    const composerSnapPoints = useMemo(() => ['70%'], []);
+    const optionsSheetRef = useRef<BottomSheet>(null);
+    const optionsSnapPoints = useMemo(() => ['32%'], []);
 
     const fetchFeed = useCallback(async (cursor?: number | null) => {
         const response = await _http_request({
             reqType: 'POST',
             customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/getFeed",
-            bodyArray: cursor ? { cursor } : {},
+            bodyArray: { ...(cursor ? { cursor } : {}), ...(isMyTimeline ? { onlyMine: true } : {}) },
         });
         if (response?.code !== 200) return null;
         return response;
-    }, []);
+    }, [isMyTimeline]);
 
     useFocusEffect(useCallback(() => {
         if (feedPosts !== null) return;
@@ -101,8 +107,8 @@ export function Screen_feed({ navigation }: { navigation: any }) {
         setIsLoadingMore(false);
     }, [nextCursor, isLoadingMore, fetchFeed]);
 
-    const handlePickMedia = useCallback(async () => {
-        const media = await mediaHandler.handleSelectFromGallery({ mediaType: 'mixed', selectionLimit: 1 });
+    const handlePickMedia = useCallback(async (mediaType: 'photo' | 'video' | 'mixed' = 'mixed') => {
+        const media = await mediaHandler.handleSelectFromGallery({ mediaType, selectionLimit: 1 });
         if (!media || media.length === 0) return;
         const asset = media[0];
         const localUri = asset?.uri ?? '';
@@ -110,6 +116,14 @@ export function Screen_feed({ navigation }: { navigation: any }) {
         const isVideo = (asset.type ?? '').startsWith('video');
         setComposerMedia({ type: isVideo ? 'video' : 'image', localUri, ext: getFileExtension(localUri) });
     }, []);
+
+    const openComposer = useCallback((mode: 'text' | 'photo' | 'video') => {
+        optionsSheetRef.current?.close();
+        composerSheetRef.current?.expand();
+        if (mode === 'photo' || mode === 'video') {
+            handlePickMedia(mode);
+        }
+    }, [handlePickMedia]);
 
     const handleSubmitPost = useCallback(async () => {
         const caption = composerText.trim();
@@ -161,6 +175,7 @@ export function Screen_feed({ navigation }: { navigation: any }) {
             if (response?.code === 200) {
                 setComposerText('');
                 setComposerMedia(null);
+                composerSheetRef.current?.close();
                 await handleRefresh();
                 Toastx.show({ type: 'success', message: 'Posted!' });
             } else {
@@ -176,38 +191,42 @@ export function Screen_feed({ navigation }: { navigation: any }) {
     }, [composerText, composerMedia, handleRefresh]);
 
     const handleLike = useCallback(async (post: any) => {
+        const wasLiked = Boolean(post.viewer_has_liked);
+        const nextLiked = !wasLiked;
         setFeedPosts((prev) => (prev ?? []).map((p) => (
-            p.post_id === post.post_id ? { ...p, viewer_has_liked: true, like_count: p.like_count + 1 } : p
+            p.post_id === post.post_id
+                ? { ...p, viewer_has_liked: nextLiked, like_count: p.like_count + (nextLiked ? 1 : -1) }
+                : p
         )));
         const response = await _http_request({
             reqType: 'POST',
             customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushFeedReaction",
-            bodyArray: { post_id: post.post_id, reaction: 'like' },
+            bodyArray: { post_id: post.post_id, reaction: nextLiked ? 'like' : 'unlike' },
         });
         if (response?.code !== 200) {
             // revert on failure
             setFeedPosts((prev) => (prev ?? []).map((p) => (
-                p.post_id === post.post_id ? { ...p, viewer_has_liked: false, like_count: Math.max(0, p.like_count - 1) } : p
+                p.post_id === post.post_id
+                    ? { ...p, viewer_has_liked: wasLiked, like_count: p.like_count + (wasLiked ? 1 : -1) }
+                    : p
             )));
-            Toastx.show({ type: 'error', message: response?.message ?? 'Unable to like this post.' });
-            return;
-        }
-        navigation.navigate(namer.navigation.peoplesOnePerson, { getOnePersonId: post.post_user_id });
-    }, [navigation]);
-
-    const handleDislike = useCallback(async (post: any) => {
-        // Optimistic: a dislike blocks this poster's whole feed presence, so it never
-        // needs to reappear once the reaction lands -- remove it immediately.
-        setFeedPosts((prev) => (prev ?? []).filter((p) => p.post_id !== post.post_id));
-        const response = await _http_request({
-            reqType: 'POST',
-            customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushFeedReaction",
-            bodyArray: { post_id: post.post_id, reaction: 'dislike' },
-        });
-        if (response?.code !== 200) {
-            Toastx.show({ type: 'error', message: response?.message ?? 'Unable to process that.' });
+            Toastx.show({ type: 'error', message: response?.message ?? 'Unable to update your like.' });
         }
     }, []);
+
+    useLayoutEffect(() => {
+        navigation.setOptions({
+            title: isMyTimeline ? 'My Posts' : 'Feed',
+            headerRight: isMyTimeline ? undefined : () => (
+                <Pressable
+                    style={stylesoy.headerButton}
+                    onPress={() => navigation.navigate(namer.navigation.myTimeline, { onlyMine: true })}
+                >
+                    <IIcon name="person-circle-outline" size={26} color={colors.text} />
+                </Pressable>
+            ),
+        });
+    }, [navigation, colors, stylesoy, isMyTimeline]);
 
     if (feedPosts === null) {
         return (
@@ -221,10 +240,7 @@ export function Screen_feed({ navigation }: { navigation: any }) {
     }
 
     return (
-        <KeyboardAvoidingView
-            style={[styles.container, { backgroundColor: colors.background }]}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <FlatList
                 data={feedPosts}
                 keyExtractor={(item) => item.post_id}
@@ -234,55 +250,6 @@ export function Screen_feed({ navigation }: { navigation: any }) {
                 onRefresh={handleRefresh}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ padding: 12, gap: 12 }}
-                ListHeaderComponent={
-                    <View style={[stylesoy.composer, { marginBottom: 12 }]}>
-                        <TextInput
-                            style={stylesoy.composerInput}
-                            placeholder="Share something with everyone..."
-                            placeholderTextColor={colors.textTertiary}
-                            multiline
-                            value={composerText}
-                            onChangeText={setComposerText}
-                        />
-                        {composerMedia && (
-                            <View style={{ marginTop: 8, position: 'relative' }}>
-                                {composerMedia.type === 'video' ? (
-                                    <Video
-                                        source={{ uri: composerMedia.localUri }}
-                                        style={{ width: '100%', height: 180, borderRadius: 12, backgroundColor: colors.backgroundSecondary }}
-                                        resizeMode="cover"
-                                        muted
-                                        paused
-                                    />
-                                ) : (
-                                    <SafeImage
-                                        style={{ width: '100%', height: 180, borderRadius: 12 }}
-                                        source={{ uri: composerMedia.localUri }}
-                                    />
-                                )}
-                                <Pressable
-                                    style={stylesoy.removeMediaBtn}
-                                    onPress={() => setComposerMedia(null)}
-                                >
-                                    <IIcon name="close" size={16} color="#fff" />
-                                </Pressable>
-                            </View>
-                        )}
-                        <View style={stylesoy.composerActions}>
-                            <Pressable style={stylesoy.attachBtn} onPress={handlePickMedia}>
-                                <MaterialCommunityIcons name="image-multiple-outline" size={20} color={colors.accent} />
-                                <Text style={{ color: colors.accent, fontWeight: '600' }}>Photo/Video</Text>
-                            </Pressable>
-                            <Pressable
-                                style={[stylesoy.postBtn, { opacity: isPosting ? 0.6 : 1 }]}
-                                disabled={isPosting}
-                                onPress={handleSubmitPost}
-                            >
-                                <Text style={{ color: '#fff', fontWeight: '700' }}>Post</Text>
-                            </Pressable>
-                        </View>
-                    </View>
-                }
                 renderItem={({ item }) => (
                     <View style={stylesoy.card}>
                         <Pressable
@@ -314,7 +281,6 @@ export function Screen_feed({ navigation }: { navigation: any }) {
                         <View style={stylesoy.reactionsRow}>
                             <Pressable
                                 style={stylesoy.reactionBtn}
-                                disabled={item.viewer_has_liked}
                                 onPress={() => handleLike(item)}
                             >
                                 <IIcon
@@ -323,10 +289,6 @@ export function Screen_feed({ navigation }: { navigation: any }) {
                                     color={item.viewer_has_liked ? '#e11d48' : colors.textSecondary}
                                 />
                                 <Text style={{ color: colors.textSecondary }}>{item.like_count}</Text>
-                            </Pressable>
-                            <Pressable style={stylesoy.reactionBtn} onPress={() => handleDislike(item)}>
-                                <IIcon name="close-circle-outline" size={22} color={colors.textSecondary} />
-                                <Text style={{ color: colors.textSecondary }}>Not interested</Text>
                             </Pressable>
                         </View>
                     </View>
@@ -343,7 +305,104 @@ export function Screen_feed({ navigation }: { navigation: any }) {
                     </View>
                 ) : null}
             />
-        </KeyboardAvoidingView>
+
+            <Pressable
+                style={stylesoy.fab}
+                onPress={() => optionsSheetRef.current?.expand()}
+            >
+                <IIcon name="add" size={30} color="#fff" />
+            </Pressable>
+
+            <BottomSheet
+                ref={optionsSheetRef}
+                index={-1}
+                enablePanDownToClose
+                snapPoints={optionsSnapPoints}
+                backdropComponent={bottomsheet_renderBackdrop}
+            >
+                <BottomSheetView style={{ padding: 16 }}>
+                    <Text style={[stylesoy.composerTitle, { color: colors.text }]}>New Post</Text>
+                    <Pressable style={stylesoy.optionRow} onPress={() => openComposer('text')}>
+                        <View style={stylesoy.optionIconWrap}>
+                            <MaterialCommunityIcons name="text" size={22} color={colors.accent} />
+                        </View>
+                        <Text style={[stylesoy.optionLabel, { color: colors.text }]}>Text</Text>
+                    </Pressable>
+                    <Pressable style={stylesoy.optionRow} onPress={() => openComposer('photo')}>
+                        <View style={stylesoy.optionIconWrap}>
+                            <MaterialCommunityIcons name="image-outline" size={22} color={colors.accent} />
+                        </View>
+                        <Text style={[stylesoy.optionLabel, { color: colors.text }]}>Photo</Text>
+                    </Pressable>
+                    <Pressable style={stylesoy.optionRow} onPress={() => openComposer('video')}>
+                        <View style={stylesoy.optionIconWrap}>
+                            <MaterialCommunityIcons name="video-outline" size={22} color={colors.accent} />
+                        </View>
+                        <Text style={[stylesoy.optionLabel, { color: colors.text }]}>Video</Text>
+                    </Pressable>
+                </BottomSheetView>
+            </BottomSheet>
+
+            <BottomSheet
+                ref={composerSheetRef}
+                index={-1}
+                enablePanDownToClose
+                snapPoints={composerSnapPoints}
+                backdropComponent={bottomsheet_renderBackdrop}
+                keyboardBehavior="extend"
+                keyboardBlurBehavior="restore"
+            >
+                <BottomSheetView style={{ padding: 16, flex: 1 }}>
+                    <Text style={[stylesoy.composerTitle, { color: colors.text }]}>New Post</Text>
+                    <TextInput
+                        style={stylesoy.composerInput}
+                        placeholder="Share something with everyone..."
+                        placeholderTextColor={colors.textTertiary}
+                        multiline
+                        autoFocus
+                        value={composerText}
+                        onChangeText={setComposerText}
+                    />
+                    {composerMedia && (
+                        <View style={{ marginTop: 8, position: 'relative' }}>
+                            {composerMedia.type === 'video' ? (
+                                <Video
+                                    source={{ uri: composerMedia.localUri }}
+                                    style={{ width: '100%', height: 180, borderRadius: 12, backgroundColor: colors.backgroundSecondary }}
+                                    resizeMode="cover"
+                                    muted
+                                    paused
+                                />
+                            ) : (
+                                <SafeImage
+                                    style={{ width: '100%', height: 180, borderRadius: 12 }}
+                                    source={{ uri: composerMedia.localUri }}
+                                />
+                            )}
+                            <Pressable
+                                style={stylesoy.removeMediaBtn}
+                                onPress={() => setComposerMedia(null)}
+                            >
+                                <IIcon name="close" size={16} color="#fff" />
+                            </Pressable>
+                        </View>
+                    )}
+                    <View style={stylesoy.composerActions}>
+                        <Pressable style={stylesoy.attachBtn} onPress={() => handlePickMedia()}>
+                            <MaterialCommunityIcons name="image-multiple-outline" size={20} color={colors.accent} />
+                            <Text style={{ color: colors.accent, fontWeight: '600' }}>Photo/Video</Text>
+                        </Pressable>
+                        <Pressable
+                            style={[stylesoy.postBtn, { opacity: isPosting ? 0.6 : 1 }]}
+                            disabled={isPosting}
+                            onPress={handleSubmitPost}
+                        >
+                            <Text style={{ color: '#fff', fontWeight: '700' }}>Post</Text>
+                        </Pressable>
+                    </View>
+                </BottomSheetView>
+            </BottomSheet>
+        </View>
     );
 }
 
@@ -353,10 +412,52 @@ function useMemoStyles(colors: ThemeColors) {
 
 function createStylesoy(colors: ThemeColors) {
     return StyleSheet.create({
-        composer: {
-            backgroundColor: colors.surface,
-            borderRadius: 16,
-            padding: 12,
+        headerButton: {
+            width: 30,
+            height: 30,
+            borderRadius: 15,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginRight: 8,
+        },
+        fab: {
+            position: 'absolute',
+            right: 20,
+            bottom: 24,
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            backgroundColor: colors.accent,
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: colors.shadow,
+            shadowOpacity: 0.25,
+            shadowRadius: 8,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: 8,
+        },
+        composerTitle: {
+            fontSize: 17,
+            fontWeight: '700',
+            marginBottom: 10,
+        },
+        optionRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 14,
+            paddingVertical: 12,
+        },
+        optionIconWrap: {
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: colors.backgroundSecondary,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        optionLabel: {
+            fontSize: 15,
+            fontWeight: '600',
         },
         composerInput: {
             minHeight: 44,

@@ -6,12 +6,7 @@ const FEED_PAGE_SIZE = 20;
 
 /**
  * Cursor-paginated dating-profile feed for the current viewer.
- *
- * Excludes any post from a poster the viewer has disliked -- per product requirement, a dislike
- * blocks that poster's whole feed presence (not just the disliked post), so this filters on
- * `feed_reactions.reaction_post_owner_id` rather than `reaction_post_id`, meaning the block also
- * applies to posts made *after* the dislike.
- * @param {{ cursor?: number }} [params]
+ * @param {{ cursor?: number; onlyMine?: boolean }} [params]
  */
 export default async function getFeed(params) {
     /** @type {any} */
@@ -23,33 +18,27 @@ export default async function getFeed(params) {
     try {
         const cursor = Number(params?.cursor);
         const hasCursor = Number.isFinite(cursor) && cursor > 0;
+        const onlyMine = params?.onlyMine === true;
 
         const sql = `
       SELECT
         fp.post_id, fp.post_user_id, fp.post_caption, fp.post_media, fp.post_dateAdded,
         u.user_fullname, u.user_image, u.user_verified,
-        (SELECT COUNT(*) FROM feed_reactions fr WHERE fr.reaction_post_id = fp.post_id AND fr.reaction_type = '1') AS like_count,
+        (SELECT COUNT(*) FROM feed_reactions fr WHERE fr.reaction_post_id = fp.post_id) AS like_count,
         EXISTS(
           SELECT 1 FROM feed_reactions fr2
-          WHERE fr2.reaction_post_id = fp.post_id AND fr2.reaction_user_id = ? AND fr2.reaction_type = '1'
+          WHERE fr2.reaction_post_id = fp.post_id AND fr2.reaction_user_id = ?
         ) AS viewer_has_liked
       FROM feed_posts fp
       INNER JOIN users u ON u.user_id = fp.post_user_id
       WHERE fp.post_status = '1'
-        AND fp.post_user_id != ?
-        AND NOT EXISTS (
-          SELECT 1 FROM feed_reactions blocked
-          WHERE blocked.reaction_user_id = ?
-            AND blocked.reaction_post_owner_id = fp.post_user_id
-            AND blocked.reaction_type = '-1'
-        )
+        AND fp.post_user_id ${onlyMine ? '=' : '!='} ?
         ${hasCursor ? "AND fp.post_dateAdded < ?" : ""}
       ORDER BY fp.post_dateAdded DESC, fp.post_id DESC
       LIMIT ${FEED_PAGE_SIZE}
     `;
 
         const queryParams = [
-            sessions.currentUserID,
             sessions.currentUserID,
             sessions.currentUserID,
             ...(hasCursor ? [cursor] : []),

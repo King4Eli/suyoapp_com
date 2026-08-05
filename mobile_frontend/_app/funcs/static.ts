@@ -248,6 +248,7 @@ export const namer = {
         conversation: "Conversation",
         likes: "Likes",
         feed: "Feed",
+        myTimeline: "MyTimeline",
         profile: "Profile",
         settings: "Settings",
         editprofile: "Editprofile",
