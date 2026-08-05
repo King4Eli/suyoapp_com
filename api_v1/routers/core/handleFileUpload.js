@@ -25,6 +25,7 @@ const Allowed_Bucket_Types = {
     "convo-img": (convoId = "00-00") => `conversations/${convoId}/chat_img`,
     "convo-audio": (convoId = "00-00") => `conversations/${convoId}/chat_audio`,
     "convo-video": (convoId = "00-00") => `conversations/${convoId}/chat_video`,
+    "feed-media": (userId = "00-00") => `users/${userId}/feed_media`,
     "signup-void": () => "signup_void",
 };
 

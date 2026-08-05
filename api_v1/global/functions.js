@@ -101,6 +101,7 @@ export const namer = {
         emailchange_otp_request: "ratelimit:emailchange:otp-request:",
         emailchange_otp_verify: "ratelimit:emailchange:otp-verify:",
         likes_daily: "ratelimit:likes:daily:",
+        feed_post_daily: "ratelimit:feed:post:daily:",
     }
 }
 

@@ -8,6 +8,7 @@ import MIcon from "react-native-vector-icons/MaterialCommunityIcons";
 
 import Peoples_Screen from './Peoples';
 import { Screen_likes } from './Likes';
+import { Screen_feed } from './Feed';
 import { Screen_chat } from './Chats';
 import { Screen_profile } from './Profile';
 import { Screen_conversation } from './Conversations';
@@ -130,7 +131,11 @@ const MainApp: React.FC = () => {
         options={{
           tabBarIcon: () => <MIcon name="cards-outline" size={30} color="#4F8EF7" />,
         }} />
- 
+      <TabBottom.Screen name={namer.navigation.feed} component={Screen_feed}
+        options={{
+          tabBarIcon: () => <IIcon name="newspaper-outline" size={28} color="#4F8EF7" />,
+        }} />
+
       <TabBottom.Screen name={namer.navigation.profile} component={Screen_profile} options={{
         tabBarIcon: () => <IIcon name="person-outline" size={30} color="#4F8EF7" />,
       }} />

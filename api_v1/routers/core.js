@@ -22,6 +22,9 @@ import getPrompts from './core/getPrompts.js';
 import getReligions from './core/getReligions.js';
 import getMapper from './core/getMapper.js';
 import getEntitlement from './core/getEntitlement.js';
+import getFeed from './core/getFeed.js';
+import pushFeedPost from './core/pushFeedPost.js';
+import pushFeedReaction from './core/pushFeedReaction.js';
 
 const core_router = express.Router();
 core_router.post('/:action', async (req, res) => {
@@ -86,8 +89,12 @@ core_router.post('/:action', async (req, res) => {
         case 'getReligions':
             const religions = await getReligions();
             return res.json(religions);
+        case 'getFeed':
+            const feedCursor = req.body?.cursor;
+            const feed = await getFeed({ cursor: feedCursor });
+            return res.json(feed);
 
-            
+
         case 'pushConversation':
             const umatchid = req.body?.match_id;
             const textsms = req.body?.messagee;
@@ -112,6 +119,16 @@ core_router.post('/:action', async (req, res) => {
                 matchId: matchid
             }, req.app.get('io'));
             return res.json(upeople);
+        case 'pushFeedPost':
+            const feedCaption = req.body?.caption;
+            const feedMedia = req.body?.media;
+            const newPost = await pushFeedPost({ caption: feedCaption, media: feedMedia });
+            return res.json(newPost);
+        case 'pushFeedReaction':
+            const reactionPostId = req.body?.post_id;
+            const reactionType = req.body?.reaction;
+            const reactionResult = await pushFeedReaction({ post_id: reactionPostId, reaction: reactionType });
+            return res.json(reactionResult);
         case 'pushLocation':
             const location_coords = req.body?.longlatd;
             const location = await pushLocation(location_coords);
