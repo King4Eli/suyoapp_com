@@ -26,6 +26,10 @@ import getFeed from './core/getFeed.js';
 import pushFeedPost from './core/pushFeedPost.js';
 import pushFeedReaction from './core/pushFeedReaction.js';
 import pushDeleteFeedPost from './core/pushDeleteFeedPost.js';
+import pushReportUser from './core/pushReportUser.js';
+import getFeedComments from './core/getFeedComments.js';
+import pushFeedComment from './core/pushFeedComment.js';
+import pushDeleteFeedComment from './core/pushDeleteFeedComment.js';
 
 const core_router = express.Router();
 core_router.post('/:action', async (req, res) => {
@@ -135,6 +139,26 @@ core_router.post('/:action', async (req, res) => {
             const deleteFeedPostId = req.body?.post_id;
             const deleteFeedPostResult = await pushDeleteFeedPost({ post_id: deleteFeedPostId });
             return res.json(deleteFeedPostResult);
+        case 'pushReportUser':
+            const reportedUserId = req.body?.reportedUserId;
+            const reportedPostId = req.body?.reportedPostId;
+            const reportReason = req.body?.reason;
+            const reportUserResult = await pushReportUser({ reportedUserId, reportedPostId, reason: reportReason });
+            return res.json(reportUserResult);
+        case 'getFeedComments':
+            const commentsPostId = req.body?.post_id;
+            const comments = await getFeedComments({ post_id: commentsPostId });
+            return res.json(comments);
+        case 'pushFeedComment':
+            const newCommentPostId = req.body?.post_id;
+            const newCommentText = req.body?.text;
+            const newCommentParentId = req.body?.parent_id;
+            const newComment = await pushFeedComment({ post_id: newCommentPostId, text: newCommentText, parent_id: newCommentParentId });
+            return res.json(newComment);
+        case 'pushDeleteFeedComment':
+            const deleteCommentId = req.body?.comment_id;
+            const deleteCommentResult = await pushDeleteFeedComment({ comment_id: deleteCommentId });
+            return res.json(deleteCommentResult);
         case 'pushLocation':
             const location_coords = req.body?.longlatd;
             const location = await pushLocation(location_coords);

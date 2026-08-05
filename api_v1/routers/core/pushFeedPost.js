@@ -12,7 +12,7 @@ const ALLOWED_MEDIA_TYPES = new Set(['image', 'video']);
 const MAX_POST_MEDIA = 5;
 
 /**
- * @param {{ caption?: string; media?: { type: string; p: string }[] }} data
+ * @param {{ caption?: string; media?: { type: string; p: string; w?: number; h?: number }[] }} data
  */
 export default async function pushFeedPost(data) {
     /** @type {any} */
@@ -26,7 +26,15 @@ export default async function pushFeedPost(data) {
         const media = Array.isArray(data?.media)
             ? data.media
                 .filter((m) => m && ALLOWED_MEDIA_TYPES.has(m.type) && typeof m.p === 'string' && m.p)
-                .map((m) => ({ type: m.type, p: m.p }))
+                .map((m) => {
+                    /** @type {any} */
+                    const entry = { type: m.type, p: m.p };
+                    if (Number.isFinite(m.w) && Number.isFinite(m.h) && m.w > 0 && m.h > 0) {
+                        entry.w = m.w;
+                        entry.h = m.h;
+                    }
+                    return entry;
+                })
                 .slice(0, MAX_POST_MEDIA)
             : [];
 

@@ -30,7 +30,8 @@ SET time_zone = "+00:00";
 CREATE TABLE `feed_reactions` (
   `id_ai` bigint NOT NULL AUTO_INCREMENT,
   `reaction_post_id` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
-  `reaction_user_id` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT 'the viewer reacting (a row = a like)',
+  `reaction_user_id` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT 'the viewer reacting (one row per viewer per post)',
+  `reaction_kind` enum('like','love','haha','wow','celebrate','support') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'like',
   `reaction_dateAdded` bigint UNSIGNED NOT NULL DEFAULT (unix_timestamp()),
   PRIMARY KEY (`id_ai`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

@@ -6,7 +6,7 @@ import { Loaderx, Skeleton, bottomsheet_renderBackdrop } from '../funcs/function
 import { useFocusEffect } from '@react-navigation/native';
 import { styles, namer, colors as staticColors, __CONFIG__, SOCIAL_PLATFORMS } from '../funcs/static';
 import { useTheme, ThemeColors } from '../funcs/theme';
-import { _http_request, cacheStorage,    help, logReport, screenHeight, sleep } from '../funcs/functions';
+import { _http_request, cacheStorage,    help, logReport, reportUser, screenHeight, sleep } from '../funcs/functions';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TextInput } from 'react-native-gesture-handler';
 import { LinearGradient } from 'react-native-linear-gradient';
@@ -274,13 +274,11 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                         const finalReason = selectedReason === 'Other' ? otherText : selectedReason;
                         if (finalReason) {
                             Loaderx.show();
-                            logReport({
-                                type: "reportuser",
-                                useraction: "snitch",
-                                logMessage: finalReason,
-                                reporteduserId: getPeopleToMatch?.[0]?.user_id
+                            reportUser({
+                                reportedUserId: getPeopleToMatch?.[0]?.user_id,
+                                reason: finalReason,
                             });
-                            //then 
+                            //then
                             peoples_action("report", 4).then(() => {
 
                                 bottomSheetRef_reportUser.ref.current?.close();
@@ -385,9 +383,6 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                     }).finally(() => {
                         scrollViewRef.current?.scrollTo({ y: 0, animated: true });// Scroll to the top of the scroll view after action
                     });
-                    break;
-                case 'report':
-                    logReport({ type: "reportuser", useraction: "reporting user", logMessage: "Reason: ", reporteduserId: getPeopleToMatch?.[0]?.user_id });
                     break;
             }
         } catch (e: any) {

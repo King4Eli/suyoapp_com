@@ -1,13 +1,13 @@
-import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, FlatList, TextInput, ActivityIndicator, StyleSheet } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import { _http_request, cacheStorage, help, logReport, mediaHandler, uploadHandler } from '../funcs/functions';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, Pressable, FlatList, TextInput, ActivityIndicator, StyleSheet, Modal } from 'react-native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
+import { _http_request, cacheStorage, help, logReport, mediaHandler, reportUser, screenWidth, uploadHandler } from '../funcs/functions';
 import { styles, namer, __CONFIG__ } from '../funcs/static';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import RNFS from 'react-native-fs';
 import Video from 'react-native-video';
-import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
+import BottomSheet, { BottomSheetFlatList, BottomSheetView } from '@gorhom/bottom-sheet';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { SafeImage } from '../funcs/customImage';
@@ -16,11 +16,25 @@ import { ActionBurstOverlay } from '../funcs/customCelebration';
 import { Toastx } from '../funcs/customNotification';
 import { useTheme, ThemeColors } from '../funcs/theme';
 
-type PickedMedia = { type: 'image' | 'video'; localUri: string; ext: string };
-type FeedMediaItem = { type: string; p: string };
+type PickedMedia = { type: 'image' | 'video'; localUri: string; ext: string; width?: number; height?: number };
+type FeedMediaItem = { type: string; p: string; w?: number; h?: number };
+type ReactionKind = 'like' | 'love' | 'haha' | 'wow' | 'celebrate' | 'support';
 
 const MAX_COMPOSER_MEDIA = 5;
 const CAPTION_TRUNCATE_LENGTH = 150;
+const FEED_POLL_INTERVAL_MS = 30000;
+const NEAR_TOP_THRESHOLD = 100;
+
+const REACTIONS: { key: ReactionKind; emoji: string; label: string }[] = [
+    { key: 'like', emoji: '❤️', label: 'Like' },
+    { key: 'love', emoji: '😍', label: 'Love' },
+    { key: 'haha', emoji: '😂', label: 'Haha' },
+    { key: 'wow', emoji: '😮', label: 'Wow' },
+    { key: 'celebrate', emoji: '🎉', label: 'Celebrate' },
+    { key: 'support', emoji: '🤝', label: 'Support' },
+];
+const REACTIONS_BY_KEY: Record<string, { key: ReactionKind; emoji: string; label: string }> =
+    Object.fromEntries(REACTIONS.map((r) => [r.key, r]));
 
 function getFileExtension(path: string): string {
     const cleaned = path.split('?')[0].split('#')[0];
@@ -38,7 +52,18 @@ function getMimeTypeFromExt(ext: string): string {
     return map[ext] ?? 'application/octet-stream';
 }
 
-function FeedPostMedia({ item, imgDomain, style }: { item: FeedMediaItem; imgDomain: string; style: any }) {
+/** Instagram-style clamp so an extreme source aspect ratio never dominates the feed. */
+function computeMediaAspectRatio(media: FeedMediaItem[]): number {
+    const first = media[0];
+    if (first?.w && first?.h) {
+        return Math.min(1.91, Math.max(0.8, first.w / first.h));
+    }
+    return 1;
+}
+
+function FeedPostMedia({ item, imgDomain, style, isActive = true }: {
+    item: FeedMediaItem; imgDomain: string; style: any; isActive?: boolean;
+}) {
     const uri = imgDomain + item.p;
     if (item.type === 'video') {
         return (
@@ -48,7 +73,7 @@ function FeedPostMedia({ item, imgDomain, style }: { item: FeedMediaItem; imgDom
                 resizeMode="cover"
                 repeat
                 muted
-                paused={false}
+                paused={!isActive}
                 controls={false}
             />
         );
@@ -57,28 +82,39 @@ function FeedPostMedia({ item, imgDomain, style }: { item: FeedMediaItem; imgDom
 }
 
 /**
- * Pressable's own onPress-timestamp double-tap detection is unreliable over a
- * react-native-video view (the native player view can swallow the second touch),
- * so double-tap-to-like uses gesture-handler's native tap recognizer instead --
- * it composes correctly with the carousel's horizontal scroll gesture too.
+ * Single tap opens the fullscreen viewer, double tap reacts -- gesture-handler's
+ * Exclusive+requireExternalGestureToFail is the standard idiom for disambiguating
+ * the two without a native Pressable's unreliable timestamp guessing (which also
+ * doesn't play well with a react-native-video view swallowing touches).
  */
-function DoubleTapArea({ onDoubleTap, style, children }: { onDoubleTap: () => void; style?: any; children: React.ReactNode }) {
+function MediaTapArea({ onSingleTap, onDoubleTap, style, children }: {
+    onSingleTap: () => void; onDoubleTap: () => void; style?: any; children: React.ReactNode;
+}) {
     const doubleTap = Gesture.Tap()
         .numberOfTaps(2)
         .maxDelay(250)
         .onEnd((_e, success) => {
             if (success) runOnJS(onDoubleTap)();
         });
+    const singleTap = Gesture.Tap()
+        .numberOfTaps(1)
+        .maxDelay(250)
+        .requireExternalGestureToFail(doubleTap)
+        .onEnd((_e, success) => {
+            if (success) runOnJS(onSingleTap)();
+        });
+    const composed = Gesture.Exclusive(doubleTap, singleTap);
 
     return (
-        <GestureDetector gesture={doubleTap}>
+        <GestureDetector gesture={composed}>
             <View style={style}>{children}</View>
         </GestureDetector>
     );
 }
 
-function FeedMediaCarousel({ media, imgDomain, style, onMediaPress }: {
-    media: FeedMediaItem[]; imgDomain: string; style: any; onMediaPress: () => void;
+function FeedMediaCarousel({ media, imgDomain, style, isActive, onMediaDoubleTap, onOpenFullscreen }: {
+    media: FeedMediaItem[]; imgDomain: string; style: any; isActive: boolean;
+    onMediaDoubleTap: () => void; onOpenFullscreen: (index: number) => void;
 }) {
     const [width, setWidth] = useState(0);
     const [index, setIndex] = useState(0);
@@ -101,44 +137,134 @@ function FeedMediaCarousel({ media, imgDomain, style, onMediaPress }: {
                     onScroll={onScroll}
                     scrollEventThrottle={16}
                     getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
-                    renderItem={({ item }) => (
-                        <DoubleTapArea onDoubleTap={onMediaPress} style={{ width }}>
-                            <FeedPostMedia item={item} imgDomain={imgDomain} style={style} />
-                        </DoubleTapArea>
+                    renderItem={({ item, index: slideIndex }) => (
+                        <MediaTapArea
+                            style={{ width }}
+                            onSingleTap={() => onOpenFullscreen(slideIndex)}
+                            onDoubleTap={onMediaDoubleTap}
+                        >
+                            <FeedPostMedia item={item} imgDomain={imgDomain} style={style} isActive={isActive && slideIndex === index} />
+                        </MediaTapArea>
                     )}
                 />
             )}
             {media.length > 1 && (
-                <View style={carouselStyles.dotsRow} pointerEvents="none">
-                    {media.map((_, i) => (
-                        <View key={i} style={[carouselStyles.dot, i === index && carouselStyles.dotActive]} />
-                    ))}
-                </View>
+                <>
+                    <View style={carouselStyles.counterPill} pointerEvents="none">
+                        <Text style={carouselStyles.counterText}>{index + 1}/{media.length}</Text>
+                    </View>
+                    <View style={carouselStyles.dotsRow} pointerEvents="none">
+                        {media.map((_, i) => (
+                            <View key={i} style={[carouselStyles.dot, i === index && carouselStyles.dotActive]} />
+                        ))}
+                    </View>
+                </>
             )}
         </View>
     );
 }
 
-function FeedPostCard({ item, imgDomain, colors, stylesoy, isMyTimeline, onPressProfile, onLike, onOpenMenu }: {
+function ReactionButton({ item, isMyTimeline, colors, stylesoy, onReact }: {
+    item: any; isMyTimeline: boolean; colors: ThemeColors; stylesoy: ReturnType<typeof createStylesoy>;
+    onReact: (post: any, kind: ReactionKind | 'remove') => void;
+}) {
+    const buttonRef = useRef<View>(null);
+    const [pickerAnchor, setPickerAnchor] = useState<{ x: number; y: number } | null>(null);
+
+    const openPicker = useCallback(() => {
+        buttonRef.current?.measureInWindow((x, y, _w, h) => {
+            setPickerAnchor({ x, y: y + h });
+        });
+    }, []);
+
+    const quickToggle = useCallback(() => {
+        onReact(item, item.viewer_reaction ? 'remove' : 'like');
+    }, [item, onReact]);
+
+    const tapGesture = Gesture.Tap().onEnd((_e, success) => { if (success) runOnJS(quickToggle)(); });
+    const longPressGesture = Gesture.LongPress().minDuration(350).onStart(() => { runOnJS(openPicker)(); });
+    const reactionGesture = Gesture.Race(longPressGesture, tapGesture);
+
+    const currentReaction = REACTIONS_BY_KEY[item.viewer_reaction];
+
+    if (isMyTimeline) {
+        return (
+            <View style={stylesoy.reactionBtn}>
+                <Text style={{ fontSize: 16 }}>{currentReaction?.emoji ?? '❤️'}</Text>
+                <Text style={{ color: colors.textSecondary }}>{item.reaction_count}</Text>
+            </View>
+        );
+    }
+
+    return (
+        <>
+            <GestureDetector gesture={reactionGesture}>
+                <View ref={buttonRef} collapsable={false} style={stylesoy.reactionBtn}>
+                    {currentReaction ? (
+                        <Text style={{ fontSize: 20 }}>{currentReaction.emoji}</Text>
+                    ) : (
+                        <IIcon name="heart-outline" size={22} color={colors.textSecondary} />
+                    )}
+                    <Text style={{ color: item.viewer_reaction ? colors.text : colors.textSecondary, fontWeight: item.viewer_reaction ? '700' : '400' }}>
+                        {item.reaction_count}
+                    </Text>
+                </View>
+            </GestureDetector>
+
+            <Modal transparent visible={!!pickerAnchor} animationType="fade" onRequestClose={() => setPickerAnchor(null)}>
+                <Pressable style={StyleSheet.absoluteFill} onPress={() => setPickerAnchor(null)}>
+                    {pickerAnchor && (
+                        <View style={[stylesoy.reactionPickerRow, { left: Math.max(8, pickerAnchor.x - 20), top: Math.max(40, pickerAnchor.y - 66) }]}>
+                            {REACTIONS.map((r) => (
+                                <Pressable
+                                    key={r.key}
+                                    style={stylesoy.reactionPickerItem}
+                                    onPress={() => {
+                                        onReact(item, r.key);
+                                        setPickerAnchor(null);
+                                    }}
+                                >
+                                    <Text style={{ fontSize: 26 }}>{r.emoji}</Text>
+                                </Pressable>
+                            ))}
+                        </View>
+                    )}
+                </Pressable>
+            </Modal>
+        </>
+    );
+}
+
+function FeedPostCard({ item, imgDomain, colors, stylesoy, isMyTimeline, isActive, onPressProfile, onReact, onOpenMenu, onOpenComments, onOpenFullscreen }: {
     item: any;
     imgDomain: string;
     colors: ThemeColors;
     stylesoy: ReturnType<typeof createStylesoy>;
     isMyTimeline: boolean;
+    isActive: boolean;
     onPressProfile: () => void;
-    onLike: (post: any) => void;
+    onReact: (post: any, kind: ReactionKind | 'remove') => void;
     onOpenMenu: (post: any) => void;
+    onOpenComments: (post: any) => void;
+    onOpenFullscreen: (media: FeedMediaItem[], index: number) => void;
 }) {
     const [expanded, setExpanded] = useState(false);
     const [burstKey, setBurstKey] = useState<number | null>(null);
 
+    const media: FeedMediaItem[] = item.post_media ?? [];
+    const mediaAspectRatio = useMemo(() => computeMediaAspectRatio(media), [media]);
+    const mediaStyle = useMemo(() => [stylesoy.media, { aspectRatio: mediaAspectRatio }], [stylesoy, mediaAspectRatio]);
+
     const handleMediaDoubleTap = useCallback(() => {
-        if (!isMyTimeline && !item.viewer_has_liked) onLike(item);
+        if (!isMyTimeline && !item.viewer_reaction) onReact(item, 'like');
         setBurstKey(Date.now());
-    }, [item, isMyTimeline, onLike]);
+    }, [item, isMyTimeline, onReact]);
+
+    const handleOpenFullscreen = useCallback((index: number) => {
+        onOpenFullscreen(media, index);
+    }, [media, onOpenFullscreen]);
 
     const captionIsLong = (item.post_caption?.length ?? 0) > CAPTION_TRUNCATE_LENGTH;
-    const media: FeedMediaItem[] = item.post_media ?? [];
 
     return (
         <View style={stylesoy.card}>
@@ -181,11 +307,18 @@ function FeedPostCard({ item, imgDomain, colors, stylesoy, isMyTimeline, onPress
             {media.length > 0 && (
                 <View style={{ position: 'relative' }}>
                     {media.length > 1 ? (
-                        <FeedMediaCarousel media={media} imgDomain={imgDomain} style={stylesoy.media} onMediaPress={handleMediaDoubleTap} />
+                        <FeedMediaCarousel
+                            media={media}
+                            imgDomain={imgDomain}
+                            style={mediaStyle}
+                            isActive={isActive}
+                            onMediaDoubleTap={handleMediaDoubleTap}
+                            onOpenFullscreen={handleOpenFullscreen}
+                        />
                     ) : (
-                        <DoubleTapArea onDoubleTap={handleMediaDoubleTap}>
-                            <FeedPostMedia item={media[0]} imgDomain={imgDomain} style={stylesoy.media} />
-                        </DoubleTapArea>
+                        <MediaTapArea onSingleTap={() => handleOpenFullscreen(0)} onDoubleTap={handleMediaDoubleTap}>
+                            <FeedPostMedia item={media[0]} imgDomain={imgDomain} style={mediaStyle} isActive={isActive} />
+                        </MediaTapArea>
                     )}
                     {burstKey !== null && (
                         <ActionBurstOverlay burst={{ kind: 'like', key: burstKey }} onDone={() => setBurstKey(null)} />
@@ -193,26 +326,107 @@ function FeedPostCard({ item, imgDomain, colors, stylesoy, isMyTimeline, onPress
                 </View>
             )}
 
-            {isMyTimeline ? (
-                <View style={stylesoy.reactionsRow}>
-                    <IIcon name="heart" size={18} color="#e11d48" />
-                    <Text style={{ color: colors.textSecondary }}>
-                        {item.like_count} {item.like_count === 1 ? 'like' : 'likes'}
-                    </Text>
-                </View>
-            ) : (
-                <View style={stylesoy.reactionsRow}>
-                    <Pressable style={stylesoy.reactionBtn} onPress={() => onLike(item)}>
-                        <IIcon
-                            name={item.viewer_has_liked ? 'heart' : 'heart-outline'}
-                            size={22}
-                            color={item.viewer_has_liked ? '#e11d48' : colors.textSecondary}
-                        />
-                        <Text style={{ color: colors.textSecondary }}>{item.like_count}</Text>
-                    </Pressable>
-                </View>
-            )}
+            <View style={stylesoy.reactionsRow}>
+                <ReactionButton item={item} isMyTimeline={isMyTimeline} colors={colors} stylesoy={stylesoy} onReact={onReact} />
+                <Pressable style={stylesoy.reactionBtn} onPress={() => onOpenComments(item)}>
+                    <IIcon name="chatbubble-outline" size={19} color={colors.textSecondary} />
+                    <Text style={{ color: colors.textSecondary }}>{item.comment_count}</Text>
+                </Pressable>
+            </View>
         </View>
+    );
+}
+
+function CommentItem({ comment, replies, myUserId, imgDomain, colors, stylesoy, onReply, onDelete }: {
+    comment: any; replies: any[]; myUserId?: string;
+    imgDomain: string; colors: ThemeColors; stylesoy: ReturnType<typeof createStylesoy>;
+    onReply: (comment: any) => void; onDelete: (comment: any) => void;
+}) {
+    return (
+        <View style={stylesoy.commentRow}>
+            <SafeImage style={stylesoy.commentAvatar} source={{ uri: imgDomain + (comment.user_image?.[0]?.p ?? '') }} />
+            <View style={{ flex: 1 }}>
+                <View style={stylesoy.commentBubble}>
+                    <Text style={{ fontWeight: '700', color: colors.text, fontSize: 13 }}>{comment.user_fullname}</Text>
+                    <Text style={{ color: colors.text, fontSize: 14 }}>{comment.comment_text}</Text>
+                </View>
+                <View style={stylesoy.commentMetaRow}>
+                    <Text style={stylesoy.commentMeta}>{help.timeAgo(comment.comment_dateAdded)}</Text>
+                    <Pressable onPress={() => onReply(comment)}>
+                        <Text style={stylesoy.commentMeta}>Reply</Text>
+                    </Pressable>
+                    {comment.comment_user_id === myUserId && (
+                        <Pressable onPress={() => onDelete(comment)}>
+                            <Text style={[stylesoy.commentMeta, { color: '#e11d48' }]}>Delete</Text>
+                        </Pressable>
+                    )}
+                </View>
+
+                {replies.map((reply) => (
+                    <View key={reply.comment_id} style={stylesoy.commentReplyRow}>
+                        <SafeImage style={stylesoy.commentAvatarSmall} source={{ uri: imgDomain + (reply.user_image?.[0]?.p ?? '') }} />
+                        <View style={{ flex: 1 }}>
+                            <View style={stylesoy.commentBubble}>
+                                <Text style={{ fontWeight: '700', color: colors.text, fontSize: 12 }}>{reply.user_fullname}</Text>
+                                <Text style={{ color: colors.text, fontSize: 13 }}>{reply.comment_text}</Text>
+                            </View>
+                            <View style={stylesoy.commentMetaRow}>
+                                <Text style={stylesoy.commentMeta}>{help.timeAgo(reply.comment_dateAdded)}</Text>
+                                {reply.comment_user_id === myUserId && (
+                                    <Pressable onPress={() => onDelete(reply)}>
+                                        <Text style={[stylesoy.commentMeta, { color: '#e11d48' }]}>Delete</Text>
+                                    </Pressable>
+                                )}
+                            </View>
+                        </View>
+                    </View>
+                ))}
+            </View>
+        </View>
+    );
+}
+
+function FullscreenMediaViewer({ media, imgDomain, initialIndex, onClose }: {
+    media: FeedMediaItem[] | null; imgDomain: string; initialIndex: number; onClose: () => void;
+}) {
+    return (
+        <Modal visible={!!media} transparent animationType="fade" onRequestClose={onClose}>
+            <View style={{ flex: 1, backgroundColor: '#000' }}>
+                <Pressable style={fullscreenStyles.closeBtn} onPress={onClose} hitSlop={12}>
+                    <IIcon name="close" size={28} color="#fff" />
+                </Pressable>
+                {media && (
+                    <FlatList
+                        data={media}
+                        keyExtractor={(_, i) => String(i)}
+                        horizontal
+                        pagingEnabled
+                        showsHorizontalScrollIndicator={false}
+                        initialScrollIndex={initialIndex}
+                        getItemLayout={(_, i) => ({ length: screenWidth, offset: screenWidth * i, index: i })}
+                        renderItem={({ item }) => (
+                            <View style={{ width: screenWidth, flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                                {item.type === 'video' ? (
+                                    <Video
+                                        source={{ uri: imgDomain + item.p }}
+                                        style={{ width: screenWidth, height: '100%' }}
+                                        resizeMode="contain"
+                                        controls
+                                        paused={false}
+                                    />
+                                ) : (
+                                    <SafeImage
+                                        style={{ width: screenWidth, height: '100%' }}
+                                        resizeMode="contain"
+                                        source={{ uri: imgDomain + item.p }}
+                                    />
+                                )}
+                            </View>
+                        )}
+                    />
+                )}
+            </View>
+        </Modal>
     );
 }
 
@@ -222,11 +436,29 @@ export function Screen_feed({ navigation, route }: { navigation: any; route?: an
     const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
     const imgDomain = __MAPPER?.img_domain?.[0] ?? '';
     const isMyTimeline = Boolean(route?.params?.onlyMine);
+    const isFocused = useIsFocused();
+
+    const [myProfile, setMyProfile] = useState<any>(null);
+    useEffect(() => { cacheStorage.getCurrentUserProfile().then(setMyProfile); }, []);
 
     const [feedPosts, setFeedPosts] = useState<any[] | null>(null);
     const [nextCursor, setNextCursor] = useState<number | null>(null);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [hasNewPosts, setHasNewPosts] = useState(false);
+    const isNearTopRef = useRef(true);
+    const topPostIdRef = useRef<string | null>(null);
+    const feedListRef = useRef<FlatList>(null);
+    useEffect(() => { topPostIdRef.current = feedPosts?.[0]?.post_id ?? null; }, [feedPosts]);
+
+    const [activePostId, setActivePostId] = useState<string | null>(null);
+    const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
+    const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
+        const mostVisible = viewableItems.find((v: any) => v.isViewable);
+        setActivePostId(mostVisible?.item?.post_id ?? null);
+    }).current;
+
+    const [fullscreenMedia, setFullscreenMedia] = useState<{ media: FeedMediaItem[]; index: number } | null>(null);
 
     const [composerText, setComposerText] = useState('');
     const [composerMedia, setComposerMedia] = useState<PickedMedia[]>([]);
@@ -239,6 +471,15 @@ export function Screen_feed({ navigation, route }: { navigation: any; route?: an
     const postMenuSheetRef = useRef<BottomSheet>(null);
     const postMenuSnapPoints = useMemo(() => ['24%'], []);
     const [menuPost, setMenuPost] = useState<any | null>(null);
+
+    const commentsSheetRef = useRef<BottomSheet>(null);
+    const commentsSnapPoints = useMemo(() => ['92%'], []);
+    const commentInputRef = useRef<TextInput>(null);
+    const [commentsPost, setCommentsPost] = useState<any | null>(null);
+    const [comments, setComments] = useState<any[] | null>(null);
+    const [commentText, setCommentText] = useState('');
+    const [replyingTo, setReplyingTo] = useState<{ id: string; name: string } | null>(null);
+    const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
     const fetchFeed = useCallback(async (cursor?: number | null) => {
         const response = await _http_request({
@@ -261,11 +502,40 @@ export function Screen_feed({ navigation, route }: { navigation: any; route?: an
 
     const handleRefresh = useCallback(async () => {
         setIsRefreshing(true);
+        setHasNewPosts(false);
         const response = await fetchFeed();
         setFeedPosts(response?.feedPosts ?? []);
         setNextCursor(response?.nextCursor ?? null);
         setIsRefreshing(false);
     }, [fetchFeed]);
+
+    // Background poll for new posts while this screen is focused -- silently refreshes
+    // if the viewer is already near the top (they'll see it naturally), otherwise just
+    // flags a banner so scrolled-down reading isn't interrupted.
+    useFocusEffect(useCallback(() => {
+        if (isMyTimeline) return;
+        const interval = setInterval(async () => {
+            const response = await fetchFeed();
+            const latest = response?.feedPosts?.[0];
+            if (!latest || latest.post_id === topPostIdRef.current) return;
+            if (isNearTopRef.current) {
+                setFeedPosts(response.feedPosts ?? []);
+                setNextCursor(response.nextCursor ?? null);
+            } else {
+                setHasNewPosts(true);
+            }
+        }, FEED_POLL_INTERVAL_MS);
+        return () => clearInterval(interval);
+    }, [isMyTimeline, fetchFeed]));
+
+    const handleShowNewPosts = useCallback(async () => {
+        await handleRefresh();
+        feedListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    }, [handleRefresh]);
+
+    const handleFeedScroll = useCallback((e: any) => {
+        isNearTopRef.current = e.nativeEvent.contentOffset.y < NEAR_TOP_THRESHOLD;
+    }, []);
 
     const handleEndReached = useCallback(async () => {
         if (!nextCursor || isLoadingMore) return;
@@ -290,7 +560,10 @@ export function Screen_feed({ navigation, route }: { navigation: any; route?: an
             .map((asset) => {
                 const localUri = asset?.uri ?? '';
                 const isVideo = (asset.type ?? '').startsWith('video');
-                return { type: isVideo ? 'video' : 'image', localUri, ext: getFileExtension(localUri) } as PickedMedia;
+                return {
+                    type: isVideo ? 'video' : 'image', localUri, ext: getFileExtension(localUri),
+                    width: asset.width, height: asset.height,
+                } as PickedMedia;
             })
             .filter((m) => !!m.localUri);
         setComposerMedia((prev) => [...prev, ...picked].slice(0, MAX_COMPOSER_MEDIA));
@@ -340,7 +613,7 @@ export function Screen_feed({ navigation, route }: { navigation: any; route?: an
                 }
 
                 const uploadedPath = "/" + uploadHandler.joinPath(presigned.bucket, presigned.fileKey);
-                return { type: item.type, p: uploadedPath };
+                return { type: item.type, p: uploadedPath, w: item.width, h: item.height };
             }));
 
             const response = await _http_request({
@@ -367,27 +640,29 @@ export function Screen_feed({ navigation, route }: { navigation: any; route?: an
         }
     }, [composerText, composerMedia, handleRefresh]);
 
-    const handleLike = useCallback(async (post: any) => {
-        const wasLiked = Boolean(post.viewer_has_liked);
-        const nextLiked = !wasLiked;
+    const handleReact = useCallback(async (post: any, kind: ReactionKind | 'remove') => {
+        const prevReaction = post.viewer_reaction;
+        const prevCount = post.reaction_count;
+        const isRemoving = kind === 'remove';
+        const nextReaction = isRemoving ? null : kind;
+        const countDelta = isRemoving ? -1 : (prevReaction ? 0 : 1);
         setFeedPosts((prev) => (prev ?? []).map((p) => (
             p.post_id === post.post_id
-                ? { ...p, viewer_has_liked: nextLiked, like_count: p.like_count + (nextLiked ? 1 : -1) }
+                ? { ...p, viewer_reaction: nextReaction, reaction_count: p.reaction_count + countDelta }
                 : p
         )));
         const response = await _http_request({
             reqType: 'POST',
             customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushFeedReaction",
-            bodyArray: { post_id: post.post_id, reaction: nextLiked ? 'like' : 'unlike' },
+            bodyArray: { post_id: post.post_id, reaction: kind },
         });
         if (response?.code !== 200) {
-            // revert on failure
             setFeedPosts((prev) => (prev ?? []).map((p) => (
                 p.post_id === post.post_id
-                    ? { ...p, viewer_has_liked: wasLiked, like_count: p.like_count + (wasLiked ? 1 : -1) }
+                    ? { ...p, viewer_reaction: prevReaction, reaction_count: prevCount }
                     : p
             )));
-            Toastx.show({ type: 'error', message: response?.message ?? 'Unable to update your like.' });
+            Toastx.show({ type: 'error', message: response?.message ?? 'Unable to update your reaction.' });
         }
     }, []);
 
@@ -406,21 +681,85 @@ export function Screen_feed({ navigation, route }: { navigation: any; route?: an
         }
     }, []);
 
-    const handleReportPost = useCallback((post: any) => {
-        logReport({
-            type: 'reportfeedpost',
-            useraction: 'reporting feed post',
-            logMessage: 'Reported from the feed 3-dot menu.',
-            reporteduserId: post.post_user_id,
+    const handleReportPost = useCallback(async (post: any) => {
+        const ok = await reportUser({
+            reportedUserId: post.post_user_id,
             reportedPostId: post.post_id,
+            reason: 'Reported from the feed 3-dot menu.',
         });
-        Toastx.show({ type: 'success', message: 'Post reported. Thanks for letting us know.' });
+        Toastx.show(ok
+            ? { type: 'success', message: 'Post reported. Thanks for letting us know.' }
+            : { type: 'error', message: 'Unable to report this post right now.' });
     }, []);
 
     const handleOpenPostMenu = useCallback((post: any) => {
         setMenuPost(post);
         postMenuSheetRef.current?.expand();
     }, []);
+
+    const handleOpenComments = useCallback(async (post: any) => {
+        setCommentsPost(post);
+        setComments(null);
+        setReplyingTo(null);
+        commentsSheetRef.current?.expand();
+        const response = await _http_request({
+            reqType: 'POST',
+            customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/getFeedComments",
+            bodyArray: { post_id: post.post_id },
+        });
+        setComments(response?.code === 200 ? response.comments : []);
+    }, []);
+
+    const handleSubmitComment = useCallback(async () => {
+        const text = commentText.trim();
+        if (!text || !commentsPost) return;
+        setIsSubmittingComment(true);
+        const response = await _http_request({
+            reqType: 'POST',
+            customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushFeedComment",
+            bodyArray: { post_id: commentsPost.post_id, text, parent_id: replyingTo?.id },
+        });
+        if (response?.code === 200) {
+            const newComment = {
+                comment_id: response.commentId,
+                comment_parent_id: replyingTo?.id ?? null,
+                comment_user_id: myProfile?.user_id,
+                comment_text: text,
+                comment_dateAdded: response.dateAdded,
+                user_fullname: myProfile?.user_fullname,
+                user_image: myProfile?.user_image ?? [],
+            };
+            setComments((prev) => [...(prev ?? []), newComment]);
+            const postedForId = commentsPost.post_id;
+            setFeedPosts((prev) => (prev ?? []).map((p) => (
+                p.post_id === postedForId ? { ...p, comment_count: p.comment_count + 1 } : p
+            )));
+            setCommentText('');
+            setReplyingTo(null);
+        } else {
+            Toastx.show({ type: 'error', message: response?.message ?? 'Unable to post your comment.' });
+        }
+        setIsSubmittingComment(false);
+    }, [commentText, commentsPost, replyingTo, myProfile]);
+
+    const handleDeleteComment = useCallback(async (comment: any) => {
+        const removedCount = 1 + (comments ?? []).filter((c) => c.comment_parent_id === comment.comment_id).length;
+        setComments((prev) => (prev ?? []).filter((c) => c.comment_id !== comment.comment_id && c.comment_parent_id !== comment.comment_id));
+        const postId = commentsPost?.post_id;
+        if (postId) {
+            setFeedPosts((prev) => (prev ?? []).map((p) => (
+                p.post_id === postId ? { ...p, comment_count: Math.max(0, p.comment_count - removedCount) } : p
+            )));
+        }
+        const response = await _http_request({
+            reqType: 'POST',
+            customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushDeleteFeedComment",
+            bodyArray: { comment_id: comment.comment_id },
+        });
+        if (response?.code !== 200) {
+            Toastx.show({ type: 'error', message: response?.message ?? 'Unable to delete comment.' });
+        }
+    }, [comments, commentsPost]);
 
     useLayoutEffect(() => {
         navigation.setOptions({
@@ -447,17 +786,45 @@ export function Screen_feed({ navigation, route }: { navigation: any; route?: an
         );
     }
 
+    const topLevelComments = (comments ?? []).filter((c) => !c.comment_parent_id);
+    const repliesByParent = (comments ?? []).reduce((acc: Record<string, any[]>, c) => {
+        if (c.comment_parent_id) {
+            acc[c.comment_parent_id] = acc[c.comment_parent_id] ?? [];
+            acc[c.comment_parent_id].push(c);
+        }
+        return acc;
+    }, {});
+
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             <FlatList
+                ref={feedListRef}
                 data={feedPosts}
                 keyExtractor={(item) => item.post_id}
                 onEndReached={handleEndReached}
                 onEndReachedThreshold={0.3}
                 refreshing={isRefreshing}
                 onRefresh={handleRefresh}
+                onScroll={handleFeedScroll}
+                scrollEventThrottle={100}
+                viewabilityConfig={viewabilityConfig}
+                onViewableItemsChanged={onViewableItemsChanged}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ padding: 12, gap: 12 }}
+                ListHeaderComponent={
+                    <Pressable style={stylesoy.composerCard} onPress={() => openComposer('text')}>
+                        <SafeImage
+                            style={stylesoy.composerCardAvatar}
+                            source={{ uri: imgDomain + (myProfile?.user_image?.[0]?.p ?? '') }}
+                        />
+                        <View style={stylesoy.composerCardInputFake}>
+                            <Text style={{ color: colors.textTertiary }}>What's on your mind?</Text>
+                        </View>
+                        <Pressable style={stylesoy.composerCardIconBtn} onPress={() => openComposer('photo')}>
+                            <MaterialCommunityIcons name="image-outline" size={22} color={colors.accent} />
+                        </Pressable>
+                    </Pressable>
+                }
                 renderItem={({ item }) => (
                     <FeedPostCard
                         item={item}
@@ -465,9 +832,12 @@ export function Screen_feed({ navigation, route }: { navigation: any; route?: an
                         colors={colors}
                         stylesoy={stylesoy}
                         isMyTimeline={isMyTimeline}
+                        isActive={isFocused && item.post_id === activePostId}
                         onPressProfile={() => navigation.navigate(namer.navigation.peoplesOnePerson, { getOnePersonId: item.post_user_id })}
-                        onLike={handleLike}
+                        onReact={handleReact}
                         onOpenMenu={handleOpenPostMenu}
+                        onOpenComments={handleOpenComments}
+                        onOpenFullscreen={(media, index) => setFullscreenMedia({ media, index })}
                     />
                 )}
                 ListEmptyComponent={
@@ -484,6 +854,13 @@ export function Screen_feed({ navigation, route }: { navigation: any; route?: an
                     </View>
                 ) : null}
             />
+
+            {hasNewPosts && (
+                <Pressable style={stylesoy.newPostsBanner} onPress={handleShowNewPosts}>
+                    <IIcon name="arrow-up" size={14} color="#fff" />
+                    <Text style={stylesoy.newPostsBannerText}>New posts</Text>
+                </Pressable>
+            )}
 
             <Pressable
                 style={stylesoy.fab}
@@ -562,6 +939,85 @@ export function Screen_feed({ navigation, route }: { navigation: any; route?: an
             </BottomSheet>
 
             <BottomSheet
+                ref={commentsSheetRef}
+                index={-1}
+                enablePanDownToClose
+                snapPoints={commentsSnapPoints}
+                backdropComponent={bottomsheet_renderBackdrop}
+                keyboardBehavior="extend"
+                keyboardBlurBehavior="restore"
+                onClose={() => { setCommentsPost(null); setComments(null); setReplyingTo(null); setCommentText(''); }}
+            >
+                <BottomSheetView style={stylesoy.commentsSheet}>
+                    <View style={stylesoy.commentsHeader}>
+                        <Text style={[stylesoy.composerTitle, { color: colors.text, marginBottom: 0 }]}>
+                            Comments{typeof commentsPost?.comment_count === 'number' ? ` · ${commentsPost.comment_count}` : ''}
+                        </Text>
+                    </View>
+
+                    {comments === null ? (
+                        <View style={stylesoy.commentsCenterFill}>
+                            <ActivityIndicator color={colors.accent} />
+                        </View>
+                    ) : (
+                        <BottomSheetFlatList
+                            style={{ flex: 1 }}
+                            data={topLevelComments}
+                            keyExtractor={(c: any) => c.comment_id}
+                            contentContainerStyle={{ padding: 16, gap: 16, flexGrow: 1 }}
+                            renderItem={({ item: c }: any) => (
+                                <CommentItem
+                                    comment={c}
+                                    replies={repliesByParent[c.comment_id] ?? []}
+                                    myUserId={myProfile?.user_id}
+                                    imgDomain={imgDomain}
+                                    colors={colors}
+                                    stylesoy={stylesoy}
+                                    onReply={(cmt) => { setReplyingTo({ id: cmt.comment_id, name: cmt.user_fullname }); commentInputRef.current?.focus(); }}
+                                    onDelete={handleDeleteComment}
+                                />
+                            )}
+                            ListEmptyComponent={
+                                <View style={stylesoy.commentsCenterFill}>
+                                    <IIcon name="chatbubble-outline" size={30} color={colors.textTertiary} />
+                                    <Text style={{ color: colors.textSecondary, marginTop: 8 }}>No comments yet. Say something!</Text>
+                                </View>
+                            }
+                        />
+                    )}
+
+                    <View style={stylesoy.commentInputRow}>
+                        {replyingTo && (
+                            <View style={stylesoy.replyingToChip}>
+                                <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Replying to {replyingTo.name}</Text>
+                                <Pressable onPress={() => setReplyingTo(null)} hitSlop={8}>
+                                    <IIcon name="close" size={14} color={colors.textSecondary} />
+                                </Pressable>
+                            </View>
+                        )}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <TextInput
+                                ref={commentInputRef}
+                                style={[stylesoy.commentInput, { color: colors.text }]}
+                                placeholder={replyingTo ? `Reply to ${replyingTo.name}...` : 'Add a comment...'}
+                                placeholderTextColor={colors.textTertiary}
+                                value={commentText}
+                                onChangeText={setCommentText}
+                                multiline
+                            />
+                            <Pressable
+                                style={[stylesoy.commentSendBtn, { opacity: isSubmittingComment || !commentText.trim() ? 0.5 : 1 }]}
+                                disabled={isSubmittingComment || !commentText.trim()}
+                                onPress={handleSubmitComment}
+                            >
+                                <IIcon name="send" size={18} color="#fff" />
+                            </Pressable>
+                        </View>
+                    </View>
+                </BottomSheetView>
+            </BottomSheet>
+
+            <BottomSheet
                 ref={composerSheetRef}
                 index={-1}
                 enablePanDownToClose
@@ -625,6 +1081,13 @@ export function Screen_feed({ navigation, route }: { navigation: any; route?: an
                     </View>
                 </BottomSheetView>
             </BottomSheet>
+
+            <FullscreenMediaViewer
+                media={fullscreenMedia?.media ?? null}
+                imgDomain={imgDomain}
+                initialIndex={fullscreenMedia?.index ?? 0}
+                onClose={() => setFullscreenMedia(null)}
+            />
         </View>
     );
 }
@@ -647,6 +1110,31 @@ const carouselStyles = StyleSheet.create({
     },
     dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.4)' },
     dotActive: { backgroundColor: '#fff' },
+    counterPill: {
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 10,
+    },
+    counterText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+});
+
+const fullscreenStyles = StyleSheet.create({
+    closeBtn: {
+        position: 'absolute',
+        top: 50,
+        right: 16,
+        zIndex: 10,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(255,255,255,0.15)',
+    },
 });
 
 function createStylesoy(colors: ThemeColors) {
@@ -674,6 +1162,53 @@ function createStylesoy(colors: ThemeColors) {
             shadowRadius: 8,
             shadowOffset: { width: 0, height: 4 },
             elevation: 8,
+        },
+        newPostsBanner: {
+            position: 'absolute',
+            top: 12,
+            alignSelf: 'center',
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            backgroundColor: colors.accent,
+            paddingHorizontal: 14,
+            paddingVertical: 8,
+            borderRadius: 20,
+            shadowColor: colors.shadow,
+            shadowOpacity: 0.3,
+            shadowRadius: 6,
+            shadowOffset: { width: 0, height: 2 },
+            elevation: 6,
+        },
+        newPostsBannerText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+        composerCard: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
+            backgroundColor: colors.surface,
+            borderRadius: 16,
+            padding: 12,
+            marginBottom: 12,
+        },
+        composerCardAvatar: {
+            width: 38,
+            height: 38,
+            borderRadius: 19,
+            backgroundColor: colors.backgroundSecondary,
+        },
+        composerCardInputFake: {
+            flex: 1,
+            backgroundColor: colors.backgroundSecondary,
+            borderRadius: 20,
+            paddingHorizontal: 14,
+            paddingVertical: 10,
+        },
+        composerCardIconBtn: {
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            alignItems: 'center',
+            justifyContent: 'center',
         },
         composerTitle: {
             fontSize: 17,
@@ -792,7 +1327,6 @@ function createStylesoy(colors: ThemeColors) {
         },
         media: {
             width: '100%',
-            height: 320,
             borderRadius: 12,
             backgroundColor: colors.backgroundSecondary,
         },
@@ -808,6 +1342,119 @@ function createStylesoy(colors: ThemeColors) {
             flexDirection: 'row',
             alignItems: 'center',
             gap: 6,
+        },
+        reactionPickerRow: {
+            position: 'absolute',
+            flexDirection: 'row',
+            gap: 4,
+            backgroundColor: colors.surface,
+            borderRadius: 26,
+            paddingHorizontal: 8,
+            paddingVertical: 6,
+            shadowColor: colors.shadow,
+            shadowOpacity: 0.25,
+            shadowRadius: 8,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: 10,
+        },
+        reactionPickerItem: {
+            width: 40,
+            height: 40,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        commentsSheet: {
+            flex: 1,
+        },
+        commentsHeader: {
+            paddingHorizontal: 16,
+            paddingTop: 4,
+            paddingBottom: 12,
+            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderBottomColor: colors.border,
+        },
+        commentsCenterFill: {
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingVertical: 40,
+        },
+        commentRow: {
+            flexDirection: 'row',
+            gap: 10,
+        },
+        commentAvatar: {
+            width: 34,
+            height: 34,
+            borderRadius: 17,
+            backgroundColor: colors.backgroundSecondary,
+        },
+        commentAvatarSmall: {
+            width: 26,
+            height: 26,
+            borderRadius: 13,
+            backgroundColor: colors.backgroundSecondary,
+        },
+        commentBubble: {
+            backgroundColor: colors.backgroundSecondary,
+            borderRadius: 16,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            gap: 2,
+            alignSelf: 'flex-start',
+            maxWidth: '100%',
+        },
+        commentMetaRow: {
+            flexDirection: 'row',
+            gap: 16,
+            marginTop: 5,
+            marginLeft: 10,
+        },
+        commentMeta: {
+            fontSize: 12,
+            color: colors.textSecondary,
+            fontWeight: '600',
+        },
+        commentReplyRow: {
+            flexDirection: 'row',
+            gap: 8,
+            marginTop: 12,
+            marginLeft: 22,
+        },
+        commentInputRow: {
+            backgroundColor: colors.surface,
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderTopColor: colors.border,
+            paddingHorizontal: 12,
+            paddingTop: 10,
+            paddingBottom: 16,
+            gap: 8,
+        },
+        replyingToChip: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            backgroundColor: colors.backgroundSecondary,
+            borderRadius: 10,
+            paddingHorizontal: 10,
+            paddingVertical: 6,
+        },
+        commentInput: {
+            flex: 1,
+            backgroundColor: colors.backgroundSecondary,
+            borderRadius: 20,
+            paddingHorizontal: 14,
+            paddingVertical: 10,
+            maxHeight: 100,
+            fontSize: 14,
+        },
+        commentSendBtn: {
+            width: 38,
+            height: 38,
+            borderRadius: 19,
+            backgroundColor: colors.accent,
+            alignItems: 'center',
+            justifyContent: 'center',
         },
     });
 }

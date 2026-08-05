@@ -5,7 +5,7 @@ import { __CONFIG__ } from "../static";
 import { sessionManager } from "../SessionContext";
 
 // Log function for debugging
-export const xxa_logggingReport = ({ type, extra, useraction, url, logMessage, reporteduserId, reportedPostId }: { type: string, extra?: string, useraction: string, url?: string, logMessage: string, stackTrace?: any, reporteduserId?: string, reportedPostId?: string }): void => {
+export const xxa_logggingReport = ({ type, extra, useraction, url, logMessage }: { type: string, extra?: string, useraction: string, url?: string, logMessage: string, stackTrace?: any }): void => {
     async function getAppMeta() {
         const [FirstInstallTime, LastUpdateTime] = await Promise.all([
             DeviceInfo.getFirstInstallTime(),
@@ -36,7 +36,6 @@ export const xxa_logggingReport = ({ type, extra, useraction, url, logMessage, r
                     "description": logMessage,
                     "extras": extra,
                 },
-                "user": { "reporteduserId": reporteduserId, "reportedPostId": reportedPostId },
                 // Device details live in users_devices (registered once via
                 // registerDevice on app init) -- only the reference is sent here,
                 // not the full device payload, on every single log.

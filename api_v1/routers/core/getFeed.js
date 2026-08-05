@@ -24,11 +24,12 @@ export default async function getFeed(params) {
       SELECT
         fp.post_id, fp.post_user_id, fp.post_caption, fp.post_media, fp.post_dateAdded,
         u.user_fullname, u.user_image, u.user_verified,
-        (SELECT COUNT(*) FROM feed_reactions fr WHERE fr.reaction_post_id = fp.post_id) AS like_count,
-        EXISTS(
-          SELECT 1 FROM feed_reactions fr2
+        (SELECT COUNT(*) FROM feed_reactions fr WHERE fr.reaction_post_id = fp.post_id) AS reaction_count,
+        (
+          SELECT fr2.reaction_kind FROM feed_reactions fr2
           WHERE fr2.reaction_post_id = fp.post_id AND fr2.reaction_user_id = ?
-        ) AS viewer_has_liked
+        ) AS viewer_reaction,
+        (SELECT COUNT(*) FROM feed_comments fc WHERE fc.comment_post_id = fp.post_id AND fc.comment_status = '1') AS comment_count
       FROM feed_posts fp
       INNER JOIN users u ON u.user_id = fp.post_user_id
       WHERE fp.post_status = '1'
@@ -51,8 +52,9 @@ export default async function getFeed(params) {
             rows.forEach((post) => {
                 post.user_image = JSON.parse(post.user_image ?? "[]");
                 post.post_media = post.post_media ?? [];
-                post.viewer_has_liked = Boolean(post.viewer_has_liked);
-                post.like_count = Number(post.like_count);
+                post.viewer_reaction = post.viewer_reaction ?? null;
+                post.reaction_count = Number(post.reaction_count);
+                post.comment_count = Number(post.comment_count);
                 post.user_verified = Number(post.user_verified);
             });
             response.code = 200;

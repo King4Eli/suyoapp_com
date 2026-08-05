@@ -10,11 +10,13 @@ import { createNavigationContainerRef } from '@react-navigation/native';
 import { xxa_logggingReport } from './functions/logging';
 import { xxa__http_requests, getFriendlyNetworkErrorMessage } from './functions/httpRequest';
 import { cacheStorage } from './functions/llstorage';
+import { reportUser } from './functions/reportUser';
 
 export { cacheStorage as cacheStorage }
 export { xxa_logggingReport as logReport };
 export { xxa__http_requests as _http_request };
 export { getFriendlyNetworkErrorMessage };
+export { reportUser };
  
 export const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 export const navigationRef = createNavigationContainerRef<any>();

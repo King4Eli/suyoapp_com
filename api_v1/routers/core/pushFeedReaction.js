@@ -2,9 +2,12 @@ import db_pool from "../../global/database.js";
 import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
 
+const REACTION_KINDS = new Set(['like', 'love', 'haha', 'wow', 'celebrate', 'support']);
+
 /**
- * Like/unlike a feed post.
- * @param {{ post_id?: string; reaction?: 'like' | 'unlike' }} data
+ * React/change-reaction/un-react to a feed post. One reaction per viewer per post --
+ * picking a new kind overwrites the previous one rather than stacking.
+ * @param {{ post_id?: string; reaction?: string }} data
  */
 export default async function pushFeedReaction(data) {
     /** @type {any} */
@@ -17,7 +20,7 @@ export default async function pushFeedReaction(data) {
         const postId = data?.post_id ?? "";
         const reaction = data?.reaction ?? "";
 
-        if (!postId || !['like', 'unlike'].includes(reaction)) {
+        if (!postId || (reaction !== 'remove' && !REACTION_KINDS.has(reaction))) {
             response.message = "Invalid post or reaction.";
             return response;
         }
@@ -39,29 +42,30 @@ export default async function pushFeedReaction(data) {
             return response;
         }
 
-        if (reaction === 'unlike') {
+        if (reaction === 'remove') {
             await db_pool.query(
                 `DELETE FROM feed_reactions WHERE reaction_post_id = ? AND reaction_user_id = ?`,
                 [postId, sessions.currentUserID]
             );
         } else {
             await db_pool.query(
-                `INSERT IGNORE INTO feed_reactions (reaction_post_id, reaction_user_id)
-         VALUES (?, ?)`,
-                [postId, sessions.currentUserID]
+                `INSERT INTO feed_reactions (reaction_post_id, reaction_user_id, reaction_kind)
+                 VALUES (?, ?, ?)
+                 ON DUPLICATE KEY UPDATE reaction_kind = VALUES(reaction_kind)`,
+                [postId, sessions.currentUserID, reaction]
             );
         }
 
         /** @type {[any[], any]} */
         const [[counts]] = await db_pool.query(
-            `SELECT COUNT(*) AS like_count FROM feed_reactions WHERE reaction_post_id = ?`,
+            `SELECT COUNT(*) AS reaction_count FROM feed_reactions WHERE reaction_post_id = ?`,
             [postId]
         );
 
         response.code = 200;
         response.message = "ok";
-        response.likeCount = Number(counts?.like_count ?? 0);
-        response.viewerHasLiked = reaction === 'like';
+        response.reactionCount = Number(counts?.reaction_count ?? 0);
+        response.viewerReaction = reaction === 'remove' ? null : reaction;
         response.postUserId = post.post_user_id;
     } catch (err) {
         tools.serverLog(`Error in pushFeedReaction: ${err}`, "pushFeedReaction-1");
