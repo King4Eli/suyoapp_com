@@ -1,8 +1,8 @@
 import db_pool from "./database.js";
-import { tools } from "./functions.js";
+import { tools, envInt } from "./functions.js";
 
 const HOUR_MS = 60 * 60 * 1000;
-const PENDING_TTL_HOURS = 24;
+const PENDING_TTL_HOURS = envInt('PENDING_PAYMENTS_TTL_HOURS', 24);
 
 async function expireStalePendingPayments() {
     try {

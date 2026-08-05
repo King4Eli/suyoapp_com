@@ -375,9 +375,23 @@ export class cacheStorage {
         get: (): { mapper: any } => {
             return { mapper: cacheStorage.tempMapper };
         },
-        getMapper: async (): Promise<void> => {
+        getMapper: async (forceRefresh = false): Promise<void> => {
             const sessIdStorage = await AsyncStorage.getItem(namer.storage.sessionId);
             if (!sessIdStorage) return;
+
+            // Cache-first, matching every other cacheStorage method -- this data rarely
+            // changes, so there's no reason to block every app launch on a network round trip.
+            if (!forceRefresh) {
+                try {
+                    const cached = await AsyncStorage.getItem(namer.storage.mapper_payload);
+                    if (cached) {
+                        cacheStorage.tempMapper = JSON.parse(cached);
+                        return;
+                    }
+                } catch (error) {
+                    console.error("Error reading mapper_payload from AsyncStorage:", error);
+                }
+            }
 
             const server = await _http_request({
                 customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getMapper',

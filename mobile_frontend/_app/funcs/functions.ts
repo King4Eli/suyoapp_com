@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, AppState, Dimensions, PermissionsAndroid, Platform, Vibration } from 'react-native';
 import { sessionManager } from './SessionContext';
 import Geolocation from 'react-native-geolocation-service';
+import ngeohash from 'ngeohash';
 import { namer, __CONFIG__ } from './static';
 import { Asset, ImageLibraryOptions, launchImageLibrary } from 'react-native-image-picker';
 import { Toastx } from './customNotification';
@@ -178,32 +179,11 @@ export const __init__app = async (): Promise<void> => {
   const notSessionAndNavigation = (!getSession_omi || navigationRef === null)
   
   // 111111
-  // update location
-  await (async ()=>{
-    await getCurrentLocation().then(async (location: any) => {
-          if (location) {
-              let cords = {
-                  latd: location?.coords?.latitude,
-                  long: location?.coords?.longitude,
-                  accuracy: location.coords.accuracy,
-                  altitude: location.coords.altitude,
-                  altitudeAccuracy: location.coords.altitudeAccuracy,
-                  heading: location.coords.heading,
-                  speed: location.coords.speed,
-                  timestamp: location.timestamp,
-              };
-              // Update the current user profile with the new location
-              await xxa__http_requests({
-                  customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushLocation",
-                  reqType: 'POST', bodyArray: {
-                      longlatd: JSON.stringify(cords),
-                  }
-                }).then(()=>{
-                  cacheStorage.getCurrentUserProfile(true)
-                });
-          }
-    });                  
-  })();
+  // update location -- gated so a re-launch in the same neighborhood doesn't
+  // re-hit the server (and its reverse-geocode call) every single time. Not
+  // awaited: the GPS fix itself can take several seconds and nothing the user
+  // sees on launch depends on it, so it shouldn't hold up the splash screen.
+  maybePushLocation().catch((error: any) => console.error("maybePushLocation failed:", error?.message));
 
   // 222222
   // connect with socket for realtime info
@@ -554,6 +534,60 @@ export async function getCurrentLocation() {
       }
     );
   });
+}
+
+const LOCATION_PUSH_MIN_INTERVAL_MS = 24 * 60 * 60 * 1000; // refresh at least once a day even if stationary
+const LOCATION_GEOHASH_PRECISION = 6; // (~0.6km x 1.2km) or ( ~0.375mi x 0.75mi) cell -- roughly neighborhood-scale
+
+/**
+ * Pushes location to the server only when the device has actually left the
+ * neighborhood it was last pushed from, or enough time has passed since the last
+ * push. Skips the round-trip otherwise -- pushLocation's handler does a reverse-geocode
+ * call against a rate-limited third-party API plus a DB write, neither of which should
+ * run on every single app launch just because the phone hasn't moved.
+ */
+export async function maybePushLocation(): Promise<void> {
+  const location: any = await getCurrentLocation().catch(() => null);
+  if (!location) return;
+
+  const latd = location?.coords?.latitude;
+  const long = location?.coords?.longitude;
+  if (!Number.isFinite(latd) || !Number.isFinite(long)) return;
+
+  const geohash = ngeohash.encode(latd, long, LOCATION_GEOHASH_PRECISION);
+
+  try {
+    const lastRaw = await AsyncStorage.getItem(namer.storage.lastLocationPush);
+    if (lastRaw) {
+      const last = JSON.parse(lastRaw);
+      const isSameArea = last?.geohash === geohash;
+      const isFresh = Date.now() - (last?.pushedAt ?? 0) < LOCATION_PUSH_MIN_INTERVAL_MS;
+      if (isSameArea && isFresh) return;
+    }
+  } catch (error) {
+    console.error("Error reading last location push:", error);
+  }
+
+  const cords = {
+    latd, long,
+    accuracy: location.coords.accuracy,
+    altitude: location.coords.altitude,
+    altitudeAccuracy: location.coords.altitudeAccuracy,
+    heading: location.coords.heading,
+    speed: location.coords.speed,
+    timestamp: location.timestamp,
+  };
+
+  const response = await xxa__http_requests({
+    customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushLocation",
+    reqType: 'POST',
+    bodyArray: { longlatd: JSON.stringify(cords) },
+  });
+
+  if (response?.code === 200) {
+    await AsyncStorage.setItem(namer.storage.lastLocationPush, JSON.stringify({ geohash, pushedAt: Date.now() }));
+    await cacheStorage.getCurrentUserProfile(true);
+  }
 }
 
 

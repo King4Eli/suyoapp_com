@@ -236,7 +236,8 @@ export const namer = {
         currentUserProfile: "b5rb5vt8euiynry",
         mapper:"dhgfhst4hj6h6h6",
         products: "j6yn65ik57y",
-        themeMode: "pk3nf7vqxz8w2m"
+        themeMode: "pk3nf7vqxz8w2m",
+        lastLocationPush: "qm3nc7xr9wfj2t"
     },
     navigation: {
         devpage: "zz_devv",
@@ -279,33 +280,25 @@ export const resourceMap = {
 
 //
 // remove for prod
-export const __CONFIG__ = [
-  {
-    DOMAIN: "suyoapp.com",
-    HTTPS_DOMAIN: "https://"+"suyoapp.com",
+export const __CONFIG__ = {
+  ...[
+    {
+       HTTPS_DOMAIN: "https://suyoapp.com",
+       HTTPS_API_DOMAIN: "https://api.suyoapp.com",
+    },
+    {
+       HTTPS_DOMAIN: "http://10.0.2.2:2004",
+       HTTPS_API_DOMAIN: "http://10.0.2.2:2001",
+    },
+  ][DeviceInfo.isEmulatorSync() && Platform.OS === "android" ? 1 : 0],
 
-    API_DOMAIN: "api.suyoapp.com",
-    HTTPS_API_DOMAIN: "https://"+"api.suyoapp.com",
+  BRAND_NAME: "SuyoApp",
+  SUPPORT_EMAIL: "support@suyoapp.com",
+  SAFETY_EMAIL: "safety@suyoapp.com",
+};
 
-    BRAND_NAME: "SuyoApp",
-    SUPPORT_EMAIL: "support@suyoapp.com",
-    SAFETY_EMAIL: "safety@suyoapp.com",
-  },
-  {
-    DOMAIN: "10.0.2.2:2004",
-    HTTPS_DOMAIN: "http://"+"10.0.2.2:2004",
-
-    API_DOMAIN: "10.0.2.2:2001",
-    HTTPS_API_DOMAIN: "http://"+"10.0.2.2:2001",
-
-    BRAND_NAME: "SuyoApp",
-    SUPPORT_EMAIL: "support@suyoapp.com",
-    SAFETY_EMAIL: "safety@suyoapp.com",
-  }
-// remove on prod
-][(DeviceInfo.isEmulatorSync() && Platform.OS === "android") ? 1 : 0];
-
-
+ 
+   
 // Keep in sync with ALLOWED_SOCIAL_PLATFORMS in api_v1/routers/core/pushProfile.js.
 export const SOCIAL_PLATFORMS = [
     { key: 'instagram', label: 'Instagram', icon: 'logo-instagram', baseUrl: 'https://instagram.com/' },

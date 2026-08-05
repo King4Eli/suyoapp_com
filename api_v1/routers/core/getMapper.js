@@ -1,5 +1,8 @@
 import db_pool from '../../global/database.js';
-import { tools } from '../../global/functions.js';
+import { tools, namer, envInt } from '../../global/functions.js';
+import { redisDo } from '../../global/redisClient.js';
+
+const MAPPER_CACHE_TTL_SECONDS = envInt('MAPPER_CACHE_TTL_SECONDS', 60 * 60); // 1 hour -- admin-managed reference data, rarely changes
 
 export default async function getMapper() {
     /** @type {any} */
@@ -10,6 +13,18 @@ export default async function getMapper() {
     };
 
     try {
+        const cached = await redisDo(async (client) => client.get(namer.redis.mapper)).catch((err) => {
+            tools.serverLog(`Redis read failed in getMapper: ${err}`, "getMapper-1");
+            return null;
+        });
+
+        if (cached) {
+            response.mapper_payload = JSON.parse(cached);
+            response.code = 200;
+            response.message = "ok";
+            return response;
+        }
+
         // Dumps every map_type as { map_type: { map_code: map_label } },
         // used by app init to seed __MAPPER.
         /** @type {[any[], any]} */
@@ -41,6 +56,12 @@ export default async function getMapper() {
         response.mapper_payload = sql_map;
         response.code = 200;
         response.message = "ok";
+
+        await redisDo(async (client) => {
+            await client.set(namer.redis.mapper, JSON.stringify(sql_map), { EX: MAPPER_CACHE_TTL_SECONDS });
+        }).catch((err) => {
+            tools.serverLog(`Redis write failed in getMapper: ${err}`, "getMapper-2");
+        });
     } catch (error) {
         tools.serverLog(`Error in getMapper: ${error}`, 'getMapper-100');
         response.code = 500;

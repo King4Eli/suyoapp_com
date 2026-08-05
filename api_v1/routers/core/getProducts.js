@@ -1,9 +1,9 @@
 import { createHash } from "crypto";
 import db_pool from "../../global/database.js";
-import { tools, namer } from "../../global/functions.js";
+import { tools, namer, envInt } from "../../global/functions.js";
 import { redisDo } from "../../global/redisClient.js";
 
-const PRODUCTS_CACHE_TTL_SECONDS = 10 * 60; // 10 minutes
+const PRODUCTS_CACHE_TTL_SECONDS = envInt('PRODUCTS_CACHE_TTL_SECONDS', 10 * 60); // 10 minutes
 
 // @ts-ignore
 export default async function getProducts() {

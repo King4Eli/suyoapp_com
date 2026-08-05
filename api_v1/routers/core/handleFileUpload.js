@@ -1,5 +1,5 @@
 import { randomBytes } from "crypto";
-import { tools } from "../../global/functions.js";
+import { tools, envInt } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
 import * as Minio from "minio";
 
@@ -128,7 +128,7 @@ export default async function handleFileUpload(fileData = { extension: null, buc
         }
 
         const fileKey = `${basePath}/${timestamp}-${uniqueId}.${fileExt}`;
-        const expiresInSeconds = 60 * 5; // 5 minutes
+        const expiresInSeconds = envInt('UPLOAD_PRESIGNED_URL_TTL_SECONDS', 60 * 5); // 5 minutes
 
         // Check if bucket exists, create if it doesn't
         const bucketExists = await minioClient.bucketExists(bucket);

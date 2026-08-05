@@ -777,7 +777,7 @@ export function Screen_feed({ navigation, route }: { navigation: any; route?: an
 
     if (feedPosts === null) {
         return (
-            <View style={[styles.container, { backgroundColor: colors.background, padding: 12 }]}>
+            <View style={[styles.container, { backgroundColor: colors.background, }]}>
                 <Skeleton style={{ height: 90, borderRadius: 16, marginBottom: 12 }} />
                 {Array.from({ length: 3 }).map((_, i) => (
                     <Skeleton key={i} style={{ height: 260, borderRadius: 16, marginBottom: 12 }} />
@@ -810,7 +810,7 @@ export function Screen_feed({ navigation, route }: { navigation: any; route?: an
                 viewabilityConfig={viewabilityConfig}
                 onViewableItemsChanged={onViewableItemsChanged}
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ padding: 12, gap: 12 }}
+                contentContainerStyle={[styles.conainerScrollView, {paddingVertical:5,gap: 12 }]}
                 ListHeaderComponent={
                     <Pressable style={stylesoy.composerCard} onPress={() => openComposer('text')}>
                         <SafeImage

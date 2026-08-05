@@ -88,6 +88,7 @@ export const namer = {
     redis: {
         verifyCode: "verify:code:",
         products: "products:list",
+        mapper: "mapper:lookup",
     },
     ratelimit: {
         login_ip: "ratelimit:login:ip:",
