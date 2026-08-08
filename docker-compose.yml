@@ -4,8 +4,8 @@ services:
     image: kingeli/suyoapp_com_api:latest
     container_name: suyoapp_com_api
     restart: unless-stopped
-    networks:
-      - shared-global-network
+    ports:
+      - "11000:80"
     env_file:
       - .env/db.env
       - .env/minio.env
@@ -20,8 +20,8 @@ services:
     image: kingeli/suyoapp_com_admin:latest
     container_name: suyoapp_com_admin
     restart: unless-stopped
-    networks:
-      - shared-global-network
+    ports:
+      - "11001:80"
     env_file:
       - .env/db.env
       - .env/smtp.env
@@ -32,9 +32,5 @@ services:
     image: kingeli/suyoapp_com_webui:latest
     container_name: suyoapp_com_webui
     restart: unless-stopped
-    networks:
-      - shared-global-network
-
-networks:
-  shared-global-network:
-    external: true
+    ports:
+      - "11002:80"
