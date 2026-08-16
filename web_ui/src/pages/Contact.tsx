@@ -1,7 +1,15 @@
-import site from '../config/site.json'
+import site from "../config/site.json";
 
 function Contact() {
-  const { supportEmail, safetyEmail, headline, supportTitle, supportBody, safetyTitle, safetyBody } = site.contact
+  const {
+    supportEmail,
+    safetyEmail,
+    headline,
+    supportTitle,
+    supportBody,
+    safetyTitle,
+    safetyBody,
+  } = site.contact;
 
   return (
     <section className="legal">
@@ -10,17 +18,17 @@ function Contact() {
 
       <h2>{supportTitle}</h2>
       <p>
-        <a href={`mailto:${supportEmail}`}>{supportEmail}</a>{' '}
-        {supportBody.replace('{email}', supportEmail)}
+        <a href={`mailto:${supportEmail}`}>{supportEmail}</a>{" "}
+        {supportBody.replace("{email}", supportEmail)}
       </p>
 
       <h2>{safetyTitle}</h2>
       <p>
-        {safetyBody.replace('{email}', safetyEmail)}{' '}
+        {safetyBody.replace("{email}", safetyEmail)}{" "}
         <a href={`mailto:${safetyEmail}`}>{safetyEmail}</a>.
       </p>
     </section>
-  )
+  );
 }
 
-export default Contact
+export default Contact;

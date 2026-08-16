@@ -17,7 +17,7 @@ import { __CONFIG__ } from './static';
 let connectionReady: Promise<boolean> | null = null;
 function ensureConnection(): Promise<boolean> {
   if (!connectionReady) {
-    connectionReady = initConnection().catch((err) => {
+    connectionReady = initConnection().catch(err => {
       connectionReady = null;
       throw err;
     });
@@ -34,7 +34,12 @@ export type NativePurchaseRequest = {
   matchId?: string;
 };
 
-export type NativePurchaseResult = { code: number; message?: string; paymentId?: string; verified?: boolean };
+export type NativePurchaseResult = {
+  code: number;
+  message?: string;
+  paymentId?: string;
+  verified?: boolean;
+};
 
 /**
  * Drives a native App Store / Play Store purchase end to end: requests the purchase,
@@ -43,19 +48,31 @@ export type NativePurchaseResult = { code: number; message?: string; paymentId?:
  * once the backend has recorded it -- so a killed app before finishTransaction() still
  * leaves the purchase re-deliverable via getAvailablePurchases() on next launch.
  */
-export async function purchaseNative({ purchaseType, sku, variantId, storeProductId, matchId }: NativePurchaseRequest): Promise<NativePurchaseResult> {
+export async function purchaseNative({
+  purchaseType,
+  sku,
+  variantId,
+  storeProductId,
+  matchId,
+}: NativePurchaseRequest): Promise<NativePurchaseResult> {
   if (!storeProductId) {
-    return { code: 400, message: 'This product is not available for in-app purchase yet.' };
+    return {
+      code: 400,
+      message: 'This product is not available for in-app purchase yet.',
+    };
   }
 
   try {
     await ensureConnection();
-    await fetchProducts({ skus: [storeProductId], type: purchaseType === 'subscribe' ? 'subs' : 'in-app' });
+    await fetchProducts({
+      skus: [storeProductId],
+      type: purchaseType === 'subscribe' ? 'subs' : 'in-app',
+    });
   } catch (err: any) {
     return { code: 500, message: err?.message ?? 'Unable to reach the store.' };
   }
 
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     let settled = false;
     const settle = (result: NativePurchaseResult) => {
       if (settled) return;
@@ -85,23 +102,35 @@ export async function purchaseNative({ purchaseType, sku, variantId, storeProduc
         });
 
         if (verifyResult?.code === 200) {
-          await finishTransaction({ purchase, isConsumable: purchaseType === 'onetime' });
+          await finishTransaction({
+            purchase,
+            isConsumable: purchaseType === 'onetime',
+          });
           await Promise.all([
             cacheStorage.getCurrentUserProfile(true),
-            purchaseType === 'onetime' ? cacheStorage.getProducts(true) : Promise.resolve(),
+            purchaseType === 'onetime'
+              ? cacheStorage.getProducts(true)
+              : Promise.resolve(),
           ]);
         }
 
-        settle(verifyResult ?? { code: 500, message: 'No response from server.' });
+        settle(
+          verifyResult ?? { code: 500, message: 'No response from server.' },
+        );
       } catch (err: any) {
-        settle({ code: 500, message: err?.message ?? 'Failed to verify purchase.' });
+        settle({
+          code: 500,
+          message: err?.message ?? 'Failed to verify purchase.',
+        });
       }
     });
 
-    const errorSub = purchaseErrorListener((error) => {
-      settle(isUserCancelledError(error)
-        ? { code: 499, message: 'Purchase cancelled.' }
-        : { code: 500, message: error.message });
+    const errorSub = purchaseErrorListener(error => {
+      settle(
+        isUserCancelledError(error)
+          ? { code: 499, message: 'Purchase cancelled.' }
+          : { code: 500, message: error.message },
+      );
     });
 
     requestPurchase({
@@ -110,6 +139,11 @@ export async function purchaseNative({ purchaseType, sku, variantId, storeProduc
         google: { skus: [storeProductId] },
       },
       type: purchaseType === 'subscribe' ? 'subs' : 'in-app',
-    }).catch((err: any) => settle({ code: 500, message: err?.message ?? 'Failed to start purchase.' }));
+    }).catch((err: any) =>
+      settle({
+        code: 500,
+        message: err?.message ?? 'Failed to start purchase.',
+      }),
+    );
   });
 }

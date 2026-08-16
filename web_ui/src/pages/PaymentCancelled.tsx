@@ -1,4 +1,4 @@
-import site from '../config/site.json'
+import site from "../config/site.json";
 
 function PaymentCancelled() {
   return (
@@ -19,7 +19,7 @@ function PaymentCancelled() {
         manually from your home screen.
       </p>
     </section>
-  )
+  );
 }
 
-export default PaymentCancelled
+export default PaymentCancelled;

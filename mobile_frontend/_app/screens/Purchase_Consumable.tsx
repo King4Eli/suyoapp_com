@@ -1,11 +1,23 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { 
-  View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, 
-  Linking, Animated, Dimensions, Platform 
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+  Alert,
+  Linking,
+  Animated,
+  Dimensions,
+  Platform,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { _http_request, cacheStorage, parseCategoryProducts } from '../funcs/functions';
+import {
+  _http_request,
+  cacheStorage,
+  parseCategoryProducts,
+} from '../funcs/functions';
 import { Loaderx } from '../funcs/functions_stateful';
 import { purchaseNative } from '../funcs/iap';
 import { namer, __CONFIG__ } from '../funcs/static';
@@ -25,27 +37,36 @@ const getVariantInfo = (variant: any) => {
   const cycle = variant?.metadata?.cycle || variant?.name || 'One-time';
   const discount = variant?.metadata?.discount;
   const originalPrice = variant?.metadata?.original_price || variant?.price;
-  const savings = discount ? parseInt(discount) : calculateSavings(variant?.price, originalPrice);
-  
+  const savings = discount
+    ? parseInt(discount)
+    : calculateSavings(variant?.price, originalPrice);
+
   return { cycle, discount, savings, originalPrice };
 };
 
-export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
+export const Screen_PurchaseConsumable = ({ route }: any) => {
   const [products, setProducts] = useState<any[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
-  const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
+  const [selectedVariantId, setSelectedVariantId] = useState<number | null>(
+    null,
+  );
   const [showConfirm, setShowConfirm] = useState(false);
-  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
+  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(
+    new Set(),
+  );
   const [currentRoses, setCurrentRoses] = useState<number | null>(null);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
 
   const requestedCategory = route?.params?.productcategory?.trim();
-  const productCategory = (!requestedCategory || requestedCategory === namer.productCategoryName.mainsub)
-    ? namer.productCategoryName.superlike
-    : requestedCategory;
-  const isRoseCategory = productCategory === namer.productCategoryName.superlike;
+  const productCategory =
+    !requestedCategory ||
+    requestedCategory === namer.productCategoryName.mainsub
+      ? namer.productCategoryName.superlike
+      : requestedCategory;
+  const isRoseCategory =
+    productCategory === namer.productCategoryName.superlike;
   const requestedMatchId = route?.params?.matchId;
   const isRewindCategory = productCategory === namer.productCategoryName.rewind;
 
@@ -55,12 +76,15 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
     (async () => {
       try {
         const rawProducts = await cacheStorage.getProducts();
-        const parsed = await parseCategoryProducts(rawProducts, productCategory);
+        const parsed = await parseCategoryProducts(
+          rawProducts,
+          productCategory,
+        );
         const productList = Array.isArray(parsed)
           ? parsed
           : parsed?.products && Array.isArray(parsed.products)
-            ? parsed.products
-            : [];
+          ? parsed.products
+          : [];
 
         if (mounted) {
           setProducts(productList);
@@ -81,28 +105,38 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
             }),
           ]).start();
         }
-      } catch (error) {
+      } catch {
         if (mounted) setProducts([]);
       }
     })();
-    return () => { mounted = false; };
-  }, [productCategory]);
+    return () => {
+      mounted = false;
+    };
+  }, [productCategory, fadeAnim, slideAnim]);
 
   useEffect(() => {
     if (!isRoseCategory) return;
     let mounted = true;
-    cacheStorage.getCurrentUserProfile().then((profile: any) => {
-      if (!mounted) return;
-      const roses = profile?.roses;
-      if (roses) setCurrentRoses(roses.remainingToday + roses.balance);
-    }).catch(() => {});
-    return () => { mounted = false; };
+    cacheStorage
+      .getCurrentUserProfile()
+      .then((profile: any) => {
+        if (!mounted) return;
+        const roses = profile?.roses;
+        if (roses) setCurrentRoses(roses.remainingToday + roses.balance);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
   }, [isRoseCategory]);
 
   const handlePurchase = () => {
     if (!selectedProduct) return;
 
-    const selectedVariant = selectedProduct.variants?.find((v: any) => v.id === selectedVariantId) || selectedProduct.variants?.[0] || null;
+    const selectedVariant =
+      selectedProduct.variants?.find((v: any) => v.id === selectedVariantId) ||
+      selectedProduct.variants?.[0] ||
+      null;
     const variantId = selectedVariant?.id || null;
 
     Loaderx.show();
@@ -114,14 +148,17 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
         ot_duration: variantId,
         quantity: 1,
         ...(requestedMatchId ? { matchId: requestedMatchId } : {}),
-      }
+      },
     }).then((res: any) => {
       Loaderx.hide();
-      if (res?.code === 301 && res?.type === "external" && res?.url) {
+      if (res?.code === 301 && res?.type === 'external' && res?.url) {
         Linking.openURL(res.url);
         setShowConfirm(false);
       } else {
-        Alert.alert('Error', res?.message || 'Purchase failed. Please try again.');
+        Alert.alert(
+          'Error',
+          res?.message || 'Purchase failed. Please try again.',
+        );
       }
     });
   };
@@ -129,7 +166,10 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
   const handleNativePurchase = async () => {
     if (!selectedProduct) return;
 
-    const selectedVariant = selectedProduct.variants?.find((v: any) => v.id === selectedVariantId) || selectedProduct.variants?.[0] || null;
+    const selectedVariant =
+      selectedProduct.variants?.find((v: any) => v.id === selectedVariantId) ||
+      selectedProduct.variants?.[0] ||
+      null;
     if (!selectedVariant) return;
 
     Loaderx.show();
@@ -146,7 +186,10 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
       setShowConfirm(false);
       Alert.alert('Success', 'Your purchase was completed.');
     } else if (result.code !== 499) {
-      Alert.alert('Error', result.message ?? 'Purchase failed. Please try again.');
+      Alert.alert(
+        'Error',
+        result.message ?? 'Purchase failed. Please try again.',
+      );
     }
   };
 
@@ -167,46 +210,62 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
     handlePurchase();
   };
 
-  const VariantCard = ({ variant, product, isSelected, onSelect, showQuickBuy = false }: any) => {
+  const VariantCard = ({
+    variant,
+    product,
+    isSelected,
+    onSelect,
+    showQuickBuy = false,
+  }: any) => {
     const { cycle, discount, savings, originalPrice } = getVariantInfo(variant);
     const price = variant?.price || 0;
-    const isBestValue = savings >= 20;
-    const isPopular = cycle.toLowerCase().includes('popular') || (savings >= 30);
+    const isPopular = cycle.toLowerCase().includes('popular') || savings >= 30;
 
     return (
       <TouchableOpacity
         activeOpacity={0.8}
         onPress={() => onSelect(variant.id)}
-        style={[
-          styles.variantCard,
-          isSelected && styles.variantCardSelected
-        ]}
+        style={[styles.variantCard, isSelected && styles.variantCardSelected]}
       >
         {isPopular && (
-          <View style={[styles.popularBadge, isSelected && styles.popularBadgeSelected]}>
+          <View
+            style={[
+              styles.popularBadge,
+              isSelected && styles.popularBadgeSelected,
+            ]}
+          >
             <Icon name="flame" size={12} color="#fff" />
             <Text style={styles.popularText}>Most Popular</Text>
           </View>
         )}
-        
+
         {discount && (
-          <View style={[styles.discountBadge, isSelected && styles.discountBadgeSelected]}>
+          <View
+            style={[
+              styles.discountBadge,
+              isSelected && styles.discountBadgeSelected,
+            ]}
+          >
             <Text style={styles.discountText}>-{discount}%</Text>
           </View>
         )}
 
         <View style={styles.variantCardContent}>
-          <View style={{margin:6}}>
-             
-             
-          </View>
+          <View style={{ margin: 6 }} />
 
           <View style={styles.priceContainer}>
-            <Text style={[styles.variantPrice, isSelected && styles.variantPriceSelected]}>
+            <Text
+              style={[
+                styles.variantPrice,
+                isSelected && styles.variantPriceSelected,
+              ]}
+            >
               ${formatPrice(price)}
             </Text>
             {originalPrice > price && (
-              <Text style={styles.originalPrice}>${formatPrice(originalPrice)}</Text>
+              <Text style={styles.originalPrice}>
+                ${formatPrice(originalPrice)}
+              </Text>
             )}
           </View>
 
@@ -229,22 +288,23 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
     );
   };
 
-  const ProductCard = ({ product, index }: { product: any; index: number }) => {
+  const ProductCard = ({ product }: { product: any }) => {
     const isSelected = selectedProduct?.sku === product.sku;
     const variants = Array.isArray(product.variants) ? product.variants : [];
-    const features = product?.description?.features?.filter((f: any) => f?.d?.trim()) || [];
+    const features =
+      product?.description?.features?.filter((f: any) => f?.d?.trim()) || [];
     const isExpanded = expandedProducts.has(product.sku);
     const displayFeatures = isExpanded ? features : features.slice(0, 3);
     const hasMoreFeatures = features.length > 3;
 
     return (
-      <Animated.View 
+      <Animated.View
         style={[
           styles.productCard,
-          { 
+          {
             opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }]
-          }
+            transform: [{ translateY: slideAnim }],
+          },
         ]}
       >
         {/* Product Header with Icon */}
@@ -253,12 +313,27 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
             colors={['#8B5CF6', '#6D28D9']}
             style={styles.productIconContainer}
           >
-            <Icon name={isRoseCategory ? "rose" : isRewindCategory ? "arrow-undo" : "flash"} size={24} color="#FFF" />
+            <Icon
+              name={
+                isRoseCategory
+                  ? 'rose'
+                  : isRewindCategory
+                  ? 'arrow-undo'
+                  : 'flash'
+              }
+              size={24}
+              color="#FFF"
+            />
           </LinearGradient>
           <View style={styles.productInfo}>
             <Text style={styles.productName}>{product.name}</Text>
             <Text style={styles.productDescription}>
-              {product?.description?.short || (isRoseCategory ? 'Spend roses on Super Likes' : isRewindCategory ? 'Recover a match you passed on' : 'Boost your profile visibility')}
+              {product?.description?.short ||
+                (isRoseCategory
+                  ? 'Spend roses on Super Likes'
+                  : isRewindCategory
+                  ? 'Recover a match you passed on'
+                  : 'Boost your profile visibility')}
             </Text>
           </View>
           {features.length > 0 && (
@@ -283,19 +358,21 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
                 <Text style={styles.featureText}>{feature.d}</Text>
               </View>
             ))}
-            
+
             {hasMoreFeatures && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.expandButton}
                 onPress={() => toggleProductExpand(product.sku)}
               >
                 <Text style={styles.expandButtonText}>
-                  {isExpanded ? 'Show less' : `+${features.length - 3} more features`}
+                  {isExpanded
+                    ? 'Show less'
+                    : `+${features.length - 3} more features`}
                 </Text>
-                <Icon 
-                  name={isExpanded ? "chevron-up" : "chevron-down"} 
-                  size={14} 
-                  color="#8B5CF6" 
+                <Icon
+                  name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={14}
+                  color="#8B5CF6"
                 />
               </TouchableOpacity>
             )}
@@ -304,12 +381,15 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
 
         {/* Variants Grid */}
         <View style={styles.variantsGrid}>
-          {variants.map((variant: any, idx: number) => (
+          {variants.map((variant: any) => (
             <VariantCard
               key={variant.id}
               variant={variant}
               product={product}
-              isSelected={selectedProduct?.sku === product.sku && selectedVariantId === variant.id}
+              isSelected={
+                selectedProduct?.sku === product.sku &&
+                selectedVariantId === variant.id
+              }
               onSelect={(variantId: number) => {
                 setSelectedProduct(product);
                 setSelectedVariantId(variantId);
@@ -336,62 +416,80 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
 
   return (
     <LinearGradient colors={['#0A0A0F', '#14141F']} style={styles.container}>
-      <ScrollView 
-        showsVerticalScrollIndicator={false} 
+      <ScrollView
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
         {/* Animated Header */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.header,
             {
               opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
+              transform: [{ translateY: slideAnim }],
+            },
           ]}
         >
           <LinearGradient
             colors={['#8B5CF6', '#6D28D9']}
             style={styles.headerIconContainer}
           >
-            <Icon name={isRoseCategory ? "rose" : isRewindCategory ? "arrow-undo" : "flash"} size={48} color="#FFF" />
+            <Icon
+              name={
+                isRoseCategory
+                  ? 'rose'
+                  : isRewindCategory
+                  ? 'arrow-undo'
+                  : 'flash'
+              }
+              size={48}
+              color="#FFF"
+            />
           </LinearGradient>
-          <Text style={styles.title}>{isRoseCategory ? "Roses" : isRewindCategory ? "Rewind" : "Super Likes"}</Text>
+          <Text style={styles.title}>
+            {isRoseCategory
+              ? 'Roses'
+              : isRewindCategory
+              ? 'Rewind'
+              : 'Super Likes'}
+          </Text>
           <Text style={styles.subtitle}>
             {isRoseCategory
-              ? "Roses are spent on Super Likes to get noticed instantly"
+              ? 'Roses are spent on Super Likes to get noticed instantly'
               : isRewindCategory
-                ? "Recover a match you accidentally passed on"
-                : "Get noticed instantly by more people"}
+              ? 'Recover a match you accidentally passed on'
+              : 'Get noticed instantly by more people'}
           </Text>
 
           {isRoseCategory && currentRoses !== null && (
             <View style={styles.balanceRow}>
               <Icon name="rose" size={14} color="#e11d48" />
-              <Text style={styles.balanceText}>You have {currentRoses} rose{currentRoses === 1 ? '' : 's'}</Text>
+              <Text style={styles.balanceText}>
+                You have {currentRoses} rose{currentRoses === 1 ? '' : 's'}
+              </Text>
             </View>
           )}
 
           {/* Stats Row */}
           {!isRewindCategory && (
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Icon name="people" size={16} color="#8B5CF6" />
-              <Text style={styles.statText}>2x more views</Text>
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Icon name="people" size={16} color="#8B5CF6" />
+                <Text style={styles.statText}>2x more views</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Icon name="chatbubbles" size={16} color="#8B5CF6" />
+                <Text style={styles.statText}>3x more matches</Text>
+              </View>
             </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Icon name="chatbubbles" size={16} color="#8B5CF6" />
-              <Text style={styles.statText}>3x more matches</Text>
-            </View>
-          </View>
           )}
         </Animated.View>
 
         {/* Products List */}
         <View style={styles.productsContainer}>
-          {products.map((product, idx) => (
-            <ProductCard key={product.sku} product={product} index={idx} />
+          {products.map(product => (
+            <ProductCard key={product.sku} product={product} />
           ))}
         </View>
 
@@ -412,7 +510,8 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
         </View>
 
         <Text style={styles.disclaimer}>
-          One-time purchase. No recurring charges. Instant delivery to your account.
+          One-time purchase. No recurring charges. Instant delivery to your
+          account.
         </Text>
       </ScrollView>
 
@@ -425,7 +524,7 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
         >
           <Animated.View style={styles.modalContent}>
             {/* Close button */}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.modalClose}
               onPress={() => setShowConfirm(false)}
             >
@@ -453,26 +552,37 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
               </View>
 
               {(() => {
-                const variant = selectedProduct.variants?.find((v: any) => v.id === selectedVariantId) || selectedProduct.variants?.[0] || null;
+                const variant =
+                  selectedProduct.variants?.find(
+                    (v: any) => v.id === selectedVariantId,
+                  ) ||
+                  selectedProduct.variants?.[0] ||
+                  null;
                 const { cycle, savings } = getVariantInfo(variant);
-                
+
                 return (
                   <>
                     <View style={styles.modalRow}>
                       <Text style={styles.modalLabel}>Package</Text>
                       <Text style={styles.modalValue}>{cycle}</Text>
                     </View>
-                    
+
                     {savings > 0 && (
                       <View style={styles.modalRow}>
                         <Text style={styles.modalLabel}>Savings</Text>
                         <View style={styles.savingsBadge}>
-                          <Icon name="trending-down" size={12} color="#10b981" />
-                          <Text style={styles.savingsBadgeText}>Save {savings}%</Text>
+                          <Icon
+                            name="trending-down"
+                            size={12}
+                            color="#10b981"
+                          />
+                          <Text style={styles.savingsBadgeText}>
+                            Save {savings}%
+                          </Text>
                         </View>
                       </View>
                     )}
-                    
+
                     <View style={[styles.modalRow, styles.modalTotal]}>
                       <Text style={styles.modalTotalLabel}>Total</Text>
                       <Text style={styles.modalPrice}>
@@ -484,17 +594,36 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
               })()}
             </View>
 
-            <TouchableOpacity style={styles.purchaseButton} onPress={handlePurchase}>
+            <TouchableOpacity
+              style={styles.purchaseButton}
+              onPress={handlePurchase}
+            >
               <Text style={styles.purchaseButtonText}>Complete Purchase</Text>
               <Icon name="arrow-forward" size={18} color="#FFF" />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.nativeButton} onPress={handleNativePurchase}>
-              <Icon name={Platform.OS === 'ios' ? 'logo-apple' : 'logo-google-playstore'} size={18} color="#E5E7EB" />
-              <Text style={styles.nativeButtonText}>{Platform.OS === 'ios' ? 'Pay with Apple' : 'Pay with Google Play'}</Text>
+            <TouchableOpacity
+              style={styles.nativeButton}
+              onPress={handleNativePurchase}
+            >
+              <Icon
+                name={
+                  Platform.OS === 'ios' ? 'logo-apple' : 'logo-google-playstore'
+                }
+                size={18}
+                color="#E5E7EB"
+              />
+              <Text style={styles.nativeButtonText}>
+                {Platform.OS === 'ios'
+                  ? 'Pay with Apple'
+                  : 'Pay with Google Play'}
+              </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.cancelButton} onPress={() => setShowConfirm(false)}>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setShowConfirm(false)}
+            >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
           </Animated.View>

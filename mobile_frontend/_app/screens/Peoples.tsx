@@ -1,13 +1,50 @@
-import React, { useState, useRef, useLayoutEffect, useEffect, useMemo } from 'react';
+import React, {
+  useState,
+  useRef,
+  useLayoutEffect,
+  useEffect,
+  useMemo,
+  useCallback,
+} from 'react';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import MIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { View, Text, Pressable, ScrollView, Alert, TouchableOpacity, StyleSheet, Modal, Linking } from 'react-native';
-import { Loaderx, Skeleton, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
+import {
+  View,
+  Text,
+  Pressable,
+  ScrollView,
+  Alert,
+  TouchableOpacity,
+  StyleSheet,
+  Modal,
+  Linking,
+} from 'react-native';
+import {
+  Loaderx,
+  Skeleton,
+  bottomsheet_renderBackdrop,
+} from '../funcs/functions_stateful';
 import { useFocusEffect } from '@react-navigation/native';
-import { styles, namer, colors as staticColors, __CONFIG__, SOCIAL_PLATFORMS } from '../funcs/static';
+import {
+  styles,
+  namer,
+  colors as staticColors,
+  __CONFIG__,
+  SOCIAL_PLATFORMS,
+} from '../funcs/static';
 import { useTheme, ThemeColors } from '../funcs/theme';
-import { _http_request, cacheStorage,    help, logReport, reportUser, screenHeight, sleep } from '../funcs/functions';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  _http_request,
+  cacheStorage,
+  help,
+  logReport,
+  reportUser,
+  screenHeight,
+} from '../funcs/functions';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { TextInput } from 'react-native-gesture-handler';
 import { LinearGradient } from 'react-native-linear-gradient';
 import { Toastx } from '../funcs/customNotification';
@@ -16,987 +53,1919 @@ import FastImage from 'react-native-fast-image';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
 import ImageViewing from 'react-native-image-viewing';
-import { ActionBurstKind, ActionBurstOverlay, ConfettiBurst } from '../funcs/customCelebration';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring, withTiming } from 'react-native-reanimated';
- 
+import {
+  ActionBurstKind,
+  ActionBurstOverlay,
+  ConfettiBurst,
+} from '../funcs/customCelebration';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
-export default function Peoples_Screen({ route, navigation }: { route: any, navigation: any }) {
-    const { colors } = useTheme();
-    const deckStyles = useMemo(() => createDeckStyles(colors), [colors]);
-    const [getProfile, setProfile] = useState<any>(null);
+export default function Peoples_Screen({
+  route,
+  navigation,
+}: {
+  route: any;
+  navigation: any;
+}) {
+  const { colors } = useTheme();
+  const deckStyles = useMemo(() => createDeckStyles(colors), [colors]);
+  const [getProfile, setProfile] = useState<any>(null);
 
-    const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
-    const imageDomain = __MAPPER?.img_domain?.[0] ?? null;
- 
-    const [getPeopleToMatch, setPeopleToMatch] = useState<any[] | null>(null);
-    const [gptmd, sptmd] = useState<boolean>(false);
-    const scrollViewRef = useRef<ScrollView>(null);
-    const isActionLockedRef = useRef(false);
-    const [getSkippedLastPerson, setSkippedLastPerson] = useState<any|null>(null);
-    const [photoIndex, setPhotoIndex] = useState(0);
-    const [getFullscreenClickImageIndex, setFullscreenClickImageIndex] = useState<number | null>(null);
-    const [showItsAMatchModal, setShowItsAMatchModal] = useState(false);
-    const [getShowDislikedMatchModal, setShowDislikedMatchModal] = useState(false);
-    const [getActionBurst, setActionBurst] = useState<{ kind: ActionBurstKind; key: number } | null>(null);
-    const [entitlements, setEntitlements] = useState<{
-        roses: { remainingToday: number; balance: number } | null;
-    }>({ roses: null });
+  const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
+  const imageDomain = __MAPPER?.img_domain?.[0] ?? null;
 
-    const carouselRef = useRef<CarouselRef>(null);
-    const insets = useSafeAreaInsets(); 
+  const [getPeopleToMatch, setPeopleToMatch] = useState<any[] | null>(null);
+  const [gptmd, sptmd] = useState<boolean>(false);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const isActionLockedRef = useRef(false);
+  const [getSkippedLastPerson, setSkippedLastPerson] = useState<any | null>(
+    null,
+  );
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const [getFullscreenClickImageIndex, setFullscreenClickImageIndex] = useState<
+    number | null
+  >(null);
+  const [showItsAMatchModal, setShowItsAMatchModal] = useState(false);
+  const [getShowDislikedMatchModal, setShowDislikedMatchModal] =
+    useState(false);
+  const [getActionBurst, setActionBurst] = useState<{
+    kind: ActionBurstKind;
+    key: number;
+  } | null>(null);
+  const [entitlements, setEntitlements] = useState<{
+    roses: { remainingToday: number; balance: number } | null;
+  }>({ roses: null });
 
-    // "it's a match!" entrance animation
-    const matchScale = useSharedValue(0.6);
-    const matchOpacity = useSharedValue(0);
-    const leftPhotoX = useSharedValue(-90);
-    const rightPhotoX = useSharedValue(90);
-    useEffect(() => {
-        if (showItsAMatchModal) {
-            matchScale.value = 0.6;
-            matchOpacity.value = 0;
-            leftPhotoX.value = -90;
-            rightPhotoX.value = 90;
-            matchOpacity.value = withTiming(1, { duration: 200 });
-            matchScale.value = withSpring(1, { damping: 11, stiffness: 160 });
-            leftPhotoX.value = withDelay(120, withSpring(0, { damping: 12, stiffness: 140 }));
-            rightPhotoX.value = withDelay(180, withSpring(0, { damping: 12, stiffness: 140 }));
-        }
-    }, [showItsAMatchModal]);
-    const matchCardAnimStyle = useAnimatedStyle(() => ({
-        opacity: matchOpacity.value,
-        transform: [{ scale: matchScale.value }],
-    }));
-    const leftPhotoAnimStyle = useAnimatedStyle(() => ({ transform: [{ translateX: leftPhotoX.value }, { rotate: '-12deg' }] }));
-    const rightPhotoAnimStyle = useAnimatedStyle(() => ({ transform: [{ translateX: rightPhotoX.value }, { rotate: '12deg' }] }));
+  const carouselRef = useRef<CarouselRef>(null);
+  const insets = useSafeAreaInsets();
 
-    // "you passed but it was a match" shake animation
-    const passedShakeX = useSharedValue(0);
-    useEffect(() => {
-        if (getShowDislikedMatchModal) {
-            passedShakeX.value = 0;
-            passedShakeX.value = withDelay(80, withSequence(
-                withTiming(-10, { duration: 60, easing: Easing.linear }),
-                withTiming(10, { duration: 100, easing: Easing.linear }),
-                withTiming(-6, { duration: 100, easing: Easing.linear }),
-                withTiming(0, { duration: 80, easing: Easing.linear }),
-            ));
-        }
-    }, [getShowDislikedMatchModal]);
-    const passedShakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: passedShakeX.value }] }));
-    const currentPerson = getPeopleToMatch?.[0] ?? [];
-    const nextPerson = getPeopleToMatch?.[1] ?? [];
-    const currentUserImages = (currentPerson?.user_image ?? []);
-    const currentPhotos = currentUserImages.filter((img: any) => img?.p);
-    const prompts = [currentPerson?.user_bio_prompt?.[0], currentPerson?.user_bio_prompt?.[1], currentPerson?.user_bio_prompt?.[2],].filter(Boolean);
-
-    // profile - reloaded on every focus so edits made on ProfileEdit (e.g. interests)
-    // are reflected here as soon as the user navigates back, not just on first mount.
-    useFocusEffect(React.useCallback(() => {
-        let mounted = true;
-        (async () => {
-            try {
-                const [profile] = await Promise.all([cacheStorage.getCurrentUserProfile()]);
-                if (mounted && profile) {
-                    setProfile(profile);
-                    setEntitlements({
-                        roses: profile?.roses
-                            ? { remainingToday: profile.roses.remainingToday, balance: profile.roses.balance }
-                            : null,
-                    });
-                }
-            } catch (error) {
-                console.error("Error loading profile:", error);
-                if (mounted) {
-                    setProfile(null);
-                }
-            }
-        })();
-
-        return () => { mounted = false; };
-    }, []));
-
-
- 
-    const bottomSheetRef_reportUser = {
-        ref: useRef<BottomSheet>(null),
-        snap: useMemo(() => ['80%'], [])
-    }; 
-
-    const functs = {
-        onePersonProfile: route?.params?.getOnePersonId, //str
-        isAlreadyLiked: route?.params?.alreadyLiked || false, //bool
-        previewP: route?.params?.previewProfile || false,
-        likedMatchId: route?.params?.likedMatchedId,//str
-        refreshPeoples: () => {
-            const j = getPeopleToMatch?.filter((v: any) => v.user_id !== getPeopleToMatch?.[0]?.user_id);
-            // console.log("remove last---", getPeopleToMatch?.length, j?.length)
-            setPeopleToMatch(j ?? null);
-        }
+  // "it's a match!" entrance animation
+  const matchScale = useSharedValue(0.6);
+  const matchOpacity = useSharedValue(0);
+  const leftPhotoX = useSharedValue(-90);
+  const rightPhotoX = useSharedValue(90);
+  useEffect(() => {
+    if (showItsAMatchModal) {
+      matchScale.value = 0.6;
+      matchOpacity.value = 0;
+      leftPhotoX.value = -90;
+      rightPhotoX.value = 90;
+      matchOpacity.value = withTiming(1, { duration: 200 });
+      matchScale.value = withSpring(1, { damping: 11, stiffness: 160 });
+      leftPhotoX.value = withDelay(
+        120,
+        withSpring(0, { damping: 12, stiffness: 140 }),
+      );
+      rightPhotoX.value = withDelay(
+        180,
+        withSpring(0, { damping: 12, stiffness: 140 }),
+      );
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showItsAMatchModal]);
+  const matchCardAnimStyle = useAnimatedStyle(() => ({
+    opacity: matchOpacity.value,
+    transform: [{ scale: matchScale.value }],
+  }));
+  const leftPhotoAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: leftPhotoX.value }, { rotate: '-12deg' }],
+  }));
+  const rightPhotoAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: rightPhotoX.value }, { rotate: '12deg' }],
+  }));
 
+  // "you passed but it was a match" shake animation
+  const passedShakeX = useSharedValue(0);
+  useEffect(() => {
+    if (getShowDislikedMatchModal) {
+      passedShakeX.value = 0;
+      passedShakeX.value = withDelay(
+        80,
+        withSequence(
+          withTiming(-10, { duration: 60, easing: Easing.linear }),
+          withTiming(10, { duration: 100, easing: Easing.linear }),
+          withTiming(-6, { duration: 100, easing: Easing.linear }),
+          withTiming(0, { duration: 80, easing: Easing.linear }),
+        ),
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getShowDislikedMatchModal]);
+  const passedShakeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: passedShakeX.value }],
+  }));
+  const currentPerson = getPeopleToMatch?.[0] ?? [];
+  const nextPerson = getPeopleToMatch?.[1] ?? [];
+  const currentUserImages = currentPerson?.user_image ?? [];
+  const currentPhotos = currentUserImages.filter((img: any) => img?.p);
+  const prompts = [
+    currentPerson?.user_bio_prompt?.[0],
+    currentPerson?.user_bio_prompt?.[1],
+    currentPerson?.user_bio_prompt?.[2],
+  ].filter(Boolean);
 
-    // header options
-    useLayoutEffect(() => {
-        navigation.setOptions({
-            headerShadowVisible: false,
-            headerStyle: { backgroundColor: colors.background },
-            headerTitleAlign: 'left',
-            headerTitle: () => <View style={{ alignItems: "center", flexDirection: "row", gap: 2 }}>
-                    {getPeopleToMatch?.[0]?.user_verified === 1 && <IIcon name="checkmark-done-circle-sharp" size={20} color={colors.accent} />}
-                    <Text style={{ fontSize: 20, fontWeight: 'bold', textTransform: "capitalize", color: colors.text }}>{(getPeopleToMatch?.[0]?.user_fullname ?? "") + (getPeopleToMatch?.[0]?.user_bio_dob ? ", " + help.getageFromDOB(getPeopleToMatch?.[0]?.user_bio_dob) : "")}</Text>
-                </View>,
-
-            headerRight: () => !functs.onePersonProfile && (
-                <View style={[
-                    {flexDirection: "row", gap: 10,
-                    
-                        paddingHorizontal: 5,
-                        borderRadius: 18,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: colors.surface,
-                        marginRight: 10,
-                        shadowColor: colors.shadow,
-                        shadowOffset: { width: 0, height: 6 },
-                        shadowOpacity: 0.08,
-                        shadowRadius: 14,
-                        elevation: 3,
-                    }
-                ]}>
-                    {getSkippedLastPerson !== null && <Pressable onPress={attemptRestore}>
-                        <MIcon name="backup-restore" size={25} color={colors.text} />
-                    </Pressable>}
-                    <Pressable onPress={() => { navigation.navigate(namer.navigation.editpreference); }}>
-                        <IIcon name="filter-outline" size={25} color={colors.text} />
-                    </Pressable>
-                </View>),
-        });
-    }, [getPeopleToMatch, getSkippedLastPerson, colors, entitlements]);
-
-    // next person load images
-    useEffect(() => {
-        if (nextPerson?.user_image?.length > 1) {
-            nextPerson?.user_image.forEach((url: any) => {
-                const imgh = imageDomain + url?.p;
-                //console.log("preloading next image:", imgh);
-                if (imageDomain !== null) FastImage.preload([{ uri: imgh }]);
-
+  // profile - reloaded on every focus so edits made on ProfileEdit (e.g. interests)
+  // are reflected here as soon as the user navigates back, not just on first mount.
+  useFocusEffect(
+    React.useCallback(() => {
+      let mounted = true;
+      (async () => {
+        try {
+          const profile = await cacheStorage.getCurrentUserProfile();
+          if (mounted && profile) {
+            setProfile(profile);
+            setEntitlements({
+              roses: profile?.roses
+                ? {
+                    remainingToday: profile.roses.remainingToday,
+                    balance: profile.roses.balance,
+                  }
+                : null,
             });
+          }
+        } catch (error) {
+          console.error('Error loading profile:', error);
+          if (mounted) {
+            setProfile(null);
+          }
         }
-    }, [getPeopleToMatch]);
+      })();
 
-    // reset photo index on new person
-    useEffect(() => {
-        setPhotoIndex(0);
-        carouselRef.current?.goToPage(0);
-    }, [getPeopleToMatch?.[0]?.user_id]);
+      return () => {
+        mounted = false;
+      };
+    }, []),
+  );
 
-    // load peoples to match on focus
-    useFocusEffect(React.useCallback(() => {
-        _http_request({
-            reqType: 'POST',
-            customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/getPeopleToMatch",
-            bodyArray: {
-                getOnePersons_id2: functs.onePersonProfile
-            }
-        }).then((response) => {
-            if (response?.code === 200) {
-                let peopleMatchArr = response?.matchespeoples ?? [];
-                //console.log("new peoples reloaded total, now:", peopleMatchArr.length);
-                setPeopleToMatch(peopleMatchArr);
-            } else if (response?.code === 404) {
-                setPeopleToMatch([]);
-            }
-        }).finally(() => {
-            scrollViewRef.current?.scrollTo({ y: 0, animated: true });// Scroll to the top of the scroll view after action
-        });
+  const bottomSheetRef_reportUser = {
+    ref: useRef<BottomSheet>(null),
+    snap: useMemo(() => ['80%'], []),
+  };
 
-    }, [gptmd]));
+  const functs = {
+    onePersonProfile: route?.params?.getOnePersonId, //str
+    isAlreadyLiked: route?.params?.alreadyLiked || false, //bool
+    previewP: route?.params?.previewProfile || false,
+    likedMatchId: route?.params?.likedMatchedId, //str
+    refreshPeoples: () => {
+      const j = getPeopleToMatch?.filter(
+        (v: any) => v.user_id !== getPeopleToMatch?.[0]?.user_id,
+      );
+      // console.log("remove last---", getPeopleToMatch?.length, j?.length)
+      setPeopleToMatch(j ?? null);
+    },
+  };
 
+  // Shared entry point for "undo last dislike" — used by both the header's restore
+  // icon and the missed-match modal, so neither can bypass the other's gating.
+  // A skipped person with no match_id was never a mutual-interest match, so undoing
+  // that is a free convenience action for subscribers only — non-subscribers see the
+  // same upsell modal recovering a real missed match uses. Recovering a real missed
+  // match (match_id present, meaning they'd already liked or superliked/rose'd you)
+  // always goes through that modal, which offers the one-time paid rewind / subscribe upsell.
+  const attemptRestore = useCallback(() => {
+    setPeopleToMatch(prev => [getSkippedLastPerson, ...(prev ?? [])]);
+    if (!getSkippedLastPerson) return;
+    if (!getSkippedLastPerson?.match_id) {
+      if (!help.getSubscriptionState(getProfile).hasActive) {
+        setShowDislikedMatchModal(true);
+        return;
+      }
+      setSkippedLastPerson(null);
+      return;
+    }
+    setShowDislikedMatchModal(true);
+  }, [getSkippedLastPerson, getProfile]);
 
-    const ReportContent = () => {
-        const [selectedReason, setSelectedReason] = useState('');
-        const [otherText, setOtherText] = useState('');
-        const styless = StyleSheet.create({
-            radioRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-            radioOuter: {
-                width: 22,
-                height: 22,
-                borderRadius: 11,
-                borderWidth: 2,
-                borderColor: colors.border,
+  // header options
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerShadowVisible: false,
+      headerStyle: { backgroundColor: colors.background },
+      headerTitleAlign: 'left',
+      headerTitle: () => (
+        <View style={{ alignItems: 'center', flexDirection: 'row', gap: 2 }}>
+          {getPeopleToMatch?.[0]?.user_verified === 1 && (
+            <IIcon
+              name="checkmark-done-circle-sharp"
+              size={20}
+              color={colors.accent}
+            />
+          )}
+          <Text
+            style={{
+              fontSize: 20,
+              fontWeight: 'bold',
+              textTransform: 'capitalize',
+              color: colors.text,
+            }}
+          >
+            {(getPeopleToMatch?.[0]?.user_fullname ?? '') +
+              (getPeopleToMatch?.[0]?.user_bio_dob
+                ? ', ' + help.getageFromDOB(getPeopleToMatch?.[0]?.user_bio_dob)
+                : '')}
+          </Text>
+        </View>
+      ),
+
+      headerRight: () =>
+        !functs.onePersonProfile && (
+          <View
+            style={[
+              {
+                flexDirection: 'row',
+                gap: 10,
+
+                paddingHorizontal: 5,
+                borderRadius: 18,
                 alignItems: 'center',
                 justifyContent: 'center',
+                backgroundColor: colors.surface,
                 marginRight: 10,
-            },
-            radioOuterSelected: { borderColor: colors.primary },
-            radioInner: {
-                width: 10,
-                height: 10,
-                borderRadius: 5,
-                backgroundColor: colors.primary,
-            },
-            radioText: { fontSize: 16, color: colors.text },
+                shadowColor: colors.shadow,
+                shadowOffset: { width: 0, height: 6 },
+                shadowOpacity: 0.08,
+                shadowRadius: 14,
+                elevation: 3,
+              },
+            ]}
+          >
+            {getSkippedLastPerson !== null && (
+              <Pressable onPress={attemptRestore}>
+                <MIcon name="backup-restore" size={25} color={colors.text} />
+              </Pressable>
+            )}
+            <Pressable
+              onPress={() => {
+                navigation.navigate(namer.navigation.editpreference);
+              }}
+            >
+              <IIcon name="filter-outline" size={25} color={colors.text} />
+            </Pressable>
+          </View>
+        ),
+    });
+  }, [
+    getPeopleToMatch,
+    getSkippedLastPerson,
+    colors,
+    entitlements,
+    navigation,
+    attemptRestore,
+    functs.onePersonProfile,
+  ]);
 
+  // next person load images
+  useEffect(() => {
+    if (nextPerson?.user_image?.length > 1) {
+      nextPerson?.user_image.forEach((url: any) => {
+        const imgh = imageDomain + url?.p;
+        //console.log("preloading next image:", imgh);
+        if (imageDomain !== null) FastImage.preload([{ uri: imgh }]);
+      });
+    }
+  }, [getPeopleToMatch, imageDomain, nextPerson?.user_image]);
+
+  // reset photo index on new person
+  const currentPersonId = getPeopleToMatch?.[0]?.user_id;
+  useEffect(() => {
+    setPhotoIndex(0);
+    carouselRef.current?.goToPage(0);
+  }, [currentPersonId]);
+
+  // load peoples to match on focus
+  useFocusEffect(
+    React.useCallback(() => {
+      _http_request({
+        reqType: 'POST',
+        customApiUrl:
+          __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getPeopleToMatch',
+        bodyArray: {
+          getOnePersons_id2: functs.onePersonProfile,
+        },
+      })
+        .then(response => {
+          if (response?.code === 200) {
+            let peopleMatchArr = response?.matchespeoples ?? [];
+            //console.log("new peoples reloaded total, now:", peopleMatchArr.length);
+            setPeopleToMatch(peopleMatchArr);
+          } else if (response?.code === 404) {
+            setPeopleToMatch([]);
+          }
+        })
+        .finally(() => {
+          scrollViewRef.current?.scrollTo({ y: 0, animated: true }); // Scroll to the top of the scroll view after action
         });
+      // gptmd is a manual refetch trigger toggled by sptmd(); it's intentionally
+      // unused in the body but must stay in deps to force a refetch.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [gptmd, functs.onePersonProfile]),
+  );
 
-        const reasons = [
-            'Inappropriate Profile Content',
-            'Harassment or Hate Speech',
-            'Fake profile or Impersonation',
-            'Spam or Scam',
-            'Underage User/Content',
-            'Promoting, Selling or Soliciting',
-            'Violence or Harmful Behavior',
-            'Privacy Violation',
-            'Suspicious Behavior',
-            'Other'
-        ];
-        const reportedUserName = getPeopleToMatch?.[0]?.user_fullname;
-        const scrollRef = useRef<ScrollView>(null);
+  const ReportContent = () => {
+    const [selectedReason, setSelectedReason] = useState('');
+    const [otherText, setOtherText] = useState('');
+    const styless = StyleSheet.create({
+      radioRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 10,
+      },
+      radioOuter: {
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        borderWidth: 2,
+        borderColor: colors.border,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 10,
+      },
+      radioOuterSelected: { borderColor: colors.primary },
+      radioInner: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: colors.primary,
+      },
+      radioText: { fontSize: 16, color: colors.text },
+    });
 
-        return (
-            <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={{ flex: 1 }}  >
-                <View style={[styles.container, { paddingBottom: 5, backgroundColor: colors.background }]}>
-                    <Text style={styles.title}>Report {reportedUserName}</Text>
-                    <Text style={[styles.subtitle, { marginBottom: 12, textAlign: "center" }]}>Select a reason</Text>
-                    {reasons.map((reason, index) => (<TouchableOpacity key={index} style={styless.radioRow} onPress={() => { setSelectedReason(reason); scrollRef.current?.scrollToEnd({ animated: true }); }} >
-                        <View style={[styless.radioOuter, selectedReason === reason && styless.radioOuterSelected]}>{selectedReason === reason && <View style={styless.radioInner} />}</View>
-                        <Text style={styless.radioText}>{reason}</Text>
-                    </TouchableOpacity>))}
-
-                    {selectedReason === 'Other' && (<View style={{ marginBottom: 12 }}>
-                        <TextInput style={[styles.input, { height: 120, textAlignVertical: 'top', marginBottom: 0 }]} placeholder="Please specify" value={otherText} onChangeText={setOtherText} multiline maxLength={300} />
-                        <Text style={{ fontSize: 11, color: colors.textTertiary, textAlign: 'right' }}>{otherText.length} / 300</Text>
-                    </View>)}
-
-                    <TouchableOpacity style={[styles.pressableButton, { marginTop: 15 }]} onPress={() => {
-                        const finalReason = selectedReason === 'Other' ? otherText : selectedReason;
-                        if (finalReason) {
-                            Loaderx.show();
-                            reportUser({
-                                reportedUserId: getPeopleToMatch?.[0]?.user_id,
-                                reason: finalReason,
-                            });
-                            //then
-                            peoples_action("report", 4).then(() => {
-
-                                bottomSheetRef_reportUser.ref.current?.close();
-                                Toastx.show({
-                                    type: "success",
-                                    message: reportedUserName + " has been reported!"
-                                });
-                                Loaderx.hide();
-                                scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-                            });
-
-                        } else {
-                            Toastx.show({ type: 'info', message: 'Please select a reason to report.' });
-                        }
-                    }}>
-                        <Text style={styles.pressableButtonText}>Submit Report</Text>
-                    </TouchableOpacity>
-                </View>
-            </ScrollView>);
-    }
-
-
-    // people action like, dislike, superlike, block, report
-    async function peoples_action(
-        what: "like" | "superlike" | "dislike" | "block" | "report",
-        matchStatus: number = 0,
-        showloader: boolean = true) {
-        if (isActionLockedRef.current) return;
-        isActionLockedRef.current = true;
-        try {
-            showloader && Loaderx.show();
-            switch (what) {
-                case 'like':
-                case 'superlike':
-                case 'dislike':
-                case 'report':
-                case 'block':
-                    const matchId = getPeopleToMatch?.[0]?.match_id || functs.likedMatchId;
-                    await _http_request({
-                        reqType: 'POST',
-                        customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushPeopleToMatch",
-                        bodyArray: {
-                            user_id2: getPeopleToMatch?.[0]?.user_id,
-                            match_status: matchStatus,
-                            matchId: matchId
-                        }
-                    }).then((response) => {
-                        if (response?.code === 429 || response?.code === 402) {
-                            Toastx.show({ type: 'info', message: response?.message ?? 'Action not available right now.', duration: 4000 });
-                            if (response?.code === 429) {
-                                navigation.navigate(namer.navigation.subscription);
-                            } else {
-                                setEntitlements(prev => ({ ...prev, roses: prev.roses ? { ...prev.roses, remainingToday: 0 } : prev.roses }));
-                                navigation.navigate(namer.navigation.consumables, { productcategory: namer.productCategoryName.superlike });
-                            }
-                            return;
-                        }
-
-                        if (typeof response?.rosesRemainingToday === 'number') {
-                            setEntitlements(prev => ({
-                                ...prev,
-                                roses: prev.roses
-                                    ? {
-                                        remainingToday: response.rosesRemainingToday,
-                                        balance: typeof response?.roseBalance === 'number' ? response.roseBalance : prev.roses.balance,
-                                    }
-                                    : prev.roses,
-                            }));
-                        }
-
-                        if (what === "dislike") {
-                            if (functs.onePersonProfile) {
-                                navigation.popToTop();
-                                return;
-                            } else {
-                                setSkippedLastPerson(getPeopleToMatch?.[0] ?? {});
-                            }
-                            // and its a match
-                            if (matchId) {
-                                setShowDislikedMatchModal(true);
-                                return;
-                            }
-                        }
-                        // if its a match
-                        if (response?.itisamatch) {
-                            setShowItsAMatchModal(true);
-                            return;
-                        }
-
-                        // 
-                        if ((getPeopleToMatch?.length ?? 0) <= 2 && !functs.onePersonProfile) {// Refresh the people to match list if there are only 2 or fewer left after the action
-                            setPeopleToMatch(null);
-                            sptmd((prev: boolean) => !prev);
-                            // console.log("refresh from server...");
-                        }
-
-                        if (!functs.onePersonProfile) {
-                            // if not from a match
-                            functs.refreshPeoples();
-                        }
-
-                    }).finally(() => {
-                        scrollViewRef.current?.scrollTo({ y: 0, animated: true });// Scroll to the top of the scroll view after action
-                    });
-                    break;
-            }
-        } catch (e: any) {
-            Toastx.show({ type: 'info', message: 'Error processing request' });
-            logReport({
-                type: "function",
-                extra: "Error in peoples_action",
-                useraction: "initailizing app",
-                logMessage: e.message,
-                stackTrace: e
-            });
-        } finally {
-            setTimeout(() => {
-                Loaderx.hide();
-                isActionLockedRef.current = false;
-            }, 765);
-        }
-    }
-
-    // Shared entry point for "undo last dislike" — used by both the header's restore
-    // icon and the missed-match modal, so neither can bypass the other's gating.
-    // A skipped person with no match_id was never a mutual-interest match, so undoing
-    // that is a free convenience action for subscribers only — non-subscribers see the
-    // same upsell modal recovering a real missed match uses. Recovering a real missed
-    // match (match_id present, meaning they'd already liked or superliked/rose'd you)
-    // always goes through that modal, which offers the one-time paid rewind / subscribe upsell.
-    function attemptRestore() {
-        setPeopleToMatch((prev) => [getSkippedLastPerson, ...(prev ?? [])]);
-        if (!getSkippedLastPerson) return;
-        if (!getSkippedLastPerson?.match_id) {
-            if (!help.getSubscriptionState(getProfile).hasActive) {
-                setShowDislikedMatchModal(true);
-                return;
-            }
-            setSkippedLastPerson(null);
-            return;
-        }
-        setShowDislikedMatchModal(true);
-    }
-
-
-    const distanceLabel = (() => {
-        const miles = Number(currentPerson?.distance_miles);
-        if (!Number.isFinite(miles)) return null;
-        return miles < 1 ? "Less than a mile away" : `${Math.round(miles)} mi away`;
-    })();
-
-    const languagesSpoken: string[] = (() => {
-        const raw = currentPerson?.user_bio_language;
-        if (Array.isArray(raw)) return raw;
-        if (typeof raw === 'string' && raw) {
-            try {
-                const parsed = JSON.parse(raw);
-                return Array.isArray(parsed) ? parsed : [];
-            } catch { return []; }
-        }
-        return [];
-    })();
-
-    const highlightFields = !currentPerson ? [] : [
-        { icon: <IIcon name="navigate-outline" size={18} color={colors.accent} />, value: distanceLabel },
-        { icon: <IIcon name="location-outline" size={18} color={colors.accent} />, value: currentPerson?.user_location?.city },
-        { icon: <MIcon name="ruler" size={18} color={colors.accent} />, value: currentPerson?.user_bio_height ? help.cmToFtIn(currentPerson?.user_bio_height) : null },
-        { icon: <IIcon name="heart-circle-outline" size={18} color={colors.accent} />, value: __MAPPER?.bio_intent?.[currentPerson?.user_bio_relationshipgoal] },
-        { icon: <MIcon name="flag-outline" size={18} color={colors.accent} />, value: currentPerson?.user_bio_ethnicity },
-    ].filter((item) => item.value);
-
-    const detailFields = !currentPerson ? [] : [
-        { icon: <IIcon name="ribbon-outline" size={22} color={colors.accent} />, value: __MAPPER?.bio_education?.[currentPerson?.user_bio_highesteducation] },
-        { icon: <IIcon name="language-outline" size={22} color={colors.accent} />, value: languagesSpoken.length > 0 ? languagesSpoken.join(', ') : null },
-        { icon: <MIcon name="candle" size={22} color={colors.accent} />, value: __MAPPER?.bio_religion?.[currentPerson?.user_bio_religion] },
-        { icon: <MIcon name="baby-carriage" size={22} color={colors.accent} />, value: __MAPPER?.bio_children?.[currentPerson?.user_bio_children] },
-        { icon: <IIcon name="wine-outline" size={22} color={colors.accent} />, value: __MAPPER?.bio_drinking?.[currentPerson?.user_bio_drinking] },
-        { icon: <MIcon name="smoking" size={22} color={colors.accent} />, value: __MAPPER?.bio_smoking?.[currentPerson?.user_bio_smoking] },
-        { icon: <IIcon name="transgender-outline" size={22} color="#fe6fa6" />, value: __MAPPER?.bio_gender?.[currentPerson?.user_bio_gender] },
-        { icon: <MIcon name="gavel" size={22} color={colors.accent} />, value: __MAPPER?.bio_politicalview?.[currentPerson?.user_bio_politicalview] },
-        { icon: <MIcon name="dog-side" size={18} color={colors.accent} />, value: __MAPPER?.bio_pets?.[currentPerson?.user_bio_haspet] },
-    ].filter((item) => item.value);
-
-    const interestGroups: { category: string; items: { id_ai: number; interested_in: string }[] }[] =
-        currentPerson?.user_bio_interests ?? [];
-    const interestItems: { id_ai: number; interested_in: string }[] = interestGroups.flatMap((group) => group.items);
-    const myInterestIds = useMemo(() => new Set(
-        (getProfile?.bio?.interests ?? []).flatMap((group: any) => group?.items ?? []).map((item: any) => item.id_ai)
-    ), [getProfile]);
-
-    const socialLinks: { platform: string; url?: string; locked?: boolean }[] =
-        currentPerson?.user_bio_social_links ?? [];
-    const onPressSocialLink = (link: { platform: string; url?: string; locked?: boolean }) => {
-        if (link.url) {
-            Linking.openURL(link.url);
-        } else {
-            Toastx.show({ type: 'warning', message: 'Upgrade to VIP to open social links' });
-        }
-    };
-
-    const writableFields = !currentPerson ? [] : [
-        { icon: <MIcon name="briefcase-variant-outline" size={22} color={colors.accent} />, value: (currentPerson?.user_bio_jobrole) },
-        { icon: <MIcon name="home-outline" size={22} color={colors.accent} />, value: currentPerson?.user_bio_hometown },
-        { icon: <MIcon name="school-outline" size={22} color={colors.accent} />, value: currentPerson?.user_bio_schoolattended },
-    ].filter((item) => item.value);
-
-    if (getPeopleToMatch === null) {
-        return (
-            <View style={[styles.container, { paddingHorizontal: 0 , backgroundColor: colors.background }]}>
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.conainerScrollView}>
-                    <View style={[{ borderRadius: 20, overflow: 'hidden' }, deckStyles.cardShadow]}>
-                        <Skeleton style={{ width: '100%', height: (screenHeight * .94) - insets.bottom, borderRadius: 20 }} />
-                    </View>
-                    <View style={deckStyles.detailCard}>
-                        <Skeleton style={{ width: '55%', height: 20, marginBottom: 12 }} />
-                        <Skeleton style={{ width: '90%', height: 14, marginBottom: 8 }} />
-                        <Skeleton style={{ width: '70%', height: 14 }} />
-                    </View>
-                    <View style={[deckStyles.detailCard, { flexDirection: 'row', flexWrap: 'wrap', gap: 10 }]}>
-                        {[90, 120, 80, 100].map((w, i) => (
-                            <Skeleton key={i} style={{ width: w, height: 32, borderRadius: 16 }} />
-                        ))}
-                    </View>
-                </ScrollView>
-            </View>
-        );
-    }
-
+    const reasons = [
+      'Inappropriate Profile Content',
+      'Harassment or Hate Speech',
+      'Fake profile or Impersonation',
+      'Spam or Scam',
+      'Underage User/Content',
+      'Promoting, Selling or Soliciting',
+      'Violence or Harmful Behavior',
+      'Privacy Violation',
+      'Suspicious Behavior',
+      'Other',
+    ];
+    const reportedUserName = getPeopleToMatch?.[0]?.user_fullname;
+    const scrollRef = useRef<ScrollView>(null);
 
     return (
-        <><View style={[styles.container, { paddingHorizontal: 0, backgroundColor: colors.background }]}>
+      <ScrollView
+        ref={scrollRef}
+        showsVerticalScrollIndicator={false}
+        style={{ flex: 1 }}
+      >
+        <View
+          style={[
+            styles.container,
+            { paddingBottom: 5, backgroundColor: colors.background },
+          ]}
+        >
+          <Text style={styles.title}>Report {reportedUserName}</Text>
+          <Text
+            style={[styles.subtitle, { marginBottom: 12, textAlign: 'center' }]}
+          >
+            Select a reason
+          </Text>
+          {reasons.map((reason, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styless.radioRow}
+              onPress={() => {
+                setSelectedReason(reason);
+                scrollRef.current?.scrollToEnd({ animated: true });
+              }}
+            >
+              <View
+                style={[
+                  styless.radioOuter,
+                  selectedReason === reason && styless.radioOuterSelected,
+                ]}
+              >
+                {selectedReason === reason && (
+                  <View style={styless.radioInner} />
+                )}
+              </View>
+              <Text style={styless.radioText}>{reason}</Text>
+            </TouchableOpacity>
+          ))}
 
-            {getPeopleToMatch?.length === 0 ? (
-                <View style={deckStyles.emptyStateWrap}>
-                    <View style={[deckStyles.emptyStateCard, deckStyles.cardShadow]}>
-                        <View style={deckStyles.emptyStateIconWrap}>
-                            <IIcon name="people-outline" size={34} color="#0284c7" />
-                        </View>
-                        <Text style={deckStyles.emptyStateTitle}>No more profiles to show.</Text>
-                        <Text style={deckStyles.emptyStateSubtitle}>
-                            You have seen everyone nearby for now. Refresh or adjust your preferences to discover more people.
-                        </Text>
-                        <View style={deckStyles.emptyStateActions}>
-                            <Pressable style={[styles.pressableButton, deckStyles.emptyStatePrimaryAction]} onPress={() => {
-                                setPeopleToMatch(null);
-                                sptmd((prev: boolean) => !prev);
-                            }}>
-                                <Text style={styles.pressableButtonText}>Refresh suggestions</Text>
-                            </Pressable>
-                            <Pressable style={deckStyles.emptyStateSecondaryAction} onPress={() => { navigation.push(namer.navigation.editpreference); }}>
-                                <Text style={deckStyles.emptyStateSecondaryActionText}>Update preferences</Text>
-                            </Pressable>
-                        </View>
+          {selectedReason === 'Other' && (
+            <View style={{ marginBottom: 12 }}>
+              <TextInput
+                style={[
+                  styles.input,
+                  { height: 120, textAlignVertical: 'top', marginBottom: 0 },
+                ]}
+                placeholder="Please specify"
+                value={otherText}
+                onChangeText={setOtherText}
+                multiline
+                maxLength={300}
+              />
+              <Text
+                style={{
+                  fontSize: 11,
+                  color: colors.textTertiary,
+                  textAlign: 'right',
+                }}
+              >
+                {otherText.length} / 300
+              </Text>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[styles.pressableButton, { marginTop: 15 }]}
+            onPress={() => {
+              const finalReason =
+                selectedReason === 'Other' ? otherText : selectedReason;
+              if (finalReason) {
+                Loaderx.show();
+                reportUser({
+                  reportedUserId: getPeopleToMatch?.[0]?.user_id,
+                  reason: finalReason,
+                });
+                //then
+                peoples_action('report', 4).then(() => {
+                  bottomSheetRef_reportUser.ref.current?.close();
+                  Toastx.show({
+                    type: 'success',
+                    message: reportedUserName + ' has been reported!',
+                  });
+                  Loaderx.hide();
+                  scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+                });
+              } else {
+                Toastx.show({
+                  type: 'info',
+                  message: 'Please select a reason to report.',
+                });
+              }
+            }}
+          >
+            <Text style={styles.pressableButtonText}>Submit Report</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    );
+  };
+
+  // people action like, dislike, superlike, block, report
+  async function peoples_action(
+    what: 'like' | 'superlike' | 'dislike' | 'block' | 'report',
+    matchStatus: number = 0,
+    showloader: boolean = true,
+  ) {
+    if (isActionLockedRef.current) return;
+    isActionLockedRef.current = true;
+    try {
+      if (showloader) Loaderx.show();
+      switch (what) {
+        case 'like':
+        case 'superlike':
+        case 'dislike':
+        case 'report':
+        case 'block':
+          const matchId =
+            getPeopleToMatch?.[0]?.match_id || functs.likedMatchId;
+          await _http_request({
+            reqType: 'POST',
+            customApiUrl:
+              __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/pushPeopleToMatch',
+            bodyArray: {
+              user_id2: getPeopleToMatch?.[0]?.user_id,
+              match_status: matchStatus,
+              matchId: matchId,
+            },
+          })
+            .then(response => {
+              if (response?.code === 429 || response?.code === 402) {
+                Toastx.show({
+                  type: 'info',
+                  message:
+                    response?.message ?? 'Action not available right now.',
+                  duration: 4000,
+                });
+                if (response?.code === 429) {
+                  navigation.navigate(namer.navigation.subscription);
+                } else {
+                  setEntitlements(prev => ({
+                    ...prev,
+                    roses: prev.roses
+                      ? { ...prev.roses, remainingToday: 0 }
+                      : prev.roses,
+                  }));
+                  navigation.navigate(namer.navigation.consumables, {
+                    productcategory: namer.productCategoryName.superlike,
+                  });
+                }
+                return;
+              }
+
+              if (typeof response?.rosesRemainingToday === 'number') {
+                setEntitlements(prev => ({
+                  ...prev,
+                  roses: prev.roses
+                    ? {
+                        remainingToday: response.rosesRemainingToday,
+                        balance:
+                          typeof response?.roseBalance === 'number'
+                            ? response.roseBalance
+                            : prev.roses.balance,
+                      }
+                    : prev.roses,
+                }));
+              }
+
+              if (what === 'dislike') {
+                if (functs.onePersonProfile) {
+                  navigation.popToTop();
+                  return;
+                } else {
+                  setSkippedLastPerson(getPeopleToMatch?.[0] ?? {});
+                }
+                // and its a match
+                if (matchId) {
+                  setShowDislikedMatchModal(true);
+                  return;
+                }
+              }
+              // if its a match
+              if (response?.itisamatch) {
+                setShowItsAMatchModal(true);
+                return;
+              }
+
+              //
+              if (
+                (getPeopleToMatch?.length ?? 0) <= 2 &&
+                !functs.onePersonProfile
+              ) {
+                // Refresh the people to match list if there are only 2 or fewer left after the action
+                setPeopleToMatch(null);
+                sptmd((prev: boolean) => !prev);
+                // console.log("refresh from server...");
+              }
+
+              if (!functs.onePersonProfile) {
+                // if not from a match
+                functs.refreshPeoples();
+              }
+            })
+            .finally(() => {
+              scrollViewRef.current?.scrollTo({ y: 0, animated: true }); // Scroll to the top of the scroll view after action
+            });
+          break;
+      }
+    } catch (e: any) {
+      Toastx.show({ type: 'info', message: 'Error processing request' });
+      logReport({
+        type: 'function',
+        extra: 'Error in peoples_action',
+        useraction: 'initailizing app',
+        logMessage: e.message,
+        stackTrace: e,
+      });
+    } finally {
+      setTimeout(() => {
+        Loaderx.hide();
+        isActionLockedRef.current = false;
+      }, 765);
+    }
+  }
+
+  const distanceLabel = (() => {
+    const miles = Number(currentPerson?.distance_miles);
+    if (!Number.isFinite(miles)) return null;
+    return miles < 1 ? 'Less than a mile away' : `${Math.round(miles)} mi away`;
+  })();
+
+  const languagesSpoken: string[] = (() => {
+    const raw = currentPerson?.user_bio_language;
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === 'string' && raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  })();
+
+  const highlightFields = !currentPerson
+    ? []
+    : [
+        {
+          icon: (
+            <IIcon name="navigate-outline" size={18} color={colors.accent} />
+          ),
+          value: distanceLabel,
+        },
+        {
+          icon: (
+            <IIcon name="location-outline" size={18} color={colors.accent} />
+          ),
+          value: currentPerson?.user_location?.city,
+        },
+        {
+          icon: <MIcon name="ruler" size={18} color={colors.accent} />,
+          value: currentPerson?.user_bio_height
+            ? help.cmToFtIn(currentPerson?.user_bio_height)
+            : null,
+        },
+        {
+          icon: (
+            <IIcon
+              name="heart-circle-outline"
+              size={18}
+              color={colors.accent}
+            />
+          ),
+          value:
+            __MAPPER?.bio_intent?.[currentPerson?.user_bio_relationshipgoal],
+        },
+        {
+          icon: <MIcon name="flag-outline" size={18} color={colors.accent} />,
+          value: currentPerson?.user_bio_ethnicity,
+        },
+      ].filter(item => item.value);
+
+  const detailFields = !currentPerson
+    ? []
+    : [
+        {
+          icon: <IIcon name="ribbon-outline" size={22} color={colors.accent} />,
+          value:
+            __MAPPER?.bio_education?.[currentPerson?.user_bio_highesteducation],
+        },
+        {
+          icon: (
+            <IIcon name="language-outline" size={22} color={colors.accent} />
+          ),
+          value: languagesSpoken.length > 0 ? languagesSpoken.join(', ') : null,
+        },
+        {
+          icon: <MIcon name="candle" size={22} color={colors.accent} />,
+          value: __MAPPER?.bio_religion?.[currentPerson?.user_bio_religion],
+        },
+        {
+          icon: <MIcon name="baby-carriage" size={22} color={colors.accent} />,
+          value: __MAPPER?.bio_children?.[currentPerson?.user_bio_children],
+        },
+        {
+          icon: <IIcon name="wine-outline" size={22} color={colors.accent} />,
+          value: __MAPPER?.bio_drinking?.[currentPerson?.user_bio_drinking],
+        },
+        {
+          icon: <MIcon name="smoking" size={22} color={colors.accent} />,
+          value: __MAPPER?.bio_smoking?.[currentPerson?.user_bio_smoking],
+        },
+        {
+          icon: <IIcon name="transgender-outline" size={22} color="#fe6fa6" />,
+          value: __MAPPER?.bio_gender?.[currentPerson?.user_bio_gender],
+        },
+        {
+          icon: <MIcon name="gavel" size={22} color={colors.accent} />,
+          value:
+            __MAPPER?.bio_politicalview?.[
+              currentPerson?.user_bio_politicalview
+            ],
+        },
+        {
+          icon: <MIcon name="dog-side" size={18} color={colors.accent} />,
+          value: __MAPPER?.bio_pets?.[currentPerson?.user_bio_haspet],
+        },
+      ].filter(item => item.value);
+
+  const interestGroups: {
+    category: string;
+    items: { id_ai: number; interested_in: string }[];
+  }[] = currentPerson?.user_bio_interests ?? [];
+  const interestItems: { id_ai: number; interested_in: string }[] =
+    interestGroups.flatMap(group => group.items);
+  const myInterestIds = useMemo(
+    () =>
+      new Set(
+        (getProfile?.bio?.interests ?? [])
+          .flatMap((group: any) => group?.items ?? [])
+          .map((item: any) => item.id_ai),
+      ),
+    [getProfile],
+  );
+
+  const socialLinks: { platform: string; url?: string; locked?: boolean }[] =
+    currentPerson?.user_bio_social_links ?? [];
+  const onPressSocialLink = (link: {
+    platform: string;
+    url?: string;
+    locked?: boolean;
+  }) => {
+    if (link.url) {
+      Linking.openURL(link.url);
+    } else {
+      Toastx.show({
+        type: 'warning',
+        message: 'Upgrade to VIP to open social links',
+      });
+    }
+  };
+
+  const writableFields = !currentPerson
+    ? []
+    : [
+        {
+          icon: (
+            <MIcon
+              name="briefcase-variant-outline"
+              size={22}
+              color={colors.accent}
+            />
+          ),
+          value: currentPerson?.user_bio_jobrole,
+        },
+        {
+          icon: <MIcon name="home-outline" size={22} color={colors.accent} />,
+          value: currentPerson?.user_bio_hometown,
+        },
+        {
+          icon: <MIcon name="school-outline" size={22} color={colors.accent} />,
+          value: currentPerson?.user_bio_schoolattended,
+        },
+      ].filter(item => item.value);
+
+  if (getPeopleToMatch === null) {
+    return (
+      <View
+        style={[
+          styles.container,
+          { paddingHorizontal: 0, backgroundColor: colors.background },
+        ]}
+      >
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.conainerScrollView}
+        >
+          <View
+            style={[
+              { borderRadius: 20, overflow: 'hidden' },
+              deckStyles.cardShadow,
+            ]}
+          >
+            <Skeleton
+              style={{
+                width: '100%',
+                height: screenHeight * 0.94 - insets.bottom,
+                borderRadius: 20,
+              }}
+            />
+          </View>
+          <View style={deckStyles.detailCard}>
+            <Skeleton style={{ width: '55%', height: 20, marginBottom: 12 }} />
+            <Skeleton style={{ width: '90%', height: 14, marginBottom: 8 }} />
+            <Skeleton style={{ width: '70%', height: 14 }} />
+          </View>
+          <View
+            style={[
+              deckStyles.detailCard,
+              { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+            ]}
+          >
+            {[90, 120, 80, 100].map((w, i) => (
+              <Skeleton
+                key={i}
+                style={{ width: w, height: 32, borderRadius: 16 }}
+              />
+            ))}
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  return (
+    <>
+      <View
+        style={[
+          styles.container,
+          { paddingHorizontal: 0, backgroundColor: colors.background },
+        ]}
+      >
+        {getPeopleToMatch?.length === 0 ? (
+          <View style={deckStyles.emptyStateWrap}>
+            <View style={[deckStyles.emptyStateCard, deckStyles.cardShadow]}>
+              <View style={deckStyles.emptyStateIconWrap}>
+                <IIcon name="people-outline" size={34} color="#0284c7" />
+              </View>
+              <Text style={deckStyles.emptyStateTitle}>
+                No more profiles to show.
+              </Text>
+              <Text style={deckStyles.emptyStateSubtitle}>
+                You have seen everyone nearby for now. Refresh or adjust your
+                preferences to discover more people.
+              </Text>
+              <View style={deckStyles.emptyStateActions}>
+                <Pressable
+                  style={[
+                    styles.pressableButton,
+                    deckStyles.emptyStatePrimaryAction,
+                  ]}
+                  onPress={() => {
+                    setPeopleToMatch(null);
+                    sptmd((prev: boolean) => !prev);
+                  }}
+                >
+                  <Text style={styles.pressableButtonText}>
+                    Refresh suggestions
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={deckStyles.emptyStateSecondaryAction}
+                  onPress={() => {
+                    navigation.push(namer.navigation.editpreference);
+                  }}
+                >
+                  <Text style={deckStyles.emptyStateSecondaryActionText}>
+                    Update preferences
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        ) : (
+          <SafeAreaView
+            style={{ flex: 1 }}
+            edges={functs.onePersonProfile ? ['bottom'] : []}
+          >
+            <ScrollView
+              ref={scrollViewRef}
+              showsVerticalScrollIndicator={false}
+              showsHorizontalScrollIndicator={false}
+              horizontal={false}
+              contentContainerStyle={[
+                styles.conainerScrollView,
+                { paddingBottom: functs.isAlreadyLiked ? 20 : 100 },
+              ]}
+            >
+              <View
+                style={[
+                  {
+                    borderRadius: 20,
+                    overflow: 'hidden',
+                    backgroundColor: '#0f172a',
+                  },
+                  deckStyles.cardShadow,
+                ]}
+              >
+                {currentPhotos.length > 1 && (
+                  <View style={[deckStyles.progressDots, { zIndex: 123 }]}>
+                    {currentPhotos.map((_: any, dotIdx: number) => (
+                      <View
+                        key={dotIdx}
+                        style={[
+                          deckStyles.dot,
+                          dotIdx === photoIndex ? deckStyles.dotActive : null,
+                        ]}
+                      />
+                    ))}
+                  </View>
+                )}
+
+                <ControlledCarousel
+                  ref={carouselRef}
+                  onPageChange={setPhotoIndex}
+                  pages={(currentPhotos.length > 0
+                    ? currentPhotos
+                    : [null]
+                  ).map((photo: any, idx: number) => (
+                    <View
+                      key={`photo-${idx}`}
+                      style={{
+                        width: '100%',
+                        height: screenHeight * 0.94 - insets.bottom,
+                      }}
+                    >
+                      {photo && (
+                        <SafeImage
+                          source={{ uri: imageDomain + (photo?.p ?? '') }}
+                          onError={() => {
+                            return logReport({
+                              type: 'http -image',
+                              logMessage: 'Image load',
+                              url: imageDomain + (photo?.p ?? ''),
+                              useraction: 'Image Load',
+                              stackTrace: null,
+                            });
+                          }}
+                          style={StyleSheet.absoluteFill}
+                          resizeMode={FastImage.resizeMode.cover}
+                          fallbackIconSize={48}
+                        />
+                      )}
+
+                      <LinearGradient
+                        colors={['rgba(0, 0, 0, 0.35)', 'rgba(0, 0, 0, 0)']}
+                        start={{ x: 0.5, y: 1 }}
+                        end={{ x: 0.5, y: 0 }}
+                        style={{
+                          position: 'absolute',
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          height: '40%',
+                        }}
+                      />
+                      <View style={deckStyles.tapZones}>
+                        <Pressable
+                          style={deckStyles.tapZone}
+                          onPress={() => carouselRef.current?.goToPrevious()}
+                        />
+                        <Pressable
+                          style={deckStyles.tapZone}
+                          onPress={() => carouselRef.current?.goToNext()}
+                        />
+                      </View>
                     </View>
-                </View>
-            ) : (
-                <SafeAreaView style={{ flex: 1 }} edges={functs.onePersonProfile ? ['bottom'] : []}>
-                    <ScrollView ref={scrollViewRef} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} horizontal={false}
-                        contentContainerStyle={[styles.conainerScrollView, { paddingBottom: functs.isAlreadyLiked ? 20 : 100 }]}>
+                  ))}
+                />
 
-                        <View style={[{ borderRadius: 20, overflow: 'hidden', backgroundColor: '#0f172a' }, deckStyles.cardShadow]}>
-
-                            {currentPhotos.length > 1 && (
-                                <View style={[deckStyles.progressDots, { zIndex: 123 }]}>
-                                    {currentPhotos.map((_: any, dotIdx: number) => (
-                                        <View key={dotIdx} style={[deckStyles.dot, dotIdx === photoIndex ? deckStyles.dotActive : null]} />
-                                    ))}
-                                </View>
-                            )}
-
-                            <ControlledCarousel ref={carouselRef} onPageChange={setPhotoIndex}
-                                pages={(currentPhotos.length > 0 ? currentPhotos : [null]).map((photo: any, idx: number) => (
-                                    <View key={`photo-${idx}`} style={{ width: '100%', height: (screenHeight * .94) - insets.bottom }}>
-                                        {photo && (<SafeImage source={{ uri: imageDomain + (photo?.p ?? "") }}
-                                            onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: imageDomain + (photo?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }}
-                                            style={StyleSheet.absoluteFill} resizeMode={FastImage.resizeMode.cover} fallbackIconSize={48} />)}
-
-                                        <LinearGradient colors={['rgba(0, 0, 0, 0.35)', 'rgba(0, 0, 0, 0)']}
-                                            start={{ x: 0.5, y: 1 }} end={{ x: 0.5, y: 0 }}
-                                            style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '40%' }} />
-                                        <View style={deckStyles.tapZones}>
-                                            <Pressable style={deckStyles.tapZone} onPress={() => carouselRef.current?.goToPrevious()} />
-                                            <Pressable style={deckStyles.tapZone} onPress={() => carouselRef.current?.goToNext()} />
-                                        </View>
-                                    </View>
-                                ))} />
-
-                            <View style={deckStyles.cardFooter}>
-                                <View style={deckStyles.nameRow}>
-                                    <Text style={deckStyles.name}>{currentPerson?.user_fullname}{currentPerson?.user_bio_dob ? ", " + help.getageFromDOB(currentPerson?.user_bio_dob) : ""}</Text>
-                                    {currentPerson?.user_verified === 1 && <IIcon name="checkmark-done-circle-sharp" size={22} color="#38bdf8" />}
-                                </View>
-                                <View style={deckStyles.chipRow}>
-                                    {highlightFields.map((field, chipIdx) => (
-                                        <View key={chipIdx} style={deckStyles.chip}>
-                                            {field.icon}
-                                            <Text style={deckStyles.chipText}>{field.value}</Text>
-                                        </View>
-                                    ))}
-                                </View>
-                            </View>
-                        </View>
-
-
-                        <View style={[deckStyles.detailCard, deckStyles.cardShadow]}>
-                            <Text style={deckStyles.sectionTitle}>About {currentPerson?.user_fullname?.split(" ")?.[0] || "them"}</Text>
-                            {currentPerson?.user_bio_about && <Text style={{ fontSize: 14, color: colors.textSecondary, lineHeight: 20 }}>{currentPerson?.user_bio_about}</Text>}
-                            {detailFields.length > 0 && (
-                                <View style={deckStyles.detailGrid}>
-                                    {detailFields.map((field, idx) => (
-                                        <View key={idx} style={deckStyles.detailItem}>
-                                            {field.icon}
-                                            <Text style={[deckStyles.detailText, { textTransform: "capitalize", paddingRight: 1 }]}>{field.value}</Text>
-                                        </View>
-                                    ))}
-                                </View>
-                            )}
-                        </View>
-                        {interestItems.length > 0 && (
-                            <View style={[deckStyles.detailCard, deckStyles.cardShadow]}>
-                                <Text style={deckStyles.sectionTitle}>Interests</Text>
-                                <View style={[deckStyles.chipRowWrap, { marginTop: 12 }]}>
-                                    {interestItems.map((item) => {
-                                        const shared = myInterestIds.has(item.id_ai);
-                                        return (
-                                            <View key={item.id_ai} style={[deckStyles.interestChip, shared && deckStyles.interestChipShared]}>
-                                                <Text style={[deckStyles.interestChipText, shared && deckStyles.interestChipTextShared]}>{item.interested_in}</Text>
-                                            </View>
-                                        );
-                                    })}
-                                </View>
-                            </View>
-                        )}
-                        {socialLinks.length > 0 && (
-                            <View style={[deckStyles.detailCard, deckStyles.cardShadow]}>
-                                <Text style={deckStyles.sectionTitle}>Social Links</Text>
-                                <View style={[deckStyles.chipRowWrap, { marginTop: 12 }]}>
-                                    {socialLinks.map((link) => {
-                                        const meta = SOCIAL_PLATFORMS.find((p) => p.key === link.platform);
-                                        if (!meta) return null;
-                                        return (
-                                            <Pressable
-                                                key={link.platform}
-                                                style={[deckStyles.interestChip, { flexDirection: 'row', alignItems: 'center' }]}
-                                                onPress={() => onPressSocialLink(link)}
-                                            >
-                                                <IIcon name={meta.icon} size={15} color={colors.textSecondary} />
-                                                <Text style={[deckStyles.interestChipText, { marginLeft: 6 }]}>{meta.label}</Text>
-                                                {!link.url && <IIcon name="lock-closed" size={12} color={colors.textSecondary} style={{ marginLeft: 6 }} />}
-                                            </Pressable>
-                                        );
-                                    })}
-                                </View>
-                            </View>
-                        )}
-                        {writableFields.length > 0 && (
-                            <View style={[deckStyles.detailCard, deckStyles.cardShadow]}>
-                                <Text style={deckStyles.sectionTitle}>More about {currentPerson?.user_fullname?.split(" ")?.[0] || "them"}</Text>
-                                <View style={[deckStyles.detailGrid, { flexWrap: 'nowrap', flexDirection: 'column' }]}>
-                                    {writableFields.map((field, idx) => (
-                                        <View key={idx} style={deckStyles.detailItem}>
-                                            {field.icon}
-                                            <Text style={deckStyles.detailText}>{field.value}</Text>
-                                        </View>
-                                    ))}
-                                </View>
-                            </View>
-                        )}
-
-
-                        {currentUserImages.length > 0 && (
-                            <View style={[deckStyles.detailCard, deckStyles.cardShadow]}>
-                                <Text style={deckStyles.sectionTitle}>Photos</Text>
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
-                                    {currentUserImages.map((img: any, idx: number) => (
-                                        <Pressable key={idx} onPress={() => setFullscreenClickImageIndex(idx)}>
-                                            <SafeImage source={{ uri: imageDomain + img.p }} style={deckStyles.galleryImage} resizeMode="cover"
-                                                onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: imageDomain + (img?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }} />
-                                        </Pressable>
-                                    ))}
-                                </ScrollView>
-                            </View>
-                        )}
-
-                        {prompts.map((prompt: any, idx: number) => (
-                            prompt?.question && prompt?.answer && (
-                                <LinearGradient key={idx} colors={PROMPT_GRADIENTS[idx % PROMPT_GRADIENTS.length]}
-                                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                                    style={[deckStyles.promptCard, deckStyles.cardShadow]}>
-                                    <MIcon name="format-quote-close" size={72} color="rgba(255,255,255,0.07)" style={deckStyles.promptQuoteDeco} />
-                                    <View style={deckStyles.promptTag}>
-                                        <Text style={deckStyles.promptTagText}>{prompt?.question}</Text>
-                                    </View>
-                                    <Text style={deckStyles.promptAnswer}>{prompt?.answer}</Text>
-                                    {!functs.isAlreadyLiked && (
-                                        <Pressable style={deckStyles.promptLikeBtn} onPress={() => {
-                                            setActionBurst({ kind: 'like', key: Date.now() });
-                                            peoples_action('like', 0, false);
-                                        }}>
-                                            <IIcon name="heart" size={18} color="#fff" />
-                                        </Pressable>
-                                    )}
-                                </LinearGradient>
-                            )
-                        ))}
-
-                        {!functs.previewP && (
-                            <View style={[deckStyles.detailCard, deckStyles.cardShadow]}>
-                                <Text style={deckStyles.sectionTitle}>Safety</Text>
-                                <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
-                                    <Pressable style={[styles.pressableButton, { backgroundColor: staticColors.warning, flex: 1 }]} onPress={() => {
-                                        bottomSheetRef_reportUser.ref.current?.expand();
-                                    }}>
-                                        <Text style={styles.pressableButtonText}>Report</Text>
-                                    </Pressable>
-                                    <Pressable style={[styles.pressableButton, { flex: 1, backgroundColor: staticColors.error }]} onPress={async () => {
-                                        function showConfirmAlert() {
-                                            return new Promise((resolve) => {
-                                                Alert.alert(
-                                                    "Block this person?",
-                                                    "Blocking this person prevents them from ever seeing your profile or message you!",
-                                                    [
-                                                        { text: "No", onPress: () => { resolve(false); }, style: "cancel", },
-                                                        { text: "Block", onPress: () => { resolve(true); }, },
-                                                    ],
-                                                    { cancelable: false }
-                                                );
-                                            });
-                                        }
-                                        if (await showConfirmAlert() === false) { return; } else {
-                                            peoples_action("block", 3).then(() => {
-                                                if (functs.onePersonProfile) {
-                                                    navigation.popToTop();
-                                                } else {
-                                                    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-                                                }
-                                            });
-                                        }
-                                    }}>
-                                        <Text style={styles.pressableButtonText}>Block</Text>
-                                    </Pressable>
-                                </View>
-                            </View>
-                        )}
-                    </ScrollView>
-
-                    {!functs.isAlreadyLiked && (
-                        <View style={[deckStyles.actionDock, functs.onePersonProfile ? { paddingBottom: 30 } : {}]}>
-                            <Pressable style={[deckStyles.circleBtn, deckStyles.circleBtnGhost]} onPress={() => {
-                                setActionBurst({ kind: 'dislike', key: Date.now() });
-                                peoples_action('dislike', 2,false);
-                            }}>
-                                <IIcon name="close" size={30} color="#f43f5e" />
-                            </Pressable>
-                            {!functs.onePersonProfile && <Pressable style={[deckStyles.circleBtn, deckStyles.circleBtnAccent]} onPress={() => {
-                                setActionBurst({ kind: 'superlike', key: Date.now() });
-                                peoples_action('superlike', getPeopleToMatch?.[0]?.match_id ? 1 : 5, false);
-                            }}>
-                                <IIcon name="rose" size={30} color="#e11d48" />
-                                {entitlements.roses && (
-                                    <View style={deckStyles.entitlementBadge}>
-                                        <Text style={deckStyles.entitlementBadgeText}>
-                                            {entitlements.roses.remainingToday + entitlements.roses.balance}
-                                        </Text>
-                                    </View>
-                                )}
-                            </Pressable>}
-                            <Pressable style={[deckStyles.circleBtn, deckStyles.circleBtnPrimary]} onPress={() => {
-                                 setActionBurst({ kind: 'like', key: Date.now() });
-                                peoples_action('like', 0, false);
-                            }}>
-                                <IIcon name="heart" size={30} color="#22c55e" />
-                            </Pressable>
-                        </View>
+                <View style={deckStyles.cardFooter}>
+                  <View style={deckStyles.nameRow}>
+                    <Text style={deckStyles.name}>
+                      {currentPerson?.user_fullname}
+                      {currentPerson?.user_bio_dob
+                        ? ', ' + help.getageFromDOB(currentPerson?.user_bio_dob)
+                        : ''}
+                    </Text>
+                    {currentPerson?.user_verified === 1 && (
+                      <IIcon
+                        name="checkmark-done-circle-sharp"
+                        size={22}
+                        color="#38bdf8"
+                      />
                     )}
-                </SafeAreaView>
-            )}
-
-
-
-
-
-
-
-            {/* ITS a matCH */}
-            <Modal visible={showItsAMatchModal} transparent animationType="fade"
-                onRequestClose={() => {
-                    setShowItsAMatchModal(false);
-                    if (functs.onePersonProfile) {
-                        navigation.popToTop();
-                    }
-                }} >
-                <View style={matchStyles.backdrop}>
-                    <ConfettiBurst trigger={showItsAMatchModal} />
-                    <Animated.View style={[matchStyles.card, matchCardAnimStyle]}>
-                        <View style={styles.zcircle1} />
-                        <View style={styles.zcircle2} />
-                        <View style={styles.zcircle3} />
-
-                        <Text style={matchStyles.title}>It's a match! 🎉</Text>
-                        <Text style={matchStyles.subtitle}>You and {getPeopleToMatch?.[0]?.user_fullname || "them"} like each other</Text>
-
-                        <View style={matchStyles.photoRow}>
-                            <Animated.View style={[matchStyles.photoCard, matchStyles.leftPhoto, leftPhotoAnimStyle]}>
-                                <SafeImage source={{ uri: String(imageDomain + (getProfile?.profile?.images?.[0]?.p ?? "")) }} style={{ width: '100%', height: '100%' }} resizeMode="cover"
-                                    onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: imageDomain + (getProfile?.profile?.images?.[0]?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }} />
-
-                            </Animated.View>
-                            <Animated.View style={[matchStyles.photoCard, matchStyles.rightPhoto, rightPhotoAnimStyle]}>
-                                <SafeImage source={{ uri: String(imageDomain + (currentUserImages?.[0]?.p ?? "")) }} style={{ width: '100%', height: '100%' }} resizeMode="cover"
-                                    onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: imageDomain + (currentUserImages?.[0]?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }} />
-
-                            </Animated.View>
-                        </View>
-
-                        <Pressable style={matchStyles.primaryBtn} onPress={() => {
-                            if (functs.onePersonProfile) {
-                                navigation.popToTop();
-                            }
-                            const matchId = getPeopleToMatch?.[0]?.match_id || functs.likedMatchId;
-                            setShowItsAMatchModal(false);
-                            navigation.push(namer.navigation.conversation, { matchId });
-                        }} >
-                            <Text style={matchStyles.primaryBtnText}>Start conversation</Text>
-                        </Pressable>
-                        <Pressable style={matchStyles.secondaryBtn} onPress={() => {
-                            setShowItsAMatchModal(false);
-                            if (!functs.onePersonProfile) {
-                                functs.refreshPeoples();
-                            } else {
-                                navigation.popToTop();
-                            }
-                        }} >
-                            <Text style={matchStyles.secondaryBtnText}>Continue swiping</Text>
-                        </Pressable>
-                    </Animated.View>
+                  </View>
+                  <View style={deckStyles.chipRow}>
+                    {highlightFields.map((field, chipIdx) => (
+                      <View key={chipIdx} style={deckStyles.chip}>
+                        {field.icon}
+                        <Text style={deckStyles.chipText}>{field.value}</Text>
+                      </View>
+                    ))}
+                  </View>
                 </View>
-            </Modal>
+              </View>
 
+              <View style={[deckStyles.detailCard, deckStyles.cardShadow]}>
+                <Text style={deckStyles.sectionTitle}>
+                  About{' '}
+                  {currentPerson?.user_fullname?.split(' ')?.[0] || 'them'}
+                </Text>
+                {currentPerson?.user_bio_about && (
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      color: colors.textSecondary,
+                      lineHeight: 20,
+                    }}
+                  >
+                    {currentPerson?.user_bio_about}
+                  </Text>
+                )}
+                {detailFields.length > 0 && (
+                  <View style={deckStyles.detailGrid}>
+                    {detailFields.map((field, idx) => (
+                      <View key={idx} style={deckStyles.detailItem}>
+                        {field.icon}
+                        <Text
+                          style={[
+                            deckStyles.detailText,
+                            { textTransform: 'capitalize', paddingRight: 1 },
+                          ]}
+                        >
+                          {field.value}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+              {interestItems.length > 0 && (
+                <View style={[deckStyles.detailCard, deckStyles.cardShadow]}>
+                  <Text style={deckStyles.sectionTitle}>Interests</Text>
+                  <View style={[deckStyles.chipRowWrap, { marginTop: 12 }]}>
+                    {interestItems.map(item => {
+                      const shared = myInterestIds.has(item.id_ai);
+                      return (
+                        <View
+                          key={item.id_ai}
+                          style={[
+                            deckStyles.interestChip,
+                            shared && deckStyles.interestChipShared,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              deckStyles.interestChipText,
+                              shared && deckStyles.interestChipTextShared,
+                            ]}
+                          >
+                            {item.interested_in}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+              {socialLinks.length > 0 && (
+                <View style={[deckStyles.detailCard, deckStyles.cardShadow]}>
+                  <Text style={deckStyles.sectionTitle}>Social Links</Text>
+                  <View style={[deckStyles.chipRowWrap, { marginTop: 12 }]}>
+                    {socialLinks.map(link => {
+                      const meta = SOCIAL_PLATFORMS.find(
+                        p => p.key === link.platform,
+                      );
+                      if (!meta) return null;
+                      return (
+                        <Pressable
+                          key={link.platform}
+                          style={[
+                            deckStyles.interestChip,
+                            { flexDirection: 'row', alignItems: 'center' },
+                          ]}
+                          onPress={() => onPressSocialLink(link)}
+                        >
+                          <IIcon
+                            name={meta.icon}
+                            size={15}
+                            color={colors.textSecondary}
+                          />
+                          <Text
+                            style={[
+                              deckStyles.interestChipText,
+                              { marginLeft: 6 },
+                            ]}
+                          >
+                            {meta.label}
+                          </Text>
+                          {!link.url && (
+                            <IIcon
+                              name="lock-closed"
+                              size={12}
+                              color={colors.textSecondary}
+                              style={{ marginLeft: 6 }}
+                            />
+                          )}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+              {writableFields.length > 0 && (
+                <View style={[deckStyles.detailCard, deckStyles.cardShadow]}>
+                  <Text style={deckStyles.sectionTitle}>
+                    More about{' '}
+                    {currentPerson?.user_fullname?.split(' ')?.[0] || 'them'}
+                  </Text>
+                  <View
+                    style={[
+                      deckStyles.detailGrid,
+                      { flexWrap: 'nowrap', flexDirection: 'column' },
+                    ]}
+                  >
+                    {writableFields.map((field, idx) => (
+                      <View key={idx} style={deckStyles.detailItem}>
+                        {field.icon}
+                        <Text style={deckStyles.detailText}>{field.value}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
 
+              {currentUserImages.length > 0 && (
+                <View style={[deckStyles.detailCard, deckStyles.cardShadow]}>
+                  <Text style={deckStyles.sectionTitle}>Photos</Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ gap: 12 }}
+                  >
+                    {currentUserImages.map((img: any, idx: number) => (
+                      <Pressable
+                        key={idx}
+                        onPress={() => setFullscreenClickImageIndex(idx)}
+                      >
+                        <SafeImage
+                          source={{ uri: imageDomain + img.p }}
+                          style={deckStyles.galleryImage}
+                          resizeMode="cover"
+                          onError={() => {
+                            return logReport({
+                              type: 'http -image',
+                              logMessage: 'Image load',
+                              url: imageDomain + (img?.p ?? ''),
+                              useraction: 'Image Load',
+                              stackTrace: null,
+                            });
+                          }}
+                        />
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
 
-            {/* DISLIKED BUT WAS A MATCH */}
-            <Modal visible={getShowDislikedMatchModal} transparent animationType="fade"
-                onRequestClose={() => {
+              {prompts.map(
+                (prompt: any, idx: number) =>
+                  prompt?.question &&
+                  prompt?.answer && (
+                    <LinearGradient
+                      key={idx}
+                      colors={PROMPT_GRADIENTS[idx % PROMPT_GRADIENTS.length]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={[deckStyles.promptCard, deckStyles.cardShadow]}
+                    >
+                      <MIcon
+                        name="format-quote-close"
+                        size={72}
+                        color="rgba(255,255,255,0.07)"
+                        style={deckStyles.promptQuoteDeco}
+                      />
+                      <View style={deckStyles.promptTag}>
+                        <Text style={deckStyles.promptTagText}>
+                          {prompt?.question}
+                        </Text>
+                      </View>
+                      <Text style={deckStyles.promptAnswer}>
+                        {prompt?.answer}
+                      </Text>
+                      {!functs.isAlreadyLiked && (
+                        <Pressable
+                          style={deckStyles.promptLikeBtn}
+                          onPress={() => {
+                            setActionBurst({ kind: 'like', key: Date.now() });
+                            peoples_action('like', 0, false);
+                          }}
+                        >
+                          <IIcon name="heart" size={18} color="#fff" />
+                        </Pressable>
+                      )}
+                    </LinearGradient>
+                  ),
+              )}
+
+              {!functs.previewP && (
+                <View style={[deckStyles.detailCard, deckStyles.cardShadow]}>
+                  <Text style={deckStyles.sectionTitle}>Safety</Text>
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                    <Pressable
+                      style={[
+                        styles.pressableButton,
+                        { backgroundColor: staticColors.warning, flex: 1 },
+                      ]}
+                      onPress={() => {
+                        bottomSheetRef_reportUser.ref.current?.expand();
+                      }}
+                    >
+                      <Text style={styles.pressableButtonText}>Report</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[
+                        styles.pressableButton,
+                        { flex: 1, backgroundColor: staticColors.error },
+                      ]}
+                      onPress={async () => {
+                        function showConfirmAlert() {
+                          return new Promise(resolve => {
+                            Alert.alert(
+                              'Block this person?',
+                              'Blocking this person prevents them from ever seeing your profile or message you!',
+                              [
+                                {
+                                  text: 'No',
+                                  onPress: () => {
+                                    resolve(false);
+                                  },
+                                  style: 'cancel',
+                                },
+                                {
+                                  text: 'Block',
+                                  onPress: () => {
+                                    resolve(true);
+                                  },
+                                },
+                              ],
+                              { cancelable: false },
+                            );
+                          });
+                        }
+                        if ((await showConfirmAlert()) === false) {
+                          return;
+                        } else {
+                          peoples_action('block', 3).then(() => {
+                            if (functs.onePersonProfile) {
+                              navigation.popToTop();
+                            } else {
+                              scrollViewRef.current?.scrollTo({
+                                y: 0,
+                                animated: true,
+                              });
+                            }
+                          });
+                        }
+                      }}
+                    >
+                      <Text style={styles.pressableButtonText}>Block</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              )}
+            </ScrollView>
+
+            {!functs.isAlreadyLiked && (
+              <View
+                style={[
+                  deckStyles.actionDock,
+                  functs.onePersonProfile ? { paddingBottom: 30 } : {},
+                ]}
+              >
+                <Pressable
+                  style={[deckStyles.circleBtn, deckStyles.circleBtnGhost]}
+                  onPress={() => {
+                    setActionBurst({ kind: 'dislike', key: Date.now() });
+                    peoples_action('dislike', 2, false);
+                  }}
+                >
+                  <IIcon name="close" size={30} color="#f43f5e" />
+                </Pressable>
+                {!functs.onePersonProfile && (
+                  <Pressable
+                    style={[deckStyles.circleBtn, deckStyles.circleBtnAccent]}
+                    onPress={() => {
+                      setActionBurst({ kind: 'superlike', key: Date.now() });
+                      peoples_action(
+                        'superlike',
+                        getPeopleToMatch?.[0]?.match_id ? 1 : 5,
+                        false,
+                      );
+                    }}
+                  >
+                    <IIcon name="rose" size={30} color="#e11d48" />
+                    {entitlements.roses && (
+                      <View style={deckStyles.entitlementBadge}>
+                        <Text style={deckStyles.entitlementBadgeText}>
+                          {entitlements.roses.remainingToday +
+                            entitlements.roses.balance}
+                        </Text>
+                      </View>
+                    )}
+                  </Pressable>
+                )}
+                <Pressable
+                  style={[deckStyles.circleBtn, deckStyles.circleBtnPrimary]}
+                  onPress={() => {
+                    setActionBurst({ kind: 'like', key: Date.now() });
+                    peoples_action('like', 0, false);
+                  }}
+                >
+                  <IIcon name="heart" size={30} color="#22c55e" />
+                </Pressable>
+              </View>
+            )}
+          </SafeAreaView>
+        )}
+
+        {/* ITS a matCH */}
+        <Modal
+          visible={showItsAMatchModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => {
+            setShowItsAMatchModal(false);
+            if (functs.onePersonProfile) {
+              navigation.popToTop();
+            }
+          }}
+        >
+          <View style={matchStyles.backdrop}>
+            <ConfettiBurst trigger={showItsAMatchModal} />
+            <Animated.View style={[matchStyles.card, matchCardAnimStyle]}>
+              <View style={styles.zcircle1} />
+              <View style={styles.zcircle2} />
+              <View style={styles.zcircle3} />
+
+              <Text style={matchStyles.title}>It's a match! 🎉</Text>
+              <Text style={matchStyles.subtitle}>
+                You and {getPeopleToMatch?.[0]?.user_fullname || 'them'} like
+                each other
+              </Text>
+
+              <View style={matchStyles.photoRow}>
+                <Animated.View
+                  style={[
+                    matchStyles.photoCard,
+                    matchStyles.leftPhoto,
+                    leftPhotoAnimStyle,
+                  ]}
+                >
+                  <SafeImage
+                    source={{
+                      uri: String(
+                        imageDomain +
+                          (getProfile?.profile?.images?.[0]?.p ?? ''),
+                      ),
+                    }}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="cover"
+                    onError={() => {
+                      return logReport({
+                        type: 'http -image',
+                        logMessage: 'Image load',
+                        url:
+                          imageDomain +
+                          (getProfile?.profile?.images?.[0]?.p ?? ''),
+                        useraction: 'Image Load',
+                        stackTrace: null,
+                      });
+                    }}
+                  />
+                </Animated.View>
+                <Animated.View
+                  style={[
+                    matchStyles.photoCard,
+                    matchStyles.rightPhoto,
+                    rightPhotoAnimStyle,
+                  ]}
+                >
+                  <SafeImage
+                    source={{
+                      uri: String(
+                        imageDomain + (currentUserImages?.[0]?.p ?? ''),
+                      ),
+                    }}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="cover"
+                    onError={() => {
+                      return logReport({
+                        type: 'http -image',
+                        logMessage: 'Image load',
+                        url: imageDomain + (currentUserImages?.[0]?.p ?? ''),
+                        useraction: 'Image Load',
+                        stackTrace: null,
+                      });
+                    }}
+                  />
+                </Animated.View>
+              </View>
+
+              <Pressable
+                style={matchStyles.primaryBtn}
+                onPress={() => {
+                  if (functs.onePersonProfile) {
+                    navigation.popToTop();
+                  }
+                  const matchId =
+                    getPeopleToMatch?.[0]?.match_id || functs.likedMatchId;
+                  setShowItsAMatchModal(false);
+                  navigation.push(namer.navigation.conversation, { matchId });
+                }}
+              >
+                <Text style={matchStyles.primaryBtnText}>
+                  Start conversation
+                </Text>
+              </Pressable>
+              <Pressable
+                style={matchStyles.secondaryBtn}
+                onPress={() => {
+                  setShowItsAMatchModal(false);
+                  if (!functs.onePersonProfile) {
+                    functs.refreshPeoples();
+                  } else {
+                    navigation.popToTop();
+                  }
+                }}
+              >
+                <Text style={matchStyles.secondaryBtnText}>
+                  Continue swiping
+                </Text>
+              </Pressable>
+            </Animated.View>
+          </View>
+        </Modal>
+
+        {/* DISLIKED BUT WAS A MATCH */}
+        <Modal
+          visible={getShowDislikedMatchModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => {
+            setShowDislikedMatchModal(false);
+            functs.refreshPeoples();
+          }}
+        >
+          <View style={matchStyles.backdrop}>
+            <Animated.View style={[matchStyles.card, passedShakeStyle]}>
+              <Pressable
+                style={matchStyles.closeButton}
+                onPress={() => {
+                  setShowDislikedMatchModal(false);
+                  functs.refreshPeoples();
+                }}
+              >
+                <IIcon name="close" size={24} color="#cbd5e1" />
+              </Pressable>
+              <View style={styles.zcircle1} />
+              <View style={styles.zcircle2} />
+              <View style={styles.zcircle3} />
+
+              <Text style={matchStyles.title}>💔 You passed!</Text>
+              <Text style={matchStyles.subtitle}>
+                {getSkippedLastPerson?.match_id
+                  ? `but ${
+                      getSkippedLastPerson?.user_fullname || 'They'
+                    } already likes you.`
+                  : `Undo your last swipe on ${
+                      getSkippedLastPerson?.user_fullname || 'them'
+                    }.`}
+              </Text>
+
+              <View style={[matchStyles.photoRow, { marginVertical: 10 }]}>
+                <View
+                  style={[
+                    matchStyles.photoCard,
+                    {
+                      transform: [],
+                      borderColor: '#f43f5e',
+                      marginRight: 0,
+                      marginLeft: 0,
+                    },
+                  ]}
+                >
+                  <SafeImage
+                    source={{
+                      uri: String(
+                        imageDomain +
+                          (getSkippedLastPerson?.user_image?.[0]?.p ?? ''),
+                      ),
+                    }}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="cover"
+                    onError={() =>
+                      logReport({
+                        type: 'http -image',
+                        logMessage: 'Image load',
+                        url:
+                          imageDomain +
+                          (getSkippedLastPerson?.user_image?.[0]?.p ?? ''),
+                        useraction: 'Image Load',
+                        stackTrace: null,
+                      })
+                    }
+                  />
+                </View>
+              </View>
+
+              <Text
+                style={[
+                  matchStyles.subtitle,
+                  { color: '#fbbf24', fontWeight: '600' },
+                ]}
+              >
+                {getSkippedLastPerson?.match_id
+                  ? 'Rewind to recover this match!'
+                  : 'Subscribe to rewind unlimited swipes!'}
+              </Text>
+
+              {getSkippedLastPerson?.match_id && (
+                <Pressable
+                  style={[
+                    matchStyles.primaryBtn,
+                    { backgroundColor: '#f59e0b' },
+                  ]}
+                  onPress={() => {
                     setShowDislikedMatchModal(false);
                     functs.refreshPeoples();
-                }}>
-                <View style={matchStyles.backdrop}>
-                    <Animated.View style={[matchStyles.card, passedShakeStyle]}>
-                        <Pressable style={matchStyles.closeButton} onPress={() => {
-                            setShowDislikedMatchModal(false); 
-                            functs.refreshPeoples();
-                        }}>
-                            <IIcon name="close" size={24} color="#cbd5e1" />
-                        </Pressable>
-                        <View style={styles.zcircle1} />
-                        <View style={styles.zcircle2} />
-                        <View style={styles.zcircle3} />
+                    navigation.navigate(namer.navigation.consumables, {
+                      productcategory: namer.productCategoryName.rewind,
+                      matchId: getSkippedLastPerson?.match_id,
+                    });
+                  }}
+                >
+                  <Text style={matchStyles.primaryBtnText}>
+                    Buy Rewind – $1.45
+                  </Text>
+                </Pressable>
+              )}
+              {getSkippedLastPerson?.match_id ? (
+                <Pressable
+                  onPress={() => {
+                    setShowDislikedMatchModal(false);
+                    functs.refreshPeoples();
+                    navigation.navigate(namer.navigation.subscription);
+                  }}
+                >
+                  <Text
+                    style={[
+                      matchStyles.secondaryBtnText,
+                      { textDecorationLine: 'underline' },
+                    ]}
+                  >
+                    Or subscribe for unlimited rewinds
+                  </Text>
+                </Pressable>
+              ) : (
+                <Pressable
+                  style={[
+                    matchStyles.primaryBtn,
+                    { backgroundColor: '#f59e0b' },
+                  ]}
+                  onPress={() => {
+                    setShowDislikedMatchModal(false);
+                    functs.refreshPeoples();
+                    navigation.navigate(namer.navigation.subscription);
+                  }}
+                >
+                  <Text style={matchStyles.primaryBtnText}>Subscribe</Text>
+                </Pressable>
+              )}
 
-                        <Text style={matchStyles.title}>💔 You passed!</Text>
-                        <Text style={matchStyles.subtitle}>
-                            {getSkippedLastPerson?.match_id
-                                ? `but ${getSkippedLastPerson?.user_fullname || "They"} already likes you.`
-                                : `Undo your last swipe on ${getSkippedLastPerson?.user_fullname || "them"}.`}
-                        </Text>
+              <Pressable
+                style={matchStyles.secondaryBtn}
+                onPress={() => {
+                  setShowDislikedMatchModal(false);
+                  functs.refreshPeoples();
+                }}
+              >
+                <Text style={matchStyles.secondaryBtnText}>Keep swiping</Text>
+              </Pressable>
+            </Animated.View>
+          </View>
+        </Modal>
 
-                        <View style={[matchStyles.photoRow, { marginVertical: 10 }]}>
-                            <View style={[matchStyles.photoCard, { transform: [], borderColor: '#f43f5e', marginRight: 0, marginLeft: 0 }]}>
-                                <SafeImage source={{ uri: String(imageDomain + (getSkippedLastPerson?.user_image?.[0]?.p ?? "")) }} style={{ width: '100%', height: '100%' }} resizeMode="cover"
-                                    onError={() => logReport({ type: "http -image", logMessage: "Image load", url: imageDomain + (getSkippedLastPerson?.user_image?.[0]?.p ?? ""), useraction: 'Image Load', stackTrace: null })} />
-                            </View>
-                        </View>
+        {/* FULLSCREEN */}
+        <ImageViewing
+          images={currentUserImages.map((img: any) => ({
+            uri: imageDomain + img.p,
+          }))}
+          imageIndex={getFullscreenClickImageIndex ?? 0}
+          visible={!!getFullscreenClickImageIndex}
+          onRequestClose={() => {
+            setFullscreenClickImageIndex(null);
+          }}
+          swipeToCloseEnabled={true}
+          doubleTapToZoomEnabled={true}
+          presentationStyle="overFullScreen"
+          animationType="fade"
+        />
 
-                        <Text style={[matchStyles.subtitle, { color: '#fbbf24', fontWeight: '600' }]}>
-                            {getSkippedLastPerson?.match_id ? "Rewind to recover this match!" : "Subscribe to rewind unlimited swipes!"}
-                        </Text>
+        {/* like / dislike / rose tap feedback */}
+        <ActionBurstOverlay
+          burst={getActionBurst}
+          onDone={() => setActionBurst(null)}
+        />
+      </View>
 
-                        {getSkippedLastPerson?.match_id && (
-                            <Pressable style={[matchStyles.primaryBtn, { backgroundColor: '#f59e0b' }]} onPress={() => {
-                                setShowDislikedMatchModal(false);
-                                functs.refreshPeoples();
-                                navigation.navigate(namer.navigation.consumables, {
-                                    productcategory: namer.productCategoryName.rewind,
-                                    matchId: getSkippedLastPerson?.match_id,
-                                });
-                            }}>
-                                <Text style={matchStyles.primaryBtnText}>Buy Rewind – $1.45</Text>
-                            </Pressable>
-                        )}
-                        {getSkippedLastPerson?.match_id ? (
-                            <Pressable onPress={() => {
-                                setShowDislikedMatchModal(false);
-                                functs.refreshPeoples();
-                                navigation.navigate(namer.navigation.subscription);
-                            }}>
-                                <Text style={[matchStyles.secondaryBtnText, { textDecorationLine: 'underline' }]}>Or subscribe for unlimited rewinds</Text>
-                            </Pressable>
-                        ) : (
-                            <Pressable style={[matchStyles.primaryBtn, { backgroundColor: '#f59e0b' }]} onPress={() => {
-                                setShowDislikedMatchModal(false);
-                                functs.refreshPeoples();
-                                navigation.navigate(namer.navigation.subscription);
-                            }}>
-                                <Text style={matchStyles.primaryBtnText}>Subscribe</Text>
-                            </Pressable>
-                        )}
-
-                        <Pressable style={matchStyles.secondaryBtn} onPress={() => {
-                            setShowDislikedMatchModal(false);
-                            functs.refreshPeoples();
-                        }}>
-                            <Text style={matchStyles.secondaryBtnText}>Keep swiping</Text>
-                        </Pressable>
-
-                    </Animated.View>
-                </View>
-            </Modal>
-
-            {/* FULLSCREEN */}
-            <ImageViewing
-                images={currentUserImages.map((img: any) => ({ uri: imageDomain + img.p }))}
-                imageIndex={getFullscreenClickImageIndex ?? 0}
-                visible={!!getFullscreenClickImageIndex}
-                onRequestClose={() => { setFullscreenClickImageIndex(null) }}
-                swipeToCloseEnabled={true}
-                doubleTapToZoomEnabled={true}
-                presentationStyle="overFullScreen"
-                animationType="fade"
-            /> 
-
-            {/* like / dislike / rose tap feedback */}
-            <ActionBurstOverlay burst={getActionBurst} onDone={() => setActionBurst(null)} />
-
-
-        </View>
- 
-
-            <BottomSheet ref={bottomSheetRef_reportUser.ref} index={-1} enablePanDownToClose snapPoints={bottomSheetRef_reportUser.snap} backdropComponent={bottomsheet_renderBackdrop}>
-                <BottomSheetView style={{ padding: 20 }}>
-                    <ReportContent />
-                </BottomSheetView>
-            </BottomSheet>
-        </>
-    );
+      <BottomSheet
+        ref={bottomSheetRef_reportUser.ref}
+        index={-1}
+        enablePanDownToClose
+        snapPoints={bottomSheetRef_reportUser.snap}
+        backdropComponent={bottomsheet_renderBackdrop}
+      >
+        <BottomSheetView style={{ padding: 20 }}>
+          <ReportContent />
+        </BottomSheetView>
+      </BottomSheet>
+    </>
+  );
 }
 
-
-
 const PROMPT_GRADIENTS: [string, string][] = [
-    ['#0f172a', '#1e2b4d'],
-    ['#1e1b4b', '#3b0764'],
-    ['#0c1e3d', '#134e4a'],
+  ['#0f172a', '#1e2b4d'],
+  ['#1e1b4b', '#3b0764'],
+  ['#0c1e3d', '#134e4a'],
 ];
 
 function createDeckStyles(colors: ThemeColors) {
-    return StyleSheet.create({
+  return StyleSheet.create({
     // The swipe/photo card intentionally stays dark-on-photo regardless of app theme
     // (text/chips need to stay legible over arbitrary user photos either way).
-    cardFooter: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 18, gap: 8 },
+    cardFooter: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      padding: 18,
+      gap: 8,
+    },
     nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     name: { color: '#fff', fontSize: 26, fontWeight: '800' },
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    chip: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: 'rgba(15,23,42,0.75)', borderRadius: 18 },
+    chip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      backgroundColor: 'rgba(15,23,42,0.75)',
+      borderRadius: 18,
+    },
     chipText: { color: '#e5e7eb', fontSize: 13, textTransform: 'capitalize' },
-    detailCard: { backgroundColor: colors.surface, borderRadius: 16, padding: 16, marginHorizontal: 5, marginTop: 14 },
-    promptCard: { borderRadius: 16, padding: 18, marginTop: 14, overflow: 'hidden', position: 'relative' },
+    detailCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: 16,
+      marginHorizontal: 5,
+      marginTop: 14,
+    },
+    promptCard: {
+      borderRadius: 16,
+      padding: 18,
+      marginTop: 14,
+      overflow: 'hidden',
+      position: 'relative',
+    },
     promptQuoteDeco: { position: 'absolute', top: 2, right: 8 },
-    promptTag: { alignSelf: 'flex-start', backgroundColor: 'rgba(56,189,248,0.16)', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 12 },
-    promptTagText: { color: '#7dd3fc', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-    promptAnswer: { color: '#fff', fontSize: 19, fontWeight: '700', lineHeight: 25, paddingRight: 30 },
-    promptLikeBtn: { position: 'absolute', bottom: 14, right: 14, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
-    sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 2 },
-    detailGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
-    detailItem: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, backgroundColor: colors.backgroundSecondary, borderRadius: 12, flexBasis: '48%' },
+    promptTag: {
+      alignSelf: 'flex-start',
+      backgroundColor: 'rgba(56,189,248,0.16)',
+      borderRadius: 20,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      marginBottom: 12,
+    },
+    promptTagText: {
+      color: '#7dd3fc',
+      fontSize: 12,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+    },
+    promptAnswer: {
+      color: '#fff',
+      fontSize: 19,
+      fontWeight: '700',
+      lineHeight: 25,
+      paddingRight: 30,
+    },
+    promptLikeBtn: {
+      position: 'absolute',
+      bottom: 14,
+      right: 14,
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: 'rgba(255,255,255,0.14)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.18)',
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 2,
+    },
+    detailGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+      marginTop: 12,
+    },
+    detailItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      padding: 10,
+      backgroundColor: colors.backgroundSecondary,
+      borderRadius: 12,
+      flexBasis: '48%',
+    },
     detailText: { color: colors.text, fontSize: 14, flexShrink: 1 },
     chipRowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    interestChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.backgroundSecondary, borderWidth: 1, borderColor: colors.border },
-    interestChipText: { fontSize: 13, color: colors.textSecondary, fontWeight: '800' },
-    interestChipShared: { backgroundColor: colors.primary, borderColor: colors.primary },
+    interestChip: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 999,
+      backgroundColor: colors.backgroundSecondary,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    interestChipText: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      fontWeight: '800',
+    },
+    interestChipShared: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
     interestChipTextShared: { color: '#fff' },
-    galleryImage: { width: 160, height: 200, borderRadius: 16, backgroundColor: staticColors.gray1 },
-    actionDock: { position: 'absolute', bottom: 16, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 16 },
-    circleBtn: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center', shadowColor: colors.shadow, shadowOpacity: 0.15, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
-    entitlementBadge: { position: 'absolute', top: -2, right: -2, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 4, backgroundColor: '#f43f5e', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: colors.background },
+    galleryImage: {
+      width: 160,
+      height: 200,
+      borderRadius: 16,
+      backgroundColor: staticColors.gray1,
+    },
+    actionDock: {
+      position: 'absolute',
+      bottom: 16,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 16,
+    },
+    circleBtn: {
+      width: 68,
+      height: 68,
+      borderRadius: 34,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: colors.shadow,
+      shadowOpacity: 0.15,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 8,
+    },
+    entitlementBadge: {
+      position: 'absolute',
+      top: -2,
+      right: -2,
+      minWidth: 20,
+      height: 20,
+      borderRadius: 10,
+      paddingHorizontal: 4,
+      backgroundColor: '#f43f5e',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1.5,
+      borderColor: colors.background,
+    },
     entitlementBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
     circleBtnGhost: { backgroundColor: colors.surface },
     circleBtnAccent: { backgroundColor: '#e0f2fe' },
     circleBtnPrimary: { backgroundColor: '#dcfce7' },
-    cardShadow: { shadowColor: colors.shadow, shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 10 }, elevation: 12 },
+    cardShadow: {
+      shadowColor: colors.shadow,
+      shadowOpacity: 0.12,
+      shadowRadius: 18,
+      shadowOffset: { width: 0, height: 10 },
+      elevation: 12,
+    },
     tapZones: { ...StyleSheet.absoluteFillObject, flexDirection: 'row' },
     tapZone: { flex: 1 },
-    progressDots: { position: 'absolute', top: 16, alignSelf: 'center', flexDirection: 'row', gap: 6, backgroundColor: 'rgba(0,0,0,0.3)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
-    dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.4)' },
+    progressDots: {
+      position: 'absolute',
+      top: 16,
+      alignSelf: 'center',
+      flexDirection: 'row',
+      gap: 6,
+      backgroundColor: 'rgba(0,0,0,0.3)',
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 12,
+    },
+    dot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: 'rgba(255,255,255,0.4)',
+    },
     dotActive: { backgroundColor: '#fff' },
-    emptyStateWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 40 },
-    emptyStateCard: { width: '100%', maxWidth: 410, borderRadius: 22, backgroundColor: colors.surface, paddingVertical: 28, paddingHorizontal: 20, alignItems: 'center', gap: 10 },
-    emptyStateIconWrap: { width: 68, height: 68, borderRadius: 34, backgroundColor: '#e0f2fe', alignItems: 'center', justifyContent: 'center' },
-    emptyStateTitle: { fontSize: 23, color: colors.text, fontWeight: '800', textAlign: 'center' },
-    emptyStateSubtitle: { fontSize: 14, color: colors.textSecondary, lineHeight: 21, textAlign: 'center' },
+    emptyStateWrap: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingBottom: 40,
+    },
+    emptyStateCard: {
+      width: '100%',
+      maxWidth: 410,
+      borderRadius: 22,
+      backgroundColor: colors.surface,
+      paddingVertical: 28,
+      paddingHorizontal: 20,
+      alignItems: 'center',
+      gap: 10,
+    },
+    emptyStateIconWrap: {
+      width: 68,
+      height: 68,
+      borderRadius: 34,
+      backgroundColor: '#e0f2fe',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    emptyStateTitle: {
+      fontSize: 23,
+      color: colors.text,
+      fontWeight: '800',
+      textAlign: 'center',
+    },
+    emptyStateSubtitle: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      lineHeight: 21,
+      textAlign: 'center',
+    },
     emptyStateActions: { width: '100%', gap: 10, marginTop: 8 },
-    emptyStatePrimaryAction: { backgroundColor: colors.accent, borderRadius: 14, paddingVertical: 12 },
-    emptyStateSecondaryAction: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.backgroundSecondary, borderRadius: 14, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
-    emptyStateSecondaryActionText: { fontSize: 15, color: colors.accent, fontWeight: '700' },
-    });
+    emptyStatePrimaryAction: {
+      backgroundColor: colors.accent,
+      borderRadius: 14,
+      paddingVertical: 12,
+    },
+    emptyStateSecondaryAction: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.backgroundSecondary,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+    },
+    emptyStateSecondaryActionText: {
+      fontSize: 15,
+      color: colors.accent,
+      fontWeight: '700',
+    },
+  });
 }
 
 const matchStyles = StyleSheet.create({
-    backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center', padding: 24 },
-    card: { width: '100%', maxWidth: 380, backgroundColor: '#0f172a', borderRadius: 24, padding: 20, alignItems: 'center', gap: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-    closeButton: { position: 'absolute', top: 12, right: 12, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)', zIndex: 10 },
-    title: { fontSize: 28, fontWeight: '800', color: '#fff' },
-    subtitle: { fontSize: 14, color: '#cbd5e1', textAlign: 'center' },
-    photoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginVertical: 10 },
-    photoCard: { width: 130, height: 170, borderRadius: 18, overflow: 'hidden', backgroundColor: staticColors.gray1, shadowColor: '#000', shadowOpacity: 0.22, shadowRadius: 12, shadowOffset: { width: 0, height: 8 }, elevation: 10 },
-    leftPhoto: { marginRight: -26, borderWidth: 2, borderColor: '#0ea5e9' },
-    rightPhoto: { marginLeft: -26, borderWidth: 2, borderColor: '#22c55e' },
-    primaryBtn: { width: '100%', backgroundColor: '#22c55e', paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
-    primaryBtnText: { color: '#0f172a', fontSize: 16, fontWeight: '800' },
-    secondaryBtn: { paddingVertical: 12 },
-    secondaryBtnText: { color: '#38bdf8', fontSize: 15, fontWeight: '700' },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  card: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: '#0f172a',
+    borderRadius: 24,
+    padding: 20,
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    zIndex: 10,
+  },
+  title: { fontSize: 28, fontWeight: '800', color: '#fff' },
+  subtitle: { fontSize: 14, color: '#cbd5e1', textAlign: 'center' },
+  photoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 10,
+  },
+  photoCard: {
+    width: 130,
+    height: 170,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: staticColors.gray1,
+    shadowColor: '#000',
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
+  },
+  leftPhoto: { marginRight: -26, borderWidth: 2, borderColor: '#0ea5e9' },
+  rightPhoto: { marginLeft: -26, borderWidth: 2, borderColor: '#22c55e' },
+  primaryBtn: {
+    width: '100%',
+    backgroundColor: '#22c55e',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  primaryBtnText: { color: '#0f172a', fontSize: 16, fontWeight: '800' },
+  secondaryBtn: { paddingVertical: 12 },
+  secondaryBtnText: { color: '#38bdf8', fontSize: 15, fontWeight: '700' },
 });

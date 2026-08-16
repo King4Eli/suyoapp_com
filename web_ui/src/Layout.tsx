@@ -1,6 +1,6 @@
-import { Link, Outlet } from 'react-router-dom'
-import site from './config/site.json'
-import './styles.css'
+import { Link, Outlet } from "react-router-dom";
+import site from "./config/site.json";
+import "./styles.css";
 
 function Layout() {
   return (
@@ -34,7 +34,7 @@ function Layout() {
         </div>
       </footer>
     </>
-  )
+  );
 }
 
-export default Layout
+export default Layout;

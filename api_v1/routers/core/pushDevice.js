@@ -7,17 +7,24 @@ import { sessions } from "../../global/sessions.js";
  * on every log call. Callers reference the device afterwards by device_id.
  * @param {any} device
  */
-export default async function pushDevice(device, userId = sessions.currentUserID) {
-    const response = { code: 400, message: "Error registering device.", data: null };
-    try {
-        const deviceId = device?.InstallationId || device?.Id;
-        if (!deviceId || !userId) {
-            response.message = "Missing device or user.";
-            return response;
-        }
+export default async function pushDevice(
+  device,
+  userId = sessions.currentUserID,
+) {
+  const response = {
+    code: 400,
+    message: "Error registering device.",
+    data: null,
+  };
+  try {
+    const deviceId = device?.InstallationId || device?.Id;
+    if (!deviceId || !userId) {
+      response.message = "Missing device or user.";
+      return response;
+    }
 
-        await db_pool.query(
-            `INSERT INTO users_devices
+    await db_pool.query(
+      `INSERT INTO users_devices
                 (user_id, device_id, device_name, device_model, device_brand, device_type, manufacturer,
                  device_os, carrier, user_agent, screen_width, screen_height, is_emulator, app_version)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -35,31 +42,35 @@ export default async function pushDevice(device, userId = sessions.currentUserID
                 screen_height = VALUES(screen_height),
                 is_emulator = VALUES(is_emulator),
                 app_version = VALUES(app_version)`,
-            [
-                userId,
-                deviceId,
-                device?.Name ?? null,
-                device?.Model ?? null,
-                device?.Brand ?? null,
-                device?.Type ?? null,
-                device?.Manufacturer ?? null,
-                device?.Os ?? null,
-                device?.Carrier ?? null,
-                device?.UserAgent ?? null,
-                device?.ScreenDimension?.width ? Math.round(device.ScreenDimension.width) : null,
-                device?.ScreenDimension?.height ? Math.round(device.ScreenDimension.height) : null,
-                device?.isEmulator ? 1 : 0,
-                device?.app_version ?? null,
-            ]
-        );
+      [
+        userId,
+        deviceId,
+        device?.Name ?? null,
+        device?.Model ?? null,
+        device?.Brand ?? null,
+        device?.Type ?? null,
+        device?.Manufacturer ?? null,
+        device?.Os ?? null,
+        device?.Carrier ?? null,
+        device?.UserAgent ?? null,
+        device?.ScreenDimension?.width
+          ? Math.round(device.ScreenDimension.width)
+          : null,
+        device?.ScreenDimension?.height
+          ? Math.round(device.ScreenDimension.height)
+          : null,
+        device?.isEmulator ? 1 : 0,
+        device?.app_version ?? null,
+      ],
+    );
 
-        response.code = 200;
-        response.message = "ok";
-        response.data = { device_id: deviceId };
-    } catch (err) {
-        tools.serverLog(`Error in pushDevice: ${err}`, "pushdevice-0");
-        response.code = 500;
-        response.message = "Error registering device.";
-    }
-    return response;
+    response.code = 200;
+    response.message = "ok";
+    response.data = { device_id: deviceId };
+  } catch (err) {
+    tools.serverLog(`Error in pushDevice: ${err}`, "pushdevice-0");
+    response.code = 500;
+    response.message = "Error registering device.";
+  }
+  return response;
 }

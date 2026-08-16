@@ -25,7 +25,12 @@
     "stripe": "^20.4.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11"
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.8.1",
+    "globals": "^17.11.0",
+    "nodemon": "^3.1.11",
+    "oxlint": "^1.78.0",
+    "prettier": "^3.9.6"
   },
   "compilerOptions": {
     "resolveJsonModule": true

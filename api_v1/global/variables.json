@@ -1,8 +1,6 @@
 {
-    "site": {
-
-        "hotlink_payment_200":"https://suyoapp.com/payment/success", 
-        "hotlink_payment_400":"https://suyoapp.com/payment/cancelled"
-    } 
- 
+  "site": {
+    "hotlink_payment_200": "https://suyoapp.com/payment/success",
+    "hotlink_payment_400": "https://suyoapp.com/payment/cancelled"
+  }
 }

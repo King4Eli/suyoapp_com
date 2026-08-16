@@ -7,9 +7,10 @@
   --accent: #e8546f;
   --accent-dark: #c53f58;
   --shadow:
-    rgba(45, 36, 48, 0.08) 0 10px 15px -3px, rgba(45, 36, 48, 0.05) 0 4px 6px -2px;
+    rgba(45, 36, 48, 0.08) 0 10px 15px -3px,
+    rgba(45, 36, 48, 0.05) 0 4px 6px -2px;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --sans: system-ui, "Segoe UI", Roboto, sans-serif;
 
   font: 18px/145% var(--sans);
   color-scheme: light dark;

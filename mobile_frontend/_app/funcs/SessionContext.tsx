@@ -34,12 +34,12 @@ class SessionManager {
   subscribe(callback: Subscriber): () => void {
     this.subscribers.push(callback);
     return () => {
-      this.subscribers = this.subscribers.filter((sub) => sub !== callback);
+      this.subscribers = this.subscribers.filter(sub => sub !== callback);
     };
   }
 
   private notifySubscribers() {
-    this.subscribers.forEach((callback) => callback(this.session));
+    this.subscribers.forEach(callback => callback(this.session));
   }
 }
 

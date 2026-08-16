@@ -1,27 +1,41 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert, AppState, Dimensions, PermissionsAndroid, Platform, Vibration } from 'react-native';
+import {
+  Alert,
+  AppState,
+  Dimensions,
+  PermissionsAndroid,
+  Platform,
+  Vibration,
+} from 'react-native';
 import { sessionManager } from './SessionContext';
 import Geolocation from 'react-native-geolocation-service';
 import ngeohash from 'ngeohash';
 import { namer, __CONFIG__ } from './static';
-import { Asset, ImageLibraryOptions, launchImageLibrary } from 'react-native-image-picker';
+import {
+  Asset,
+  ImageLibraryOptions,
+  launchImageLibrary,
+} from 'react-native-image-picker';
 import { Toastx } from './customNotification';
 import { SocketClient } from './socket_realtimeData';
 import { createNavigationContainerRef } from '@react-navigation/native';
 import { xxa_logggingReport } from './functions/logging';
-import { xxa__http_requests, getFriendlyNetworkErrorMessage } from './functions/httpRequest';
+import {
+  xxa__http_requests,
+  getFriendlyNetworkErrorMessage,
+} from './functions/httpRequest';
 import { cacheStorage } from './functions/llstorage';
 import { reportUser } from './functions/reportUser';
 
-export { cacheStorage as cacheStorage }
+export { cacheStorage };
 export { xxa_logggingReport as logReport };
 export { xxa__http_requests as _http_request };
 export { getFriendlyNetworkErrorMessage };
 export { reportUser };
- 
-export const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-export const navigationRef = createNavigationContainerRef<any>();
 
+export const { width: screenWidth, height: screenHeight } =
+  Dimensions.get('window');
+export const navigationRef = createNavigationContainerRef<any>();
 
 // Helper functions for encoding/decoding
 export const help = {
@@ -32,7 +46,11 @@ export const help = {
     return Math.floor(Math.random() * (maxVal - min + 1)) + min;
   },
 
-  randomAlphanumeric: (max: number, min: number = 6, upperCase: boolean = false) => {
+  randomAlphanumeric: (
+    max: number,
+    min: number = 6,
+    upperCase: boolean = false,
+  ) => {
     const chars =
       (upperCase ? 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' : '') +
       'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -40,7 +58,7 @@ export const help = {
     const length = Math.floor(Math.random() * (max - min + 1)) + min;
 
     return Array.from({ length }, () =>
-      chars.charAt(Math.floor(Math.random() * chars.length))
+      chars.charAt(Math.floor(Math.random() * chars.length)),
     ).join('');
   },
   encodeStr: (st: string): string => {
@@ -71,7 +89,12 @@ export const help = {
       }
       return age.toString();
     } catch (e: any) {
-      xxa_logggingReport({ type: 'function', extra: "yyyymmdd" + yyyymmdd, useraction: 'getageFromDOB', logMessage: e?.message });
+      xxa_logggingReport({
+        type: 'function',
+        extra: 'yyyymmdd' + yyyymmdd,
+        useraction: 'getageFromDOB',
+        logMessage: e?.message,
+      });
       return null;
     }
   },
@@ -85,7 +108,12 @@ export const help = {
 
       return `${year}${month}${day}`;
     } catch (e: any) {
-      xxa_logggingReport({ type: 'function', extra: 'age: ' + age, useraction: 'getDOBFromAge', logMessage: e?.message });
+      xxa_logggingReport({
+        type: 'function',
+        extra: 'age: ' + age,
+        useraction: 'getDOBFromAge',
+        logMessage: e?.message,
+      });
       return null;
     }
   },
@@ -97,9 +125,14 @@ export const help = {
       const feet = Math.floor(inches / 12);
       const remainingInches = Math.round(inches % 12);
 
-      return (`${feet}ft' ${remainingInches}in`);
+      return `${feet}ft' ${remainingInches}in`;
     } catch (e: any) {
-      xxa_logggingReport({ type: 'function', extra: 'cmValue ' + cmValue, useraction: 'cmToFtIn', logMessage: e?.message  });
+      xxa_logggingReport({
+        type: 'function',
+        extra: 'cmValue ' + cmValue,
+        useraction: 'cmToFtIn',
+        logMessage: e?.message,
+      });
       return null;
     }
   },
@@ -111,46 +144,47 @@ export const help = {
 
       return km;
     } catch (e: any) {
-      xxa_logggingReport({ type: 'function', extra: 'milesToKM: ' + milesValue, useraction: 'milestokm', logMessage: e?.message });
+      xxa_logggingReport({
+        type: 'function',
+        extra: 'milesToKM: ' + milesValue,
+        useraction: 'milestokm',
+        logMessage: e?.message,
+      });
       return null;
     }
   },
-  timeAgo: (unixSeconds:string) => {
-  const nowSeconds = Math.floor(Date.now() / 1000);
-  const pastSeconds = Number(unixSeconds);
-  const seconds = nowSeconds - pastSeconds;
+  timeAgo: (unixSeconds: string) => {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const pastSeconds = Number(unixSeconds);
+    const seconds = nowSeconds - pastSeconds;
 
-  if (seconds < 5) return 'just now';
-  if (seconds < 60) return `${seconds}s ago`;
+    if (seconds < 5) return 'just now';
+    if (seconds < 60) return `${seconds}s ago`;
 
-  const intervals = {
-    year: 31536000,
-    month: 2592000,
-    day: 86400,
-    hour: 3600,
-    minute: 60,
-  };
+    const intervals = {
+      year: 31536000,
+      month: 2592000,
+      day: 86400,
+      hour: 3600,
+      minute: 60,
+    };
 
-  for (const [unit, value] of Object.entries(intervals)) {
-    const count = Math.floor(seconds / value);
-    if (count >= 1) {
-      return `${count} ${unit}${count > 1 ? 's' : ''} ago`;
+    for (const [unit, value] of Object.entries(intervals)) {
+      const count = Math.floor(seconds / value);
+      if (count >= 1) {
+        return `${count} ${unit}${count > 1 ? 's' : ''} ago`;
+      }
     }
-  }
 
-  return 'just now';
-},
+    return 'just now';
+  },
   getSubscriptionState: (profile: any) => {
-    const rawPlan =
-      profile?.subscription?.product_name ??
-      null;
-    const rawVariant =
-      profile?.subscription?.plan_name ??
-      null;
-    const hasActive = Boolean(
-      profile?.subscription?.status === 'active'
-    );
-    const tier = String(rawPlan ?? '').trim().toLowerCase();
+    const rawPlan = profile?.subscription?.product_name ?? null;
+    const rawVariant = profile?.subscription?.plan_name ?? null;
+    const hasActive = Boolean(profile?.subscription?.status === 'active');
+    const tier = String(rawPlan ?? '')
+      .trim()
+      .toLowerCase();
 
     return {
       hasActive,
@@ -160,11 +194,8 @@ export const help = {
       isPlus: hasActive && tier === 'plus',
       isVip: hasActive && tier === 'vip',
     };
-  }
+  },
 };
-
-
-
 
 export const __init__app = async (): Promise<void> => {
   // get mapper
@@ -176,23 +207,27 @@ export const __init__app = async (): Promise<void> => {
 
   // get session and verify
   const getSession_omi = sessionManager.getCurrentSession()?.x_omi_payload;
-  const notSessionAndNavigation = (!getSession_omi || navigationRef === null)
-  
+  const notSessionAndNavigation = !getSession_omi || navigationRef === null;
+
   // 111111
   // update location -- gated so a re-launch in the same neighborhood doesn't
   // re-hit the server (and its reverse-geocode call) every single time. Not
   // awaited: the GPS fix itself can take several seconds and nothing the user
   // sees on launch depends on it, so it shouldn't hold up the splash screen.
-  maybePushLocation().catch((error: any) => console.error("maybePushLocation failed:", error?.message));
+  maybePushLocation().catch((error: any) =>
+    console.error('maybePushLocation failed:', error?.message),
+  );
 
   // 222222
   // connect with socket for realtime info
   (async () => {
-    console.log(`🟨 [INIT] socket-connect step -> notSessionAndNavigation=${notSessionAndNavigation}`);
-    if (notSessionAndNavigation){
+    console.log(
+      `🟨 [INIT] socket-connect step -> notSessionAndNavigation=${notSessionAndNavigation}`,
+    );
+    if (notSessionAndNavigation) {
       Toastx.show({
-        message: "Session not found.",
-        type: 'info'
+        message: 'Session not found.',
+        type: 'info',
       });
       return;
     }
@@ -200,13 +235,17 @@ export const __init__app = async (): Promise<void> => {
     try {
       const getProfile = await cacheStorage.getCurrentUserProfile();
       const userId = getProfile?.profile?.id;
-      console.log(`🟨 [INIT] socket-connect step -> gotProfile=${Boolean(getProfile)} userId=${userId}`);
+      console.log(
+        `🟨 [INIT] socket-connect step -> gotProfile=${Boolean(
+          getProfile,
+        )} userId=${userId}`,
+      );
       if (!userId) return;
-      SocketClient.connect(userId, (data) => {
-      const retrivedData = data?.message;
-      if (data.event === 'message') {
-        if (retrivedData?.type !== "single-convo") return;
-        /*
+      SocketClient.connect(userId, data => {
+        const retrivedData = data?.message;
+        if (data.event === 'message') {
+          if (retrivedData?.type !== 'single-convo') return;
+          /*
         {
             "type":"single-convo",
             "matchId": "pyca6r5dngyrbauhnn916a", 
@@ -216,97 +255,128 @@ export const __init__app = async (): Promise<void> => {
             }
         } 
         */
-        const navigationRef_route = navigationRef.getCurrentRoute();
+          const navigationRef_route = navigationRef.getCurrentRoute();
 
-        if (navigationRef_route?.name === namer.navigation.conversation) {
-          // @ts-ignore
-          if (navigationRef_route.params?.matchId === retrivedData?.matchId) {
-            if (navigationRef.isReady()) navigationRef.setParams({ realtimedata: retrivedData?.payload });
+          if (navigationRef_route?.name === namer.navigation.conversation) {
+            // @ts-ignore
+            if (navigationRef_route.params?.matchId === retrivedData?.matchId) {
+              if (navigationRef.isReady())
+                navigationRef.setParams({
+                  realtimedata: retrivedData?.payload,
+                });
+            } else {
+            }
           } else {
-
+            const nmessage =
+              (retrivedData?.payload?.firstName ?? 'Someone') +
+              ' has messaged you';
+            if (AppState.currentState === 'active') {
+              Vibration.vibrate(100);
+              Toastx.show({
+                title: nmessage,
+                message: 'Tap to view message',
+                type: 'info',
+                onPress: () => {
+                  if (navigationRef.isReady())
+                    navigationRef.navigate(namer.navigation.conversation, {
+                      matchId: retrivedData?.matchId,
+                    });
+                },
+              });
+            } else if (
+              AppState.currentState === 'background' ||
+              AppState.currentState === 'inactive'
+            ) {
+              //displsyNotification(nmessage, "Tap to view message");
+            }
           }
-        } else {
-          const nmessage = (retrivedData?.payload?.firstName ?? "Someone") + " has messaged you";
+        } else if (data.event === 'new-like') {
+          // Emitted by pushPeopleToMatch.js when someone likes/superlikes the current user.
+          if (navigationRef.getCurrentRoute()?.name === namer.navigation.likes)
+            return;
           if (AppState.currentState === 'active') {
             Vibration.vibrate(100);
             Toastx.show({
-              title: nmessage,
-              message: "Tap to view message",
+              title: `${data.fromUserName ?? 'Someone'} ${
+                data.isSuperlike ? 'super liked' : 'liked'
+              } you!`,
+              message: "Tap to see who's interested",
               type: 'info',
               onPress: () => {
-                if (navigationRef.isReady()) navigationRef.navigate(namer.navigation.conversation, { matchId: retrivedData?.matchId });
-              }
+                if (navigationRef.isReady())
+                  navigationRef.navigate(namer.navigation.likes);
+              },
             });
-          } else if (AppState.currentState === 'background' || AppState.currentState === 'inactive') {
-            //displsyNotification(nmessage, "Tap to view message");
+          }
+        } else if (data.event === 'new-match') {
+          // Emitted by pushPeopleToMatch.js to the party who liked first, once the other
+          // side matches back -- they don't otherwise learn about it until they reopen the app.
+          const navigationRef_route = navigationRef.getCurrentRoute();
+          // @ts-ignore
+          if (
+            navigationRef_route?.name === namer.navigation.conversation &&
+            navigationRef_route.params?.matchId === data.matchId
+          )
+            return;
+          if (AppState.currentState === 'active') {
+            Vibration.vibrate(100);
+            Toastx.show({
+              title: `It's a match with ${data.fromUserName ?? 'someone'}!`,
+              message: 'Tap to say hi',
+              type: 'success',
+              onPress: () => {
+                if (navigationRef.isReady())
+                  navigationRef.navigate(namer.navigation.conversation, {
+                    matchId: data.matchId,
+                  });
+              },
+            });
           }
         }
-      } else if (data.event === 'new-like') {
-        // Emitted by pushPeopleToMatch.js when someone likes/superlikes the current user.
-        if (navigationRef.getCurrentRoute()?.name === namer.navigation.likes) return;
-        if (AppState.currentState === 'active') {
-          Vibration.vibrate(100);
-          Toastx.show({
-            title: `${data.fromUserName ?? "Someone"} ${data.isSuperlike ? "super liked" : "liked"} you!`,
-            message: "Tap to see who's interested",
-            type: 'info',
-            onPress: () => {
-              if (navigationRef.isReady()) navigationRef.navigate(namer.navigation.likes);
-            }
-          });
-        }
-      } else if (data.event === 'new-match') {
-        // Emitted by pushPeopleToMatch.js to the party who liked first, once the other
-        // side matches back -- they don't otherwise learn about it until they reopen the app.
-        const navigationRef_route = navigationRef.getCurrentRoute();
-        // @ts-ignore
-        if (navigationRef_route?.name === namer.navigation.conversation && navigationRef_route.params?.matchId === data.matchId) return;
-        if (AppState.currentState === 'active') {
-          Vibration.vibrate(100);
-          Toastx.show({
-            title: `It's a match with ${data.fromUserName ?? "someone"}!`,
-            message: "Tap to say hi",
-            type: 'success',
-            onPress: () => {
-              if (navigationRef.isReady()) navigationRef.navigate(namer.navigation.conversation, { matchId: data.matchId });
-            }
-          });
-        }
-      }
       });
     } catch (error: any) {
-      console.log(`🔴 [INIT] socket-connect step FAILED -> ${error?.message || String(error)}`);
+      console.log(
+        `🔴 [INIT] socket-connect step FAILED -> ${
+          error?.message || String(error)
+        }`,
+      );
       xxa_logggingReport({
-        type: "function",
+        type: 'function',
         extra: error?.message || String(error),
         useraction: 'initSocketConnect',
         logMessage: error?.message || String(error),
-        stackTrace: error
+        stackTrace: error,
       });
     }
   })();
-}
-
+};
 
 // Cold-start deep links (Linking.getInitialURL) can fire before <NavigationContainer>
 // has mounted, so navigationRef.isReady() is briefly false — poll instead of busy-looping
 // or checking once. Never call navigate/resetRoot while isReady() is false; it will throw.
-async function waitForNavigationReady(timeoutMs = 4000, intervalMs = 100): Promise<boolean> {
+async function waitForNavigationReady(
+  timeoutMs = 4000,
+  intervalMs = 100,
+): Promise<boolean> {
   const start = Date.now();
   while (!navigationRef.isReady()) {
     if (Date.now() - start >= timeoutMs) return false;
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), intervalMs));
+    await new Promise<void>(resolve => setTimeout(() => resolve(), intervalMs));
   }
   return true;
 }
 
 // Stripe's webhook can land a moment after the success redirect, so poll the
 // lightweight entitlement endpoint briefly instead of trusting a single profile refetch.
-async function waitForEntitlementRefresh(maxAttempts = 5, delayMs = 2000): Promise<boolean> {
+async function waitForEntitlementRefresh(
+  maxAttempts = 5,
+  delayMs = 2000,
+): Promise<boolean> {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const entitlement = await xxa__http_requests({
-        customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getEntitlement',
+        customApiUrl:
+          __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getEntitlement',
         reqType: 'POST',
       });
       if (entitlement?.hasActiveSubscription) {
@@ -316,7 +386,7 @@ async function waitForEntitlementRefresh(maxAttempts = 5, delayMs = 2000): Promi
       console.error('Entitlement refresh check failed:', error);
     }
     if (attempt < maxAttempts) {
-      await new Promise<void>((resolve) => setTimeout(() => resolve(), delayMs));
+      await new Promise<void>(resolve => setTimeout(() => resolve(), delayMs));
     }
   }
   return false;
@@ -328,13 +398,17 @@ export function handleDeepLink(url: string) {
   try {
     const match = url.match(/^(\w+):\/\/([^/]+)(\/.*)?$/);
     if (!match) return;
-    const [, scheme, host, rawPath = '/'] = match;
+    const [, _scheme, host, rawPath = '/'] = match;
     // clean path
     const path = rawPath.split('?')[0].replace(/\/$/, '') || '/';
 
     const paymentRoutes: Record<string, () => void> = {
       '/payment/success': async () => {
-        Toastx.show({ type: 'success', message: 'Payment successful — your plan is now active', duration: 8000 });
+        Toastx.show({
+          type: 'success',
+          message: 'Payment successful — your plan is now active',
+          duration: 8000,
+        });
 
         // Give the Stripe webhook a chance to land before pulling the fresh profile,
         // since the checkout redirect can beat the webhook to our server.
@@ -352,9 +426,7 @@ export function handleDeepLink(url: string) {
               {
                 name: namer.navigation.home,
                 state: {
-                  routes: [
-                    { name: namer.navigation.profile },
-                  ],
+                  routes: [{ name: namer.navigation.profile }],
                 },
               },
             ],
@@ -362,7 +434,11 @@ export function handleDeepLink(url: string) {
         }
       },
       '/payment/cancelled': () => {
-        Toastx.show({ type: 'info', message: 'Payment cancelled — no charge was made', duration: 9000 });
+        Toastx.show({
+          type: 'info',
+          message: 'Payment cancelled — no charge was made',
+          duration: 9000,
+        });
       },
     };
 
@@ -373,16 +449,17 @@ export function handleDeepLink(url: string) {
     } else {
       console.log('No route match:', host, path);
     }
-
   } catch (error) {
     console.error('Deep link error:', error);
   }
 }
 
-
-
 // Handle login
-export const _handle_Signin = async (phoneNumber: string, callingCode: string, vscode: string | null): Promise<{ code: number, message?: string, redirect?: string }> => {
+export const _handle_Signin = async (
+  phoneNumber: string,
+  callingCode: string,
+  vscode: string | null,
+): Promise<{ code: number; message?: string; redirect?: string }> => {
   let err: string | null = null;
   if (!vscode || vscode.length < 6) {
     if (phoneNumber.length <= 5) {
@@ -392,43 +469,47 @@ export const _handle_Signin = async (phoneNumber: string, callingCode: string, v
     if (err === null) {
       const loginRes = await xxa__http_requests({
         customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/login',
-        reqType: 'POST', bodyArray: {
+        reqType: 'POST',
+        bodyArray: {
           cc: callingCode,
-          user_phone: phoneNumber
-        }
+          user_phone: phoneNumber,
+        },
       });
       if (loginRes?.code === 200) {
         await sessionManager.updateSession({
-          x_omi_payload: "",
+          x_omi_payload: '',
         });
         return {
           code: 200,
-          message: loginRes?.message ?? "Login sus"
+          message: loginRes?.message ?? 'Login sus',
         };
       } else if (loginRes?.code === 404) {
         return {
           code: 404,
-          message: "redirecting to signup",
-          redirect: "signup"
+          message: 'redirecting to signup',
+          redirect: 'signup',
         };
       } else {
-        err = loginRes?.message ?? "Error logging in!";
+        err = loginRes?.message ?? 'Error logging in!';
       }
     }
   } else if (vscode && vscode.length >= 6) {
     if (err === null) {
       try {
-        const loginRes = await fetch(__CONFIG__.HTTPS_API_DOMAIN + "/api/login", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+        const loginRes = await fetch(
+          __CONFIG__.HTTPS_API_DOMAIN + '/api/login',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              user_phone: phoneNumber,
+              cc: callingCode,
+              vcode: vscode,
+            }),
           },
-          body: JSON.stringify({
-            user_phone: phoneNumber,
-            cc: callingCode,
-            vcode: vscode,
-          }),
-        });
+        );
 
         const headers = loginRes.headers;
         const response = await loginRes.json();
@@ -443,13 +524,13 @@ export const _handle_Signin = async (phoneNumber: string, callingCode: string, v
 
           return {
             code: 200,
-            message: "Login success"
+            message: 'Login success',
           };
         } else {
-          err = response?.message ?? "Error logging in!";
+          err = response?.message ?? 'Error logging in!';
         }
       } catch (error: any) {
-        err = await getFriendlyNetworkErrorMessage(error, "Error logging in!");
+        err = await getFriendlyNetworkErrorMessage(error, 'Error logging in!');
       }
     }
   }
@@ -457,14 +538,14 @@ export const _handle_Signin = async (phoneNumber: string, callingCode: string, v
   // Login failed
   return {
     code: 400,
-    message: err ?? "Error signing in function."
+    message: err ?? 'Error signing in function.',
   };
 };
 
 // Handle signup
 export const _handle_Signup = async (
   textInput_: { verifypassword: string; password: string; email: string },
-  get_setuserId: (uid: string) => void
+  get_setuserId: (uid: string) => void,
 ): Promise<void> => {
   let err: string | false = false;
 
@@ -487,7 +568,7 @@ export const _handle_Signup = async (
         fullname: help.encodeStr('frederick owens'),
         email: help.encodeStr(textInput_.email),
         password: help.encodeStr(textInput_.password),
-      }
+      },
     });
     if (signupRes?.code === 200) {
       let uid = signupRes?.user_id ?? '';
@@ -505,13 +586,12 @@ export const _handle_Signup = async (
   }
 };
 
-
 // Get current location with permission handling
 export async function getCurrentLocation() {
   //get locations
   if (Platform.OS === 'android') {
     const granted = await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
     );
     if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
       Toastx.show({ type: 'error', message: 'Location permission denied' });
@@ -531,7 +611,7 @@ export async function getCurrentLocation() {
         enableHighAccuracy: true,
         timeout: 15000,
         maximumAge: 10000,
-      }
+      },
     );
   });
 }
@@ -561,15 +641,17 @@ export async function maybePushLocation(): Promise<void> {
     if (lastRaw) {
       const last = JSON.parse(lastRaw);
       const isSameArea = last?.geohash === geohash;
-      const isFresh = Date.now() - (last?.pushedAt ?? 0) < LOCATION_PUSH_MIN_INTERVAL_MS;
+      const isFresh =
+        Date.now() - (last?.pushedAt ?? 0) < LOCATION_PUSH_MIN_INTERVAL_MS;
       if (isSameArea && isFresh) return;
     }
   } catch (error) {
-    console.error("Error reading last location push:", error);
+    console.error('Error reading last location push:', error);
   }
 
   const cords = {
-    latd, long,
+    latd,
+    long,
     accuracy: location.coords.accuracy,
     altitude: location.coords.altitude,
     altitudeAccuracy: location.coords.altitudeAccuracy,
@@ -579,38 +661,41 @@ export async function maybePushLocation(): Promise<void> {
   };
 
   const response = await xxa__http_requests({
-    customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/pushLocation",
+    customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/pushLocation',
     reqType: 'POST',
     bodyArray: { longlatd: JSON.stringify(cords) },
   });
 
   if (response?.code === 200) {
-    await AsyncStorage.setItem(namer.storage.lastLocationPush, JSON.stringify({ geohash, pushedAt: Date.now() }));
+    await AsyncStorage.setItem(
+      namer.storage.lastLocationPush,
+      JSON.stringify({ geohash, pushedAt: Date.now() }),
+    );
     await cacheStorage.getCurrentUserProfile(true);
   }
 }
 
-
-
-
-export const parseCategoryProducts = (productLists: any = false, categoryToGet: string) => {
+export const parseCategoryProducts = (
+  productLists: any = false,
+  categoryToGet: string,
+) => {
   if (!productLists) return [];
 
   if (Array.isArray(productLists)) {
     const mainsubCategory = productLists.find(
-      (entry: any) => entry?.category_data?.category === categoryToGet
+      (entry: any) => entry?.category_data?.category === categoryToGet,
     );
     return mainsubCategory?.category_data?.products ?? productLists;
   }
 
   if (Array.isArray(productLists?.products)) {
     const mainsubCategory = productLists.products.find(
-      (entry: any) => entry?.category_data?.category === categoryToGet
+      (entry: any) => entry?.category_data?.category === categoryToGet,
     );
     return mainsubCategory?.category_data?.products ?? [];
   }
 
-  return Object.keys(productLists).map((tierKey) => {
+  return Object.keys(productLists).map(tierKey => {
     const tierItems = productLists?.[tierKey] ?? [];
     const firstTierItem = tierItems[0] ?? {};
 
@@ -628,11 +713,12 @@ export const parseCategoryProducts = (productLists: any = false, categoryToGet: 
       })),
     };
   });
-
 };
 
 export class mediaHandler {
-  public static handleSelectFromGallery = async (sacr: ImageLibraryOptions): Promise<Asset[] | null> => {
+  public static handleSelectFromGallery = async (
+    sacr: ImageLibraryOptions,
+  ): Promise<Asset[] | null> => {
     try {
       const result = await launchImageLibrary(sacr);
 
@@ -641,23 +727,30 @@ export class mediaHandler {
         return media;
       }
       return null;
-    } catch (error:any) {
-      xxa_logggingReport({ type: "media", useraction: "select media error", logMessage: error?.message  });
+    } catch (error: any) {
+      xxa_logggingReport({
+        type: 'media',
+        useraction: 'select media error',
+        logMessage: error?.message,
+      });
       Toastx.show({ type: 'error', message: 'Failed to select media' });
       return null;
     }
   };
-
 }
 
 export class uploadHandler {
-  public static requestPresignedURL_Upload = async (extension: string, bucketType: string, convoId?: string) => {
+  public static requestPresignedURL_Upload = async (
+    extension: string,
+    bucketType: string,
+    convoId?: string,
+  ) => {
     // Build request body with meta wrapper
     const requestBody: any = {
       meta: {
         extension: extension,
         bucketType: bucketType,
-      }
+      },
     };
 
     // Add convoId if it's a conversation type
@@ -666,11 +759,12 @@ export class uploadHandler {
     }
 
     const data = await xxa__http_requests({
-      customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + "/api/core/v1/handleFileUpload",
+      customApiUrl:
+        __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/handleFileUpload',
       reqType: 'POST',
-      bodyArray: requestBody
+      bodyArray: requestBody,
     });
-    console.log("Received file upload response:", data);
+    console.log('Received file upload response:', data);
     if (data?.code !== 200 || !data?.data?.uploadUrl) {
       throw new Error(data?.message ?? 'Unable to generate upload URL.4');
     }
@@ -678,11 +772,13 @@ export class uploadHandler {
   };
 
   public static joinPath(...parts: string[]): string {
-    return parts
-      .map(p => p.replace(/^\/+|\/+$/g, "")) // trim slashes
-      .filter(Boolean)
-      //.map(segment => encodeURIComponent(segment))
-      .join("/")
+    return (
+      parts
+        .map(p => p.replace(/^\/+|\/+$/g, '')) // trim slashes
+        .filter(Boolean)
+        //.map(segment => encodeURIComponent(segment))
+        .join('/')
+    );
   }
 }
 

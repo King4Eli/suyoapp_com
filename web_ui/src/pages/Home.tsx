@@ -1,7 +1,7 @@
-import site from '../config/site.json'
+import site from "../config/site.json";
 
 function Home() {
-  const { hero, features } = site.home
+  const { hero, features } = site.home;
 
   return (
     <>
@@ -37,7 +37,7 @@ function Home() {
         ))}
       </section>
     </>
-  )
+  );
 }
 
-export default Home
+export default Home;

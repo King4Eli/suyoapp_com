@@ -1,7 +1,11 @@
 import db_pool from "../../global/database.js";
 import { namer, tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
-import { getActiveSubscription, getRoseStatus, FREE_LIKE_DAILY_LIMIT } from "../../global/entitlements.js";
+import {
+  getActiveSubscription,
+  getRoseStatus,
+  FREE_LIKE_DAILY_LIMIT,
+} from "../../global/entitlements.js";
 import { peekRateLimit } from "../../global/rateLimit.js";
 
 export default async function getProfile() {
@@ -95,16 +99,18 @@ export default async function getProfile() {
     `;
     try {
       /** @type {[import('mysql2/promise').ResultSetHeader, any]} */
-      const [promptsRows] = await db_pool.query(promptsSql, [sessions.currentUserID]);
+      const [promptsRows] = await db_pool.query(promptsSql, [
+        sessions.currentUserID,
+      ]);
       if (Array.isArray(promptsRows)) {
-        userPrompts = promptsRows.map(row => ({
+        userPrompts = promptsRows.map((row) => ({
           id_ai: Number(row.id_ai),
-          question: String(row.question ?? ''),
-          answer: String(row.answer ?? '')
+          question: String(row.question ?? ""),
+          answer: String(row.answer ?? ""),
         }));
       }
     } catch (e) {
-       tools.serverLog(`Error fetching user prompts: ${e}`,"getProfile-1");
+      tools.serverLog(`Error fetching user prompts: ${e}`, "getProfile-1");
       userPrompts = [];
     }
 
@@ -120,25 +126,27 @@ export default async function getProfile() {
     `;
     try {
       /** @type {[import('mysql2/promise').ResultSetHeader, any]} */
-      const [interestsRows] = await db_pool.query(interestsSql, [sessions.currentUserID]);
+      const [interestsRows] = await db_pool.query(interestsSql, [
+        sessions.currentUserID,
+      ]);
       if (Array.isArray(interestsRows)) {
         /** @type { Record<string, any[]> } */
         const grouped = {};
         for (const row of interestsRows) {
-          const category = String(row.category ?? 'Unknown');
+          const category = String(row.category ?? "Unknown");
           if (!grouped[category]) grouped[category] = [];
           grouped[category].push({
             id_ai: Number(row.id_ai),
-            interested_in: String(row.interested_in ?? '')
+            interested_in: String(row.interested_in ?? ""),
           });
         }
-        userInterests = Object.keys(grouped).map(category => ({
+        userInterests = Object.keys(grouped).map((category) => ({
           category,
-          items: grouped[category]
+          items: grouped[category],
         }));
       }
     } catch (e) {
-       tools.serverLog(`Error fetching user interests: ${e}`,"getProfile-105");
+      tools.serverLog(`Error fetching user interests: ${e}`, "getProfile-105");
       userInterests = [];
     }
 
@@ -148,27 +156,39 @@ export default async function getProfile() {
     let userLocation = {};
 
     try {
-      userImage = userProfile?.user_image ? JSON.parse(userProfile.user_image) : [];
+      userImage = userProfile?.user_image
+        ? JSON.parse(userProfile.user_image)
+        : [];
     } catch (e) {
-       tools.serverLog(`Error parsing user_image for user ${sessions.currentUserID}: ${e}`, "getProfile-102");
+      tools.serverLog(
+        `Error parsing user_image for user ${sessions.currentUserID}: ${e}`,
+        "getProfile-102",
+      );
       userImage = [];
     }
 
     try {
-      userSettings = userProfile.user_settings ? JSON.parse(userProfile.user_settings) : {};
+      userSettings = userProfile.user_settings
+        ? JSON.parse(userProfile.user_settings)
+        : {};
     } catch (e) {
-       tools.serverLog(`Error parsing user_settings for user ${sessions.currentUserID}: ${e}`,"getProfile-103");
+      tools.serverLog(
+        `Error parsing user_settings for user ${sessions.currentUserID}: ${e}`,
+        "getProfile-103",
+      );
       userSettings = {};
     }
-    userLocation = (userProfile.geo_meta ??  {} );
-     
+    userLocation = userProfile.geo_meta ?? {};
+
     const streakCount = Number(userProfile?.user_last_accessed ?? 0);
-    const hasActiveSubscription = subscription !== null;
 
     const roses = await getRoseStatus(sessions.currentUserID);
     let likesRemainingToday = null;
     if (roses.tier === "free") {
-      const likesPeek = await peekRateLimit(`${namer.ratelimit.likes_daily}${sessions.currentUserID}`, FREE_LIKE_DAILY_LIMIT);
+      const likesPeek = await peekRateLimit(
+        `${namer.ratelimit.likes_daily}${sessions.currentUserID}`,
+        FREE_LIKE_DAILY_LIMIT,
+      );
       likesRemainingToday = likesPeek.remaining;
     }
 
@@ -178,24 +198,28 @@ export default async function getProfile() {
     response.code = 200;
     response.message = "Profile retrieved successfully";
     response.currentUser = {
-      // Basic Profile 
+      // Basic Profile
       profile: {
         id: userProfile.user_id,
         fullname: userProfile.user_fullname,
         email: userProfile.user_email,
         dob: userProfile.user_bio_dob,
         phonenumber: userProfile.user_phonenumber,
-        phonenumber_meta: userProfile.user_phonenumber_meta ? (typeof userProfile.user_phonenumber_meta === 'string' ? JSON.parse(userProfile.user_phonenumber_meta) : userProfile.user_phonenumber_meta) : null,
+        phonenumber_meta: userProfile.user_phonenumber_meta
+          ? typeof userProfile.user_phonenumber_meta === "string"
+            ? JSON.parse(userProfile.user_phonenumber_meta)
+            : userProfile.user_phonenumber_meta
+          : null,
         images: userImage,
         location: userLocation,
         settings: userSettings,
         privacy: {
-          showDistance: userProfile.user_privacy_show_distance === '1',
-          showAge: userProfile.user_privacy_show_age === '1',
-          incognitoMode: userProfile.user_privacy_incognito === '1',
-          readReceipts: userProfile.user_privacy_read_receipts === '1',
+          showDistance: userProfile.user_privacy_show_distance === "1",
+          showAge: userProfile.user_privacy_show_age === "1",
+          incognitoMode: userProfile.user_privacy_incognito === "1",
+          readReceipts: userProfile.user_privacy_read_receipts === "1",
         },
-        verified: userProfile.user_verified === '1',
+        verified: userProfile.user_verified === "1",
       },
 
       // Bio Information
@@ -210,18 +234,24 @@ export default async function getProfile() {
         school: userProfile.user_bio_schoolattended,
         politicalview: userProfile.user_bio_politicalview,
         hometown: userProfile.user_bio_hometown,
-        language: userProfile.user_bio_language ? (typeof userProfile.user_bio_language === 'string' ? JSON.parse(userProfile.user_bio_language) : userProfile.user_bio_language) : [],
+        language: userProfile.user_bio_language
+          ? typeof userProfile.user_bio_language === "string"
+            ? JSON.parse(userProfile.user_bio_language)
+            : userProfile.user_bio_language
+          : [],
         company: userProfile.user_bio_company,
         jobrole: userProfile.user_bio_jobrole,
         smoking: userProfile.user_bio_smoking,
         drinking: userProfile.user_bio_drinking,
         children: userProfile.user_bio_children,
         religion: userProfile.user_bio_religion,
-        haspet: userProfile.user_bio_haspet === '1',
+        haspet: userProfile.user_bio_haspet === "1",
         prompts: userPrompts,
         interests: userInterests,
         socialLinks: userProfile.user_bio_social_links
-          ? (typeof userProfile.user_bio_social_links === 'string' ? JSON.parse(userProfile.user_bio_social_links) : userProfile.user_bio_social_links)
+          ? typeof userProfile.user_bio_social_links === "string"
+            ? JSON.parse(userProfile.user_bio_social_links)
+            : userProfile.user_bio_social_links
           : [],
       },
 
@@ -241,14 +271,18 @@ export default async function getProfile() {
         pet: userProfile.user_preference_pet,
         religion: userProfile.user_preference_religion,
         politicalview: userProfile.user_preference_politicalview,
-        language: userProfile.user_preference_language ? (typeof userProfile.user_preference_language === 'string' ? JSON.parse(userProfile.user_preference_language) : userProfile.user_preference_language) : []
+        language: userProfile.user_preference_language
+          ? typeof userProfile.user_preference_language === "string"
+            ? JSON.parse(userProfile.user_preference_language)
+            : userProfile.user_preference_language
+          : [],
       },
 
       // stats
       stats: {
         streak_count: streakCount,
-         },
- 
+      },
+
       // subscription
       subscription: subscription,
 
@@ -262,9 +296,8 @@ export default async function getProfile() {
       last_accessed: userProfile.user_last_accessed,
       device_stats: userProfile.user_signedup_device_stats,
     };
-
   } catch (err) {
-    tools.serverLog(`Error in getProfile: ${err}`,"getProfile-101");
+    tools.serverLog(`Error in getProfile: ${err}`, "getProfile-101");
     response.message = "Database error retrieving profile.";
     response.err = err;
     response.code = 500;

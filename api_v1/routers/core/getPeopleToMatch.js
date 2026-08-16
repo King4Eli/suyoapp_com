@@ -10,13 +10,32 @@ import ngeohash from "ngeohash";
 // `SELECT users.*`/`SELECT *` here used to leak all of that to any authenticated
 // caller, including strangers who just supply a guessed/enumerated user_id.
 const CANDIDATE_PROFILE_COLUMNS = [
-  "user_id", "user_fullname", "user_image", "user_verified", "geo_meta",
-  "user_bio_dob", "user_bio_about", "user_bio_height", "user_bio_gender",
-  "user_bio_ethnicity", "user_bio_highesteducation", "user_bio_relationshipgoal",
-  "user_bio_schoolattended", "user_bio_politicalview", "user_bio_hometown",
-  "user_bio_language", "user_bio_company", "user_bio_jobrole", "user_bio_smoking",
-  "user_bio_drinking", "user_bio_children", "user_bio_religion", "user_bio_haspet",
-  "user_privacy_show_distance", "user_privacy_show_age", "user_privacy_incognito",
+  "user_id",
+  "user_fullname",
+  "user_image",
+  "user_verified",
+  "geo_meta",
+  "user_bio_dob",
+  "user_bio_about",
+  "user_bio_height",
+  "user_bio_gender",
+  "user_bio_ethnicity",
+  "user_bio_highesteducation",
+  "user_bio_relationshipgoal",
+  "user_bio_schoolattended",
+  "user_bio_politicalview",
+  "user_bio_hometown",
+  "user_bio_language",
+  "user_bio_company",
+  "user_bio_jobrole",
+  "user_bio_smoking",
+  "user_bio_drinking",
+  "user_bio_children",
+  "user_bio_religion",
+  "user_bio_haspet",
+  "user_privacy_show_distance",
+  "user_privacy_show_age",
+  "user_privacy_incognito",
   "user_bio_social_links",
 ];
 
@@ -29,14 +48,15 @@ const CANDIDATE_PROFILE_COLUMNS = [
  * @returns {string[] | null}
  */
 function getSearchHashes(lat, lng, distanceMiles) {
-  if (!Number.isFinite(distanceMiles) || distanceMiles === -99 || distanceMiles > 100) {
+  if (
+    !Number.isFinite(distanceMiles) ||
+    distanceMiles === -99 ||
+    distanceMiles > 100
+  ) {
     return null;
   }
 
-  const precision =
-    distanceMiles <= 5 ? 4 :
-    distanceMiles <= 25 ? 3 :
-    2;
+  const precision = distanceMiles <= 5 ? 4 : distanceMiles <= 25 ? 3 : 2;
 
   const center = ngeohash.encode(lat, lng, precision);
 
@@ -59,14 +79,18 @@ async function attachPrompts(rows) {
      INNER JOIN prompts_variant pv ON up.prompts_variant_ref_id = pv.id_ai
      WHERE up.user_id IN (${userIds.map(() => "?").join(",")}) AND pv.status = 1
      ORDER BY up.date_created ASC`,
-    userIds
+    userIds,
   );
 
   /** @type {Record<string, any[]>} */
   const promptsByUser = {};
   for (const r of promptRows) {
     if (!promptsByUser[r.user_id]) promptsByUser[r.user_id] = [];
-    promptsByUser[r.user_id].push({ id_ai: r.id_ai, question: r.question, answer: r.answer });
+    promptsByUser[r.user_id].push({
+      id_ai: r.id_ai,
+      question: r.question,
+      answer: r.answer,
+    });
   }
 
   rows.forEach((u) => {
@@ -90,14 +114,17 @@ async function attachInterests(rows) {
      INNER JOIN interests_variant iv ON ui.interests_variant_ref_id = iv.id_ai
      WHERE ui.user_id IN (${userIds.map(() => "?").join(",")}) AND iv.status = 1
      ORDER BY iv.category ASC, iv.id_ai ASC`,
-    userIds
+    userIds,
   );
 
   /** @type {Record<string, Record<string, any[]>>} */
   const groupedByUser = {};
   for (const r of interestRows) {
     const userGroups = (groupedByUser[r.user_id] ??= {});
-    (userGroups[r.category] ??= []).push({ id_ai: r.id_ai, interested_in: r.interested_in });
+    (userGroups[r.category] ??= []).push({
+      id_ai: r.id_ai,
+      interested_in: r.interested_in,
+    });
   }
 
   rows.forEach((u) => {
@@ -120,17 +147,21 @@ async function attachInterests(rows) {
 function attachSocialLinks(rows, viewerIsVip) {
   rows.forEach((u) => {
     /** @type {any[]} */
-    let links = [];
+    let links;
     try {
       links = u.user_bio_social_links
-        ? (typeof u.user_bio_social_links === 'string' ? JSON.parse(u.user_bio_social_links) : u.user_bio_social_links)
+        ? typeof u.user_bio_social_links === "string"
+          ? JSON.parse(u.user_bio_social_links)
+          : u.user_bio_social_links
         : [];
     } catch {
       links = [];
     }
-    u.user_bio_social_links = (Array.isArray(links) ? links : []).map((link) => (
-      viewerIsVip ? { platform: link.platform, url: link.url } : { platform: link.platform, locked: true }
-    ));
+    u.user_bio_social_links = (Array.isArray(links) ? links : []).map((link) =>
+      viewerIsVip
+        ? { platform: link.platform, url: link.url }
+        : { platform: link.platform, locked: true },
+    );
   });
 }
 
@@ -141,11 +172,13 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
   /** @type {any} */
   const response = {
     code: 404,
-    message: "There are no people available right now. Update your search preference.",
+    message:
+      "There are no people available right now. Update your search preference.",
   };
 
   try {
-    const viewerIsVip = (await getSubscriptionTier(sessions.currentUserID)) === 'vip';
+    const viewerIsVip =
+      (await getSubscriptionTier(sessions.currentUserID)) === "vip";
 
     // ── Single person lookup (getOnePersons_id2 mode) ──────────────────────
     if (getOnePersons_id2) {
@@ -155,9 +188,9 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
 
       if (Array.isArray(rows) && rows.length > 0) {
         rows.forEach((u) => {
-          u.user_image      = JSON.parse(u.user_image      ?? "[]");
-          u.geo_meta        = (u.geo_meta ??  {} );
-          if (u.user_privacy_show_age === '0') delete u.user_bio_dob;
+          u.user_image = JSON.parse(u.user_image ?? "[]");
+          u.geo_meta = u.geo_meta ?? {};
+          if (u.user_privacy_show_age === "0") delete u.user_bio_dob;
           delete u.user_privacy_show_distance;
           delete u.user_privacy_show_age;
           delete u.user_privacy_incognito;
@@ -165,8 +198,8 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
         await attachPrompts(rows);
         await attachInterests(rows);
         attachSocialLinks(rows, viewerIsVip);
-        response.code           = 200;
-        response.message        = "ok";
+        response.code = 200;
+        response.message = "ok";
         response.matchespeoples = rows;
       }
       return response;
@@ -177,23 +210,24 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
     const [[currentUser]] = await db_pool.query(
       `SELECT user_id, geo_latd, geo_long, user_preference_distance
        FROM users WHERE user_id = ?`,
-      [sessions.currentUserID]
+      [sessions.currentUserID],
     );
 
     if (!currentUser) {
-      response.code    = 401;
+      response.code = 401;
       response.message = "User not found.";
       return response;
     }
 
-    const prefDist    = Number(currentUser.user_preference_distance);
-    const hasDistanceLimit = Number.isFinite(prefDist) && prefDist !== -99 && prefDist <= 100;
+    const prefDist = Number(currentUser.user_preference_distance);
+    const hasDistanceLimit =
+      Number.isFinite(prefDist) && prefDist !== -99 && prefDist <= 100;
     const searchHashes = getSearchHashes(
       currentUser.geo_latd,
       currentUser.geo_long,
-      prefDist
+      prefDist,
     );
- 
+
     const geoHashFilter = searchHashes
       ? `AND (${searchHashes.map(() => "users.geo_hash LIKE ?").join(" OR ")})`
       : "";
@@ -254,20 +288,20 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
       sessions.currentUserID,
       sessions.currentUserID,
       // 9 geohash prefixes for LIKE 'prefix%'
-      ...(searchHashes || []).map(hash => `${hash}%`),
+      ...(searchHashes || []).map((hash) => `${hash}%`),
     ];
 
     /** @type {[any[], any]} */
     const [rows] = await db_pool.query(sql, params);
- 
+
     if (Array.isArray(rows) && rows.length > 0) {
       rows.forEach((u) => {
-        u.user_verified   = Number(u.user_verified);
-        u.user_image      = JSON.parse(u.user_image      ?? "[]");
-        u.user_location   =  (u.geo_meta ??  {}) ;
+        u.user_verified = Number(u.user_verified);
+        u.user_image = JSON.parse(u.user_image ?? "[]");
+        u.user_location = u.geo_meta ?? {};
         delete u.match_status;
-        if (u.user_privacy_show_age === '0') delete u.user_bio_dob;
-        if (u.user_privacy_show_distance === '0') delete u.distance_miles;
+        if (u.user_privacy_show_age === "0") delete u.user_bio_dob;
+        if (u.user_privacy_show_distance === "0") delete u.distance_miles;
         delete u.user_privacy_show_distance;
         delete u.user_privacy_show_age;
         delete u.user_privacy_incognito;
@@ -275,14 +309,14 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
       await attachPrompts(rows);
       await attachInterests(rows);
       attachSocialLinks(rows, viewerIsVip);
-      response.code           = 200;
-      response.message        = "ok";
+      response.code = 200;
+      response.message = "ok";
       response.matchespeoples = rows;
     }
   } catch (err) {
     // @ts-ignore
-    tools.serverLog(`Error in getPeopleToMatch: ${err}`,"getPeopleToMatch-0");
-    response.code    = 500;
+    tools.serverLog(`Error in getPeopleToMatch: ${err}`, "getPeopleToMatch-0");
+    response.code = 500;
     response.message = "Database error.";
   }
 
