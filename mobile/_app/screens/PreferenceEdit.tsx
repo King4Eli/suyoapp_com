@@ -34,6 +34,28 @@ const defaultPreferences = {
   distance: { miles: 25, km: '40' },
 };
 
+function buildPreferencesPayload(
+  preferences: typeof defaultPreferences,
+  distanceMiles: number,
+) {
+  return {
+    min_age: preferences.minAge,
+    max_age: preferences.maxAge,
+    pref_smoking: preferences.smoking,
+    pref_drinking: preferences.drinking,
+    pref_children: preferences.children,
+    pref_ethnicity: preferences.ethnicity,
+    pref_pet: preferences.pets,
+    pref_religion: preferences.religion,
+    pref_politicalview: preferences.politicalview,
+    pref_highesteducation: preferences.highEducation,
+    pref_relationshipgoal: preferences.relationshipGoal,
+    pref_languages: preferences.languages,
+    pref_gender: preferences.gender,
+    pref_distance: distanceMiles,
+  };
+}
+
 export function Screen_editpreference({ navigation }: { navigation: any }) {
   const { colors } = useTheme();
   const localStyles = useMemo(() => createLocalStyles(colors), [colors]);
@@ -49,6 +71,17 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
     miles: defaultPreferences.distance.miles,
     km: defaultPreferences.distance.km,
   });
+
+  // pushProfile body as last loaded -- leaving the screen only saves when the
+  // current body differs from this
+  const savedPayloadRef = React.useRef(
+    JSON.stringify(
+      buildPreferencesPayload(
+        defaultPreferences,
+        defaultPreferences.distance.miles,
+      ),
+    ),
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -111,6 +144,12 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
             },
           };
 
+          savedPayloadRef.current = JSON.stringify(
+            buildPreferencesPayload(
+              nextPreferences,
+              nextPreferences.distance.miles,
+            ),
+          );
           setPreferences(nextPreferences);
           setDistance(nextPreferences.distance);
         }
@@ -174,30 +213,20 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
   };
 
   const persistPreferences = useCallback(async () => {
+    const payload = buildPreferencesPayload(preferences, getDistance.miles);
+    const serialized = JSON.stringify(payload);
+    if (serialized === savedPayloadRef.current) return;
+
     Loaderx.show();
     try {
       const response = await _http_request({
         customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/pushProfile',
         reqType: 'POST',
-        bodyArray: {
-          min_age: preferences.minAge,
-          max_age: preferences.maxAge,
-          pref_smoking: preferences.smoking,
-          pref_drinking: preferences.drinking,
-          pref_children: preferences.children,
-          pref_ethnicity: preferences.ethnicity,
-          pref_pet: preferences.pets,
-          pref_religion: preferences.religion,
-          pref_politicalview: preferences.politicalview,
-          pref_highesteducation: preferences.highEducation,
-          pref_relationshipgoal: preferences.relationshipGoal,
-          pref_languages: preferences.languages,
-          pref_gender: preferences.gender,
-          pref_distance: getDistance.miles,
-        },
+        bodyArray: payload,
       });
 
       if (response?.code === 200) {
+        savedPayloadRef.current = serialized;
         Toastx.show({
           type: 'success',
           message: response?.message ?? 'Preferences updated!',
@@ -215,7 +244,8 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
   }, [getDistance.miles, preferences]);
 
   // Autosave whenever the screen is left (back gesture, hardware back,
-  // header back button, or the explicit Save button below).
+  // header back button, or the explicit Save button below) -- a no-op when
+  // nothing changed since load.
   const hasAutoSavedRef = React.useRef(false);
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
