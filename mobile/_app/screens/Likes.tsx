@@ -24,6 +24,7 @@ import {
   help,
   logReport,
 } from '../funcs/functions';
+import { likesBadge } from '../funcs/likesBadge';
 import { useFocusEffect } from '@react-navigation/native';
 import { styles, namer, __CONFIG__ } from '../funcs/static';
 import IIcon from 'react-native-vector-icons/Ionicons';
@@ -87,6 +88,11 @@ export function Screen_likes({ navigation }: { navigation: any }) {
     () => getNewLikes?.length ?? 0,
     [getNewLikes],
   );
+
+  // keep the Likes tab badge in step with the list shown here
+  useEffect(() => {
+    if (Array.isArray(getNewLikes)) likesBadge.set(getNewLikes.length);
+  }, [getNewLikes]);
 
   // profile
   useEffect(() => {

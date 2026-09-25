@@ -35,6 +35,7 @@ import {
   navigationRef,
 } from '../funcs/functions';
 import { SocketClient } from '../funcs/socket_realtimeData';
+import { useLikesBadgeCount } from '../funcs/likesBadge';
 import { Linking, StatusBar, View } from 'react-native';
 import { ThemeProvider, useTheme } from '../funcs/theme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -134,47 +135,55 @@ const MainApp: React.FC = () => {
     };
   }, []); // Runs only once on mount
 
-  const BottomTabNavigator = () => (
-    <TabBottom.Navigator
-      initialRouteName={namer.navigation.peoples}
-      screenOptions={{ tabBarShowLabel: true }}
-    >
-      <TabBottom.Screen
-        name={namer.navigation.likes}
-        component={Screen_likes}
-        options={{
-          tabBarLabel: 'Likes',
-          tabBarIcon: () => (
-            <IIcon name="heart-half-outline" size={32} color="#4F8EF7" />
-          ),
-        }}
-      />
-      <TabBottom.Screen
-        name={namer.navigation.chat}
-        component={Screen_chat}
-        options={{
-          tabBarLabel: 'Chat',
-          tabBarIcon: () => (
-            <IIcon
-              name="chatbubble-ellipses-outline"
-              size={30}
-              color="#4F8EF7"
-            />
-          ),
-          headerTitleAlign: 'center',
-        }}
-      />
-      <TabBottom.Screen
-        name={namer.navigation.peoples}
-        component={Peoples_Screen}
-        options={{
-          tabBarLabel: 'Peoples',
-          tabBarIcon: () => (
-            <MIcon name="cards-outline" size={30} color="#4F8EF7" />
-          ),
-        }}
-      />
-      {/*<TabBottom.Screen
+  const BottomTabNavigator = () => {
+    const likesCount = useLikesBadgeCount();
+    return (
+      <TabBottom.Navigator
+        initialRouteName={namer.navigation.peoples}
+        screenOptions={{ tabBarShowLabel: true }}
+      >
+        <TabBottom.Screen
+          name={namer.navigation.likes}
+          component={Screen_likes}
+          options={{
+            tabBarLabel: 'Likes',
+            tabBarBadge:
+              likesCount > 0
+                ? likesCount > 99
+                  ? '99+'
+                  : likesCount
+                : undefined,
+            tabBarIcon: () => (
+              <IIcon name="heart-half-outline" size={32} color="#4F8EF7" />
+            ),
+          }}
+        />
+        <TabBottom.Screen
+          name={namer.navigation.chat}
+          component={Screen_chat}
+          options={{
+            tabBarLabel: 'Chat',
+            tabBarIcon: () => (
+              <IIcon
+                name="chatbubble-ellipses-outline"
+                size={30}
+                color="#4F8EF7"
+              />
+            ),
+            headerTitleAlign: 'center',
+          }}
+        />
+        <TabBottom.Screen
+          name={namer.navigation.peoples}
+          component={Peoples_Screen}
+          options={{
+            tabBarLabel: 'Peoples',
+            tabBarIcon: () => (
+              <MIcon name="cards-outline" size={30} color="#4F8EF7" />
+            ),
+          }}
+        />
+        {/*<TabBottom.Screen
         name={namer.navigation.feed}
         component={Screen_feed}
         options={{
@@ -185,18 +194,19 @@ const MainApp: React.FC = () => {
         }}
       />*/}
 
-      <TabBottom.Screen
-        name={namer.navigation.profile}
-        component={Screen_profile}
-        options={{
-          tabBarLabel: 'Profile',
-          tabBarIcon: () => (
-            <IIcon name="person-outline" size={30} color="#4F8EF7" />
-          ),
-        }}
-      />
-    </TabBottom.Navigator>
-  );
+        <TabBottom.Screen
+          name={namer.navigation.profile}
+          component={Screen_profile}
+          options={{
+            tabBarLabel: 'Profile',
+            tabBarIcon: () => (
+              <IIcon name="person-outline" size={30} color="#4F8EF7" />
+            ),
+          }}
+        />
+      </TabBottom.Navigator>
+    );
+  };
 
   if (getAllGood === false) {
     return (

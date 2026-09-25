@@ -26,6 +26,8 @@ export default async function getLikes() {
         and(
           eq(matches.matchUserIdTo, sessions.currentUserID),
           inArray(matches.matchStatus, ["0", "5"]),
+          // hide likes from deleted/suspended accounts
+          eq(users.userActive, "1"),
         ),
       )
       .orderBy(

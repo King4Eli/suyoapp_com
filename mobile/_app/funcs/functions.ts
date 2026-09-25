@@ -18,6 +18,7 @@ import {
 } from 'react-native-image-picker';
 import { Toastx } from './customNotification';
 import { SocketClient } from './socket_realtimeData';
+import { likesBadge } from './likesBadge';
 import { createNavigationContainerRef } from '@react-navigation/native';
 import { xxa_logggingReport, flushLogQueue } from './functions/logging';
 import {
@@ -221,6 +222,9 @@ export const __init__app = async (): Promise<void> => {
   // ship any logs that couldn't be delivered while offline last session
   flushLogQueue();
 
+  // pending likes count for the Likes tab badge
+  likesBadge.refresh();
+
   // 111111
   // update location -- gated so a re-launch in the same neighborhood doesn't
   // re-hit the server (and its reverse-geocode call) every single time. Not
@@ -304,6 +308,8 @@ export const __init__app = async (): Promise<void> => {
           }
         } else if (data.event === 'new-like') {
           // Emitted by pushPeopleToMatch.js when someone likes/superlikes the current user.
+          // Re-counted rather than incremented -- a like upgraded to a superlike is still one person.
+          likesBadge.refresh();
           if (navigationRef.getCurrentRoute()?.name === namer.navigation.likes)
             return;
           if (AppState.currentState === 'active') {
