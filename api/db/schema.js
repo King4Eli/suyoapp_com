@@ -362,6 +362,11 @@ export const users = mysqlTable("users", {
   userActive: mysqlEnum("user_active", ["0", "1", "2", "3", "-99"])
     .notNull()
     .default("1"),
+  // unix seconds, set when user_active becomes -99 (deleted)
+  userDeletedDate: int("user_deleted_date", { unsigned: true }),
+  // { phonenumber, reason } -- user_phonenumber is cleared on delete so the
+  // number can sign up again; the original is kept here
+  userDeleteData: json("user_delete_data"),
   geoMeta: json("geo_meta").notNull(),
   geoHash: varchar("geo_hash", { length: 12 }).notNull(),
   geoLong: double("geo_long").notNull(),

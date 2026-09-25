@@ -307,7 +307,10 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
         ]}
       >
         <View style={{ gap: 12 }}>
-          <View style={[styles.editprofile_inputborder, localStyles.card]}>
+          <Text style={localStyles.sectionHeaderText}>Basic filters</Text>
+          <View style={[styles.editprofile_inputborder, localStyles.card,{paddingHorizontal: 10}]}>
+            
+            <View style={{ borderBottomWidth: 1,borderBottomColor: '#e5e7eb',}}>
             <Text style={localStyles.inputTitle}>Age range</Text>
             <Text style={localStyles.inputSubTitle}>
               Between {preferences.minAge} - {preferences.maxAge}
@@ -339,10 +342,10 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
                 <View style={styles.slider_railSelected} />
               )}
             />
-          </View>
+            </View>
 
-          <View style={[styles.editprofile_inputborder, localStyles.card]}>
-            <Text style={localStyles.inputTitle}>{`Distance from you (${
+
+            <View><Text style={localStyles.inputTitle}>{`Distance from you (${
               getProfile?.profile?.location?.city || 'your area'
             })`}</Text>
             <Text style={localStyles.inputSubTitle}>
@@ -372,9 +375,9 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
                 <View style={styles.slider_railSelected} />
               )}
             />
+            </View>
           </View>
 
-          <Text style={localStyles.sectionHeaderText}>Basic filters</Text>
           <View style={localStyles.group}>
             <View style={localStyles.groupInner}>
               {renderRadioAccordion(

@@ -302,10 +302,8 @@ export const namer = {
 export const resourceMap = {
   lottie: {
     pulsingLoading: require('../assets/lottie/pulsing.json'),
-    infinityLoading: require('../assets/lottie/infinity.json'),
-    heartpop: require('../assets/lottie/heartpop.json'),
-  },
-  loading1: require('../assets/images/loading1.gif'),
+    infinityLoading: require('../assets/lottie/infinity.json'), 
+  }
 };
 
 //
@@ -317,10 +315,10 @@ export const __CONFIG__ = {
       HTTPS_API_DOMAIN: 'https://api.suyoapp.com',
     },
     {
-      HTTPS_DOMAIN: 'http://10.50.0.2:9102',
-      HTTPS_API_DOMAIN: 'http://10.50.0.2:9103',
+      HTTPS_DOMAIN: 'http://10.50.0.2:9052',
+      HTTPS_API_DOMAIN: 'http://10.50.0.2:9051',
     },
-  ][!DeviceInfo.isEmulatorSync() && Platform.OS === 'android' ? 1 : 0],
+  ][DeviceInfo.isEmulatorSync() && Platform.OS === 'android' ? 1 : 0],
 
   BRAND_NAME: 'SuyoApp',
   SUPPORT_EMAIL: 'support@suyoapp.com',

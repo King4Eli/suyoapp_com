@@ -30,6 +30,7 @@ import pushReportUser from "./core/pushReportUser.js";
 import getFeedComments from "./core/getFeedComments.js";
 import pushFeedComment from "./core/pushFeedComment.js";
 import pushDeleteFeedComment from "./core/pushDeleteFeedComment.js";
+import pushDeleteAccount from "./core/pushDeleteAccount.js";
 
 const core_router = express.Router();
 core_router.post("/:action", async (req, res) => {
@@ -193,6 +194,12 @@ core_router.post("/:action", async (req, res) => {
         reason: reportReason,
       });
       return res.json(reportUserResult);
+    }
+    case "pushDeleteAccount": {
+      const deleteAccountResult = await pushDeleteAccount({
+        reason: req.body?.reason,
+      });
+      return res.json(deleteAccountResult);
     }
     case "getFeedComments": {
       const commentsPostId = req.body?.post_id;

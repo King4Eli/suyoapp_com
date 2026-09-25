@@ -8,6 +8,13 @@
       "when": 1790273258721,
       "tag": "0000_first_main_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1790309655116,
+      "tag": "0001_soft_delete_users_free_phonenumber",
+      "breakpoints": true
     }
   ]
 }
