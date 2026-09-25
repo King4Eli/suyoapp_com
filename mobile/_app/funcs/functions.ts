@@ -18,7 +18,7 @@ import {
 } from 'react-native-image-picker';
 import { Toastx } from './customNotification';
 import { SocketClient } from './socket_realtimeData';
-import { likesBadge } from './likesBadge';
+import { chatsBadge, likesBadge } from './tabBadges';
 import { createNavigationContainerRef } from '@react-navigation/native';
 import { xxa_logggingReport, flushLogQueue } from './functions/logging';
 import {
@@ -222,8 +222,9 @@ export const __init__app = async (): Promise<void> => {
   // ship any logs that couldn't be delivered while offline last session
   flushLogQueue();
 
-  // pending likes count for the Likes tab badge
+  // pending likes / unread chats counts for the bottom tab badges
   likesBadge.refresh();
+  chatsBadge.refresh();
 
   // 111111
   // update location -- gated so a re-launch in the same neighborhood doesn't
@@ -281,8 +282,10 @@ export const __init__app = async (): Promise<void> => {
                   realtimedata: retrivedData?.payload,
                 });
             } else {
+              chatsBadge.refresh();
             }
           } else {
+            chatsBadge.refresh();
             const nmessage =
               (retrivedData?.payload?.firstName ?? 'Someone') +
               ' has messaged you';

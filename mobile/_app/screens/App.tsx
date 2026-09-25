@@ -35,7 +35,7 @@ import {
   navigationRef,
 } from '../funcs/functions';
 import { SocketClient } from '../funcs/socket_realtimeData';
-import { useLikesBadgeCount } from '../funcs/likesBadge';
+import { chatsBadge, likesBadge, useBadgeCount } from '../funcs/tabBadges';
 import { Linking, StatusBar, View } from 'react-native';
 import { ThemeProvider, useTheme } from '../funcs/theme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -136,7 +136,8 @@ const MainApp: React.FC = () => {
   }, []); // Runs only once on mount
 
   const BottomTabNavigator = () => {
-    const likesCount = useLikesBadgeCount();
+    const likesCount = useBadgeCount(likesBadge);
+    const chatsCount = useBadgeCount(chatsBadge);
     return (
       <TabBottom.Navigator
         initialRouteName={namer.navigation.peoples}
@@ -163,6 +164,12 @@ const MainApp: React.FC = () => {
           component={Screen_chat}
           options={{
             tabBarLabel: 'Chat',
+            tabBarBadge:
+              chatsCount > 0
+                ? chatsCount > 99
+                  ? '99+'
+                  : chatsCount
+                : undefined,
             tabBarIcon: () => (
               <IIcon
                 name="chatbubble-ellipses-outline"

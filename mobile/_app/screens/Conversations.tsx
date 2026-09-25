@@ -54,6 +54,7 @@ import { Toastx } from '../funcs/customNotification';
 import FastImage from '@d11/react-native-fast-image';
 import { SafeImage } from '../funcs/customImage';
 import { SocketClient } from '../funcs/socket_realtimeData';
+import { chatsBadge } from '../funcs/tabBadges';
 import ImageViewing from 'react-native-image-viewing';
 import { useTheme } from '../funcs/theme';
 
@@ -1029,6 +1030,8 @@ export function Screen_conversation({
               prev => response?.chatsMessageListings?.reverse() ?? prev,
             );
             setUser2Deets((prev: any) => response?.u2deets ?? prev);
+            // getConversation just marked this thread read -- recount the Chat tab badge
+            chatsBadge.refresh();
             setConvoStarter((prev: any) => response?.convostarter ?? prev);
 
             navigationRef.setParams({ matchId: funt.matchId });

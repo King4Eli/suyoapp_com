@@ -28,6 +28,7 @@ import {
   help,
   logReport,
 } from '../funcs/functions';
+import { chatsBadge, countUnreadChats } from '../funcs/tabBadges';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import MIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import IIcon from 'react-native-vector-icons/Ionicons';
@@ -570,6 +571,10 @@ export function Screen_chat({ navigation }: { navigation: any }) {
               }
               return incoming;
             });
+            const unreadChats = countUnreadChats(
+              response?.chatsListings?.withmessages,
+            );
+            if (Number.isFinite(unreadChats)) chatsBadge.set(unreadChats);
             setEngagedMessages((prev: any) => {
               const incoming = response?.chatsListings?.withmessages;
               if (

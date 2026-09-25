@@ -24,7 +24,7 @@ import {
   help,
   logReport,
 } from '../funcs/functions';
-import { likesBadge } from '../funcs/likesBadge';
+import { likesBadge } from '../funcs/tabBadges';
 import { useFocusEffect } from '@react-navigation/native';
 import { styles, namer, __CONFIG__ } from '../funcs/static';
 import IIcon from 'react-native-vector-icons/Ionicons';
