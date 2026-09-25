@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
-  Linking,
   Modal,
   Platform,
   Pressable,
@@ -10,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Dialogx } from './customDialog';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import {
   _http_request,
@@ -18,6 +17,10 @@ import {
 } from './functions';
 import { Loaderx } from './functions_stateful';
 import { purchaseNative } from './iap';
+import {
+  openPaymentPage,
+  presentCheckoutError,
+} from './functions/paymentNotices';
 import { __CONFIG__ } from './static';
 import { useTheme, ThemeColors } from './theme';
 
@@ -46,10 +49,9 @@ export async function startWebOnetimeCheckout({
       },
     });
     if (res?.code === 301 && res?.type === 'external' && res?.url) {
-      Linking.openURL(res.url);
-      return true;
+      return openPaymentPage(res.url);
     }
-    Alert.alert('Error', res?.message || 'Purchase failed. Please try again.');
+    presentCheckoutError(res);
     return false;
   } finally {
     Loaderx.hide();
@@ -149,11 +151,21 @@ export function ConsumableSheet({
     if (result.code === 200) {
       onClose();
       onPurchased?.();
-      Alert.alert('Success', 'Your purchase was completed.');
+      Dialogx.alert(
+        'Purchase complete',
+        'Your purchase was added to your account.',
+        undefined,
+        {
+          tone: 'success',
+          icon: 'gift',
+        },
+      );
     } else if (result.code !== 499) {
-      Alert.alert(
-        'Error',
-        result.message ?? 'Purchase failed. Please try again.',
+      Dialogx.alert(
+        "Purchase didn't go through",
+        result.message ?? 'Please try again. You have not been charged.',
+        undefined,
+        { tone: 'error' },
       );
     }
   };

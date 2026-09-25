@@ -7,7 +7,10 @@ export const productLists = [
     plName: "Boost",
     plDescription: {
       features: [
-        { d: "Be one of the top profiles in your area for 30 minutes", e: true },
+        {
+          d: "Be one of the top profiles in your area for 30 minutes",
+          e: true,
+        },
       ],
     },
     category: "boost",
@@ -16,6 +19,13 @@ export const productLists = [
   },
   {
     plSku: "instantmessage_wu8yyur5mmmtua",
+    plName: "Direct Message",
+    plDescription: {
+      features: [
+        { d: "Message someone before you match -- sent with a like", e: true },
+      ],
+    },
+    category: "directmessage",
     plName: "Direct Message",
     plDescription: {
       features: [
@@ -33,6 +43,7 @@ export const productLists = [
       features: [
         { d: "5 roses per day", e: true },
         { d: "10 direct messages per day", e: true },
+        { d: "10 direct messages per day", e: true },
         { d: "See who liked you", e: true },
         { d: "Unlimited likes", e: true },
         { d: "Rewind missed matches", e: true },
@@ -40,6 +51,7 @@ export const productLists = [
       ],
     },
     category: "mainsub",
+    tier: "plus",
     tier: "plus",
     plIsActive: "1",
     plCreated: seededAt,
@@ -62,12 +74,14 @@ export const productLists = [
         { d: "Unlimited Phone/Video calls", e: true },
         { d: "10 roses per day", e: true },
         { d: "20 direct messages per day", e: true },
+        { d: "20 direct messages per day", e: true },
         { d: "Rewind missed matches", e: true },
         { d: "Travel mode", e: true },
         { d: "Priority customer support", e: true },
       ],
     },
     category: "mainsub",
+    tier: "vip",
     tier: "vip",
     plIsActive: "1",
     plCreated: seededAt,

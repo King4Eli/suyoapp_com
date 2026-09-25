@@ -20,12 +20,12 @@ import { Auth_Login } from './Auth_Login';
 import { Loaderx } from '../funcs/functions_stateful';
 import { Screen_settings } from './Settings';
 import { Screen_editprofile } from './ProfileEdit';
+import { Screen_profileVerify } from './ProfileVerify';
 import { Screen_editProfilePrompts } from './ProfileEditPrompts';
 import { Screen_editProfileInterests } from './ProfileEditInterests';
 import { sessionManager, SessionTypes } from '../funcs/SessionContext';
 import { Screen_editpreference } from './PreferenceEdit';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Zz_nofilee } from './zz_nofilee';
 import { namer, resourceMap } from '../funcs/static';
 import { Screen_PurchaseSubscribe } from './Purchase_Subscribe';
 import {
@@ -36,10 +36,12 @@ import {
 } from '../funcs/functions';
 import { SocketClient } from '../funcs/socket_realtimeData';
 import { chatsBadge, likesBadge, useBadgeCount } from '../funcs/tabBadges';
+import { chatsBadge, likesBadge, useBadgeCount } from '../funcs/tabBadges';
 import { Linking, StatusBar, View } from 'react-native';
 import { ThemeProvider, useTheme } from '../funcs/theme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Toastx } from '../funcs/customNotification';
+import { Dialogx } from '../funcs/customDialog';
 import LottieView from 'lottie-react-native';
 import { Zz_devv } from './zz_devv';
 import { Auth_Signup } from './Auth_Signup';
@@ -149,11 +151,7 @@ const MainApp: React.FC = () => {
           options={{
             tabBarLabel: 'Likes',
             tabBarBadge:
-              likesCount > 0
-                ? likesCount > 9
-                  ? '9+'
-                  : likesCount
-                : undefined,
+              likesCount > 0 ? (likesCount > 9 ? '9+' : likesCount) : undefined,
             tabBarIcon: () => (
               <IIcon name="heart-half-outline" size={32} color="#4F8EF7" />
             ),
@@ -165,11 +163,7 @@ const MainApp: React.FC = () => {
           options={{
             tabBarLabel: 'Chat',
             tabBarBadge:
-              chatsCount > 0
-                ? chatsCount > 9
-                  ? '9+'
-                  : chatsCount
-                : undefined,
+              chatsCount > 0 ? (chatsCount > 9 ? '9+' : chatsCount) : undefined,
             tabBarIcon: () => (
               <IIcon
                 name="chatbubble-ellipses-outline"
@@ -201,6 +195,19 @@ const MainApp: React.FC = () => {
         }}
       />*/}
 
+        <TabBottom.Screen
+          name={namer.navigation.profile}
+          component={Screen_profile}
+          options={{
+            tabBarLabel: 'Profile',
+            tabBarIcon: () => (
+              <IIcon name="person-outline" size={30} color="#4F8EF7" />
+            ),
+          }}
+        />
+      </TabBottom.Navigator>
+    );
+  };
         <TabBottom.Screen
           name={namer.navigation.profile}
           component={Screen_profile}
@@ -292,6 +299,11 @@ const MainApp: React.FC = () => {
                 options={{ headerBackTitle: '' }}
               />
               <Stack.Screen
+                name={namer.navigation.verifyProfile}
+                component={Screen_profileVerify}
+                options={{ headerBackTitle: '' }}
+              />
+              <Stack.Screen
                 name={namer.navigation.editpreference}
                 component={Screen_editpreference}
               />
@@ -351,11 +363,6 @@ const MainApp: React.FC = () => {
             component={Zz_devv}
             options={{}}
           />
-          <Stack.Screen
-            name={'zz_nofile'}
-            component={Zz_nofilee}
-            options={{}}
-          />
         </Stack.Navigator>
       </NavigationContainer>
     </>
@@ -370,6 +377,7 @@ const App = () => (
           <Loaderx />
           <MainApp />
           <Toastx />
+          <Dialogx />
         </BottomSheetModalProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>

@@ -5,6 +5,7 @@ import {
   date,
   decimal,
   double,
+  index,
   int,
   json,
   longtext,
@@ -227,6 +228,9 @@ export const logsApplication = mysqlTable("logs_application", {
   reportCurrentuser: varchar("report_currentuser", { length: 50 }),
   // references users_devices.device_id; replaces embedding full device info per log
   deviceId: varchar("device_id", { length: 191 }),
+  // API build (commit sha baked into the image, "dev" locally) that wrote the log --
+  // see global/buildInfo.js
+  buildHash: varchar("build_hash", { length: 64 }),
   createdAt: bigint("created_at", { mode: "number", unsigned: true })
     .notNull()
     .default(sql`(unix_timestamp())`),
@@ -268,13 +272,59 @@ export const matches = mysqlTable("matches", {
     .default(sql`(unix_timestamp())`),
 });
 
+// Selfie verification requests. The user photographs themselves copying a pose
+// the server picked (so an old photo can't be reused); an admin compares it
+// with their profile photos and approves (users.user_verified = '1') or rejects
+// with a reason. Latest row per user is their current state.
+export const userVerifications = mysqlTable(
+  "user_verifications",
+  {
+    id: varchar("id", { length: 50 }).primaryKey().notNull(),
+    userId: varchar("user_id", { length: 50 }).notNull(),
+    selfiePath: varchar("selfie_path", { length: 255 }).notNull(),
+    // pose code from global/verification.js
+    pose: varchar("pose", { length: 40 }).notNull(),
+    // 0=pending, 1=approved, 2=rejected
+    status: tinyint("status").notNull().default(0),
+    rejectReason: varchar("reject_reason", { length: 255 }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    reviewedAt: timestamp("reviewed_at"),
+  },
+  (t) => [
+    index("user_verifications_user").on(t.userId),
+    index("user_verifications_status").on(t.status),
+  ],
+);
+
+// What happened with a user's payment/subscription, in words written for them --
+// one row per event (activated, renewed, renewal failed, refunded, ...). The app
+// pulls unseen rows (getPaymentNotices) and is also pinged live over the socket.
+// See global/paymentNotices.js for the event kinds and their wording.
+export const userPaymentNotices = mysqlTable(
+  "user_payment_notices",
+  {
+    id: varchar("id", { length: 50 }).primaryKey().notNull(),
+    userId: varchar("user_id", { length: 50 }).notNull(),
+    kind: varchar("kind", { length: 40 }).notNull(),
+    // success | info | warning | error -- how the app should present it
+    tone: varchar("tone", { length: 10 }).notNull().default("info"),
+    title: varchar("title", { length: 120 }).notNull(),
+    body: varchar("body", { length: 500 }).notNull(),
+    paymentId: varchar("payment_id", { length: 50 }),
+    seen: tinyint("seen").notNull().default(0),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("user_payment_notices_user_seen").on(t.userId, t.seen)],
+);
+
 export const payments = mysqlTable("payments", {
   paymentId: varchar("payment_id", { length: 50 }).primaryKey().notNull(),
   pAmount: decimal("p_amount", { precision: 10, scale: 2 }).notNull(),
   pCurrency: varchar("p_currency", { length: 10 }).default("USD"),
   // 1=sub,2=onetime
   type: tinyint("type").notNull(),
-  // 0=pending, 1=completed, 2=refunded, 3=failed, 4=expired
+  // 0=pending (checkout open), 1=completed, 2=refunded, 3=failed, 4=expired,
+  // 5=processing (checkout done, bank/Cash App payment not cleared yet)
   status: tinyint("status").notNull().default(0),
   // from Stripe/PayPal/Apple/Google
   pTransactionReference: varchar("p_transaction_reference", { length: 255 }),

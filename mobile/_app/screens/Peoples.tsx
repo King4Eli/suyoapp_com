@@ -14,7 +14,6 @@ import {
   Text,
   Pressable,
   ScrollView,
-  Alert,
   TouchableOpacity,
   StyleSheet,
   Modal,
@@ -23,7 +22,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   TextInput as RNTextInput,
+  KeyboardAvoidingView,
+  Platform,
+  TextInput as RNTextInput,
 } from 'react-native';
+import { Dialogx } from '../funcs/customDialog';
 import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs';
 import { useHeaderHeight } from '@react-navigation/elements';
 import {
@@ -48,6 +51,7 @@ import {
   logReport,
   reportUser,
 } from '../funcs/functions';
+import { likesBadge } from '../funcs/tabBadges';
 import { likesBadge } from '../funcs/tabBadges';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TextInput } from 'react-native-gesture-handler';
@@ -104,6 +108,10 @@ export default function Peoples_Screen({
   const [dmComposer, setDmComposer] = useState<{
     context?: DirectMessageContext;
   } | null>(null);
+  // Direct message composer; `context` is the profile text being replied to, if any.
+  const [dmComposer, setDmComposer] = useState<{
+    context?: DirectMessageContext;
+  } | null>(null);
   const [getSkippedLastPerson, setSkippedLastPerson] = useState<any | null>(
     null,
   );
@@ -120,6 +128,8 @@ export default function Peoples_Screen({
   } | null>(null);
   const [entitlements, setEntitlements] = useState<{
     roses: { remainingToday: number; balance: number } | null;
+    directMessages: { remainingToday: number; balance: number } | null;
+  }>({ roses: null, directMessages: null });
     directMessages: { remainingToday: number; balance: number } | null;
   }>({ roses: null, directMessages: null });
 
@@ -192,6 +202,11 @@ export default function Peoples_Screen({
     !route?.params?.alreadyLiked &&
     !route?.params?.previewProfile &&
     !!currentPerson?.user_id;
+  // Direct messages go out with a like, so they're offered wherever liking is.
+  const canDirectMessage =
+    !route?.params?.alreadyLiked &&
+    !route?.params?.previewProfile &&
+    !!currentPerson?.user_id;
   const prompts = [
     currentPerson?.user_bio_prompt?.[0],
     currentPerson?.user_bio_prompt?.[1],
@@ -213,6 +228,12 @@ export default function Peoples_Screen({
                 ? {
                     remainingToday: profile.roses.remainingToday,
                     balance: profile.roses.balance,
+                  }
+                : null,
+              directMessages: profile?.directMessages
+                ? {
+                    remainingToday: profile.directMessages.remainingToday,
+                    balance: profile.directMessages.balance,
                   }
                 : null,
               directMessages: profile?.directMessages
@@ -266,8 +287,17 @@ export default function Peoples_Screen({
   // Plans with freeRewind recover a real missed match through pushRewindMatch, which
   // re-checks the plan server-side; everyone else gets the paid rewind / upsell modal.
   const attemptRestore = useCallback(async () => {
+  // Plans with freeRewind recover a real missed match through pushRewindMatch, which
+  // re-checks the plan server-side; everyone else gets the paid rewind / upsell modal.
+  const attemptRestore = useCallback(async () => {
     setPeopleToMatch(prev => [getSkippedLastPerson, ...(prev ?? [])]);
     if (!getSkippedLastPerson) return;
+    const canRewind = help.getSubscriptionState(getProfile).features.freeRewind;
+    if (!canRewind) {
+      setShowDislikedMatchModal(true);
+      return;
+    }
+    if (!getSkippedLastPerson?.match_id) {
     const canRewind = help.getSubscriptionState(getProfile).features.freeRewind;
     if (!canRewind) {
       setShowDislikedMatchModal(true);
@@ -295,10 +325,12 @@ export default function Peoples_Screen({
     }
     // Match changed meanwhile (e.g. they blocked): take the card back out.
     setPeopleToMatch(prev => (prev ?? []).slice(1));
-    Toastx.show({
-      type: 'info',
-      message: response?.message ?? "Couldn't rewind this match.",
-    });
+    Dialogx.alert(
+      "Couldn't rewind this match",
+      response?.message ?? 'This match is no longer available.',
+      undefined,
+      { tone: 'warning', icon: 'arrow-undo' },
+    );
   }, [getSkippedLastPerson, getProfile]);
 
   // header options
@@ -573,10 +605,14 @@ export default function Peoples_Screen({
                 //then
                 peoples_action('report', 4).then(() => {
                   bottomSheetRef_reportUser.ref.current?.close();
-                  Toastx.show({
-                    type: 'success',
-                    message: reportedUserName + ' has been reported!',
-                  });
+                  Dialogx.alert(
+                    'Thanks for reporting',
+                    `Our safety team will review your report about ${
+                      reportedUserName || 'this person'
+                    }. You won't see them again.`,
+                    [{ text: 'OK' }],
+                    { tone: 'success', icon: 'shield-checkmark' },
+                  );
                   Loaderx.hide();
                   scrollViewRef.current?.scrollTo({ y: 0, animated: true });
                 });
@@ -602,6 +638,8 @@ export default function Peoples_Screen({
     showloader: boolean = true,
     // A like with a message attached (pushDirectMessage) -- same limits as a like.
     directMessage?: { text: string; context?: DirectMessageContext },
+    // A like with a message attached (pushDirectMessage) -- same limits as a like.
+    directMessage?: { text: string; context?: DirectMessageContext },
   ) {
     if (isActionLockedRef.current) return;
     isActionLockedRef.current = true;
@@ -615,6 +653,7 @@ export default function Peoples_Screen({
         case 'block':
           const matchId =
             getPeopleToMatch?.[0]?.match_id || functs.likedMatchId;
+          const isDirectMessage = what === 'like' && !!directMessage;
           const isDirectMessage = what === 'like' && !!directMessage;
           await _http_request({
             reqType: 'POST',
@@ -636,25 +675,64 @@ export default function Peoples_Screen({
                   match_status: matchStatus,
                   matchId: matchId,
                 },
+              __CONFIG__.HTTPS_API_DOMAIN +
+              (isDirectMessage
+                ? '/api/core/v1/pushDirectMessage'
+                : '/api/core/v1/pushPeopleToMatch'),
+            bodyArray: isDirectMessage
+              ? {
+                  user_id2: getPeopleToMatch?.[0]?.user_id,
+                  matchId: matchId,
+                  message: directMessage?.text,
+                  // The server re-checks this against their real profile.
+                  context: directMessage?.context,
+                }
+              : {
+                  user_id2: getPeopleToMatch?.[0]?.user_id,
+                  match_status: matchStatus,
+                  matchId: matchId,
+                },
           })
             .then(response => {
+              // Out of something: ask, rather than throwing the user into a store.
               if (response?.code === 429 || response?.code === 402) {
-                Toastx.show({
-                  type: 'info',
-                  message:
-                    response?.message ?? 'Action not available right now.',
-                  duration: 4000,
-                });
                 if (response?.code === 429) {
-                  navigation.navigate(namer.navigation.subscription);
+                  Dialogx.alert(
+                    "You're out of likes for today",
+                    response?.message ??
+                      'Your likes refill tomorrow. Upgrade for unlimited likes.',
+                    [
+                      { text: 'Later', style: 'cancel' },
+                      {
+                        text: 'See plans',
+                        onPress: () =>
+                          navigation.navigate(namer.navigation.subscription),
+                      },
+                    ],
+                    { tone: 'info', icon: 'heart' },
+                  );
                 } else if (response?.outOf === 'directMessages') {
                   setEntitlements(prev => ({
                     ...prev,
                     directMessages: { remainingToday: 0, balance: 0 },
                   }));
-                  navigation.navigate(namer.navigation.consumables, {
-                    productcategory: namer.productCategoryName.directmessage,
-                  });
+                  Dialogx.alert(
+                    "You're out of direct messages",
+                    response?.message ??
+                      'Your daily direct messages refill tomorrow.',
+                    [
+                      { text: 'Later', style: 'cancel' },
+                      {
+                        text: 'Get more',
+                        onPress: () =>
+                          navigation.navigate(namer.navigation.consumables, {
+                            productcategory:
+                              namer.productCategoryName.directmessage,
+                          }),
+                      },
+                    ],
+                    { tone: 'info', icon: 'chatbubble-ellipses' },
+                  );
                 } else {
                   setEntitlements(prev => ({
                     ...prev,
@@ -662,19 +740,34 @@ export default function Peoples_Screen({
                       ? { ...prev.roses, remainingToday: 0 }
                       : prev.roses,
                   }));
-                  navigation.navigate(namer.navigation.consumables, {
-                    productcategory: namer.productCategoryName.superlike,
-                  });
+                  Dialogx.alert(
+                    "You're out of roses",
+                    response?.message ?? 'Your daily roses refill tomorrow.',
+                    [
+                      { text: 'Later', style: 'cancel' },
+                      {
+                        text: 'Get roses',
+                        onPress: () =>
+                          navigation.navigate(namer.navigation.consumables, {
+                            productcategory:
+                              namer.productCategoryName.superlike,
+                          }),
+                      },
+                    ],
+                    { tone: 'info', icon: 'rose' },
+                  );
                 }
                 return;
               }
 
               if (isDirectMessage) {
                 if (response?.code !== 200) {
-                  Toastx.show({
-                    type: 'info',
-                    message: response?.message ?? "Couldn't send your message.",
-                  });
+                  Dialogx.alert(
+                    "Couldn't send your message",
+                    response?.message ?? 'Please try again.',
+                    undefined,
+                    { tone: 'error' },
+                  );
                   return;
                 }
                 Toastx.show({
@@ -701,13 +794,28 @@ export default function Peoples_Screen({
               const streak = response?.streak;
               if (streak?.newDay) {
                 cacheStorage.getCurrentUserProfile(true).catch(() => {});
-                Toastx.show({
-                  type: 'success',
-                  message: streak.rewardEarned
-                    ? `${streak.count}th-day streak conplete! Claim your reward in Profile.`
-                    : `Day ${streak.count} streak! Continue tomorrow.`,
-                  duration: 8000,
-                });
+                if (streak.rewardEarned) {
+                  // Worth stopping for: a dialog pointing at the reward.
+                  Dialogx.alert(
+                    `${streak.count}-day streak complete!`,
+                    'You earned a reward. Claim it from your Profile.',
+                    [
+                      { text: 'Later', style: 'cancel' },
+                      {
+                        text: 'Claim reward',
+                        onPress: () =>
+                          navigation.navigate(namer.navigation.profile),
+                      },
+                    ],
+                    { tone: 'success', icon: 'gift' },
+                  );
+                } else {
+                  Toastx.show({
+                    type: 'success',
+                    message: `Day ${streak.count} streak! Continue tomorrow.`,
+                    duration: 8000,
+                  });
+                }
               }
 
               if (typeof response?.rosesRemainingToday === 'number') {
@@ -912,10 +1020,21 @@ export default function Peoples_Screen({
     if (link.url) {
       Linking.openURL(link.url);
     } else {
-      Toastx.show({
-        type: 'warning',
-        message: 'Upgrade to VIP to open social links',
-      });
+      Dialogx.alert(
+        'Social links are a VIP perk',
+        'Upgrade to VIP to open their social profiles.',
+        [
+          { text: 'Not now', style: 'cancel' },
+          {
+            text: 'See VIP',
+            onPress: () =>
+              navigation.navigate(namer.navigation.subscription, {
+                tab: 'vip',
+              }),
+          },
+        ],
+        { tone: 'info', icon: 'star' },
+      );
     }
   };
 
@@ -1166,8 +1285,24 @@ export default function Peoples_Screen({
                   </Pressable>
                 )}
 
+                {currentPhotos.length > 0 && (
+                  <Pressable
+                    hitSlop={8}
+                    accessibilityLabel="View photo full screen"
+                    onPress={() => setFullscreenClickImageIndex(photoIndex)}
+                    style={({ pressed }) => [
+                      deckStyles.zoomButton,
+                      currentPhotos.length > 1 && { top: 28 },
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    <IIcon name="expand-outline" size={18} color="#fff" />
+                  </Pressable>
+                )}
+
                 <View style={deckStyles.cardFooter}>
                   <View style={deckStyles.nameRow}>
+                    <Text style={[deckStyles.name, { flexShrink: 1 }]}>
                     <Text style={[deckStyles.name, { flexShrink: 1 }]}>
                       {currentPerson?.user_fullname}
                       {currentPerson?.user_bio_dob
@@ -1180,6 +1315,38 @@ export default function Peoples_Screen({
                         size={22}
                         color="#fff"
                       />
+                    )}
+                    {canDirectMessage && (
+                      <Pressable
+                        hitSlop={8}
+                        accessibilityLabel="Send a direct message"
+                        onPress={() => {
+                          const viewed = currentPhotos?.[photoIndex]?.p;
+                          setDmComposer({
+                            context: viewed
+                              ? { type: 'photo', p: viewed }
+                              : undefined,
+                          });
+                        }}
+                        style={({ pressed }) => [
+                          deckStyles.dmFab,
+                          pressed && { transform: [{ scale: 0.94 }] },
+                        ]}
+                      >
+                        <LinearGradient
+                          colors={[colors.gradientStart, colors.gradientEnd]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={deckStyles.dmFabFill}
+                        >
+                          <IIcon
+                            name="paper-plane"
+                            size={20}
+                            color="#fff"
+                            style={{ marginLeft: -2, marginTop: 1 }}
+                          />
+                        </LinearGradient>
+                      </Pressable>
                     )}
                     {canDirectMessage && (
                       <Pressable
@@ -1226,6 +1393,38 @@ export default function Peoples_Screen({
               </View>
 
               <View style={[deckStyles.detailCard, deckStyles.cardShadow]}>
+                <View style={deckStyles.sectionHeaderRow}>
+                  <Text style={[deckStyles.sectionTitle, { flex: 1 }]}>
+                    About{' '}
+                    {currentPerson?.user_fullname?.split(' ')?.[0] || 'them'}
+                  </Text>
+                  {canDirectMessage && (
+                    <Pressable
+                      hitSlop={8}
+                      accessibilityLabel="Reply to their about with a direct message"
+                      onPress={() =>
+                        setDmComposer({
+                          context: currentPerson?.user_bio_about
+                            ? {
+                                type: 'about',
+                                text: currentPerson.user_bio_about,
+                              }
+                            : undefined,
+                        })
+                      }
+                      style={({ pressed }) => [
+                        deckStyles.sectionMsgBtn,
+                        pressed && { opacity: 0.7 },
+                      ]}
+                    >
+                      <IIcon
+                        name="paper-plane"
+                        size={18}
+                        color={colors.primary}
+                      />
+                    </Pressable>
+                  )}
+                </View>
                 <View style={deckStyles.sectionHeaderRow}>
                   <Text style={[deckStyles.sectionTitle, { flex: 1 }]}>
                     About{' '}
@@ -1460,31 +1659,15 @@ export default function Peoples_Screen({
                         },
                       ]}
                       onPress={async () => {
-                        function showConfirmAlert() {
-                          return new Promise(resolve => {
-                            Alert.alert(
-                              'Block this person?',
-                              'Blocking this person prevents them from ever seeing your profile or message you!',
-                              [
-                                {
-                                  text: 'No',
-                                  onPress: () => {
-                                    resolve(false);
-                                  },
-                                  style: 'cancel',
-                                },
-                                {
-                                  text: 'Block',
-                                  onPress: () => {
-                                    resolve(true);
-                                  },
-                                },
-                              ],
-                              { cancelable: false },
-                            );
-                          });
-                        }
-                        if ((await showConfirmAlert()) === false) {
+                        const ok = await Dialogx.confirm({
+                          title: 'Block this person?',
+                          message:
+                            "They'll never see your profile or be able to message you again.",
+                          confirmText: 'Block',
+                          destructive: true,
+                          icon: 'ban',
+                        });
+                        if (!ok) {
                           return;
                         } else {
                           peoples_action('block', 3).then(() => {
@@ -1590,6 +1773,36 @@ export default function Peoples_Screen({
             )}
           </SafeAreaView>
         )}
+
+        {/* DIRECT MESSAGE */}
+        <DirectMessageComposer
+          visible={!!dmComposer}
+          firstName={currentPerson?.user_fullname?.split(' ')?.[0] || 'them'}
+          photoUri={
+            currentPhotos?.[0]?.p ? imageDomain + currentPhotos[0].p : undefined
+          }
+          imageDomain={imageDomain}
+          remaining={
+            entitlements.directMessages
+              ? entitlements.directMessages.remainingToday +
+                entitlements.directMessages.balance
+              : null
+          }
+          onGetMore={() => {
+            setDmComposer(null);
+            navigation.navigate(namer.navigation.consumables, {
+              productcategory: namer.productCategoryName.directmessage,
+            });
+          }}
+          context={dmComposer?.context}
+          onClose={() => setDmComposer(null)}
+          onSend={text => {
+            const context = dmComposer?.context;
+            setDmComposer(null);
+            setActionBurst({ kind: 'like', key: Date.now() });
+            peoples_action('like', 0, true, { text, context });
+          }}
+        />
 
         {/* DIRECT MESSAGE */}
         <DirectMessageComposer
@@ -1888,9 +2101,11 @@ export default function Peoples_Screen({
         {/* FULLSCREEN */}
         <ImageViewing
           images={currentPhotos.map((img: any) => ({
+          images={currentPhotos.map((img: any) => ({
             uri: imageDomain + img.p,
           }))}
           imageIndex={getFullscreenClickImageIndex ?? 0}
+          visible={getFullscreenClickImageIndex != null}
           visible={getFullscreenClickImageIndex != null}
           onRequestClose={() => {
             setFullscreenClickImageIndex(null);
@@ -1920,6 +2135,276 @@ export default function Peoples_Screen({
         </BottomSheetView>
       </BottomSheet>
     </>
+  );
+}
+
+const DIRECT_MESSAGE_MAX = 500;
+
+// What a direct message comments on -- shown to the recipient in the conversation.
+type DirectMessageContext =
+  | { type: 'photo'; p: string }
+  | { type: 'about'; text: string };
+
+// Bottom composer for a direct message: a like with a message attached, sent before
+// matching. `context` quotes the profile text being replied to (e.g. their About).
+function DirectMessageComposer({
+  visible,
+  firstName,
+  photoUri,
+  imageDomain,
+  remaining,
+  onGetMore,
+  context,
+  onClose,
+  onSend,
+}: {
+  visible: boolean;
+  firstName: string;
+  photoUri?: string;
+  imageDomain?: string;
+  // Direct messages left (today's allowance + purchased); null while unknown.
+  remaining: number | null;
+  onGetMore: () => void;
+  context?: DirectMessageContext;
+  onClose: () => void;
+  onSend: (text: string) => void;
+}) {
+  const { colors } = useTheme();
+  const [text, setText] = useState('');
+  const trimmed = text.trim();
+
+  useEffect(() => {
+    if (visible) setText('');
+  }, [visible]);
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: colors.overlay }}
+          onPress={onClose}
+        />
+        <SafeAreaView
+          edges={['bottom']}
+          style={{
+            backgroundColor: colors.background,
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            paddingHorizontal: spacing.xl,
+            paddingTop: spacing.md,
+            paddingBottom: spacing.lg,
+          }}
+        >
+          <View
+            style={{
+              alignSelf: 'center',
+              width: 40,
+              height: 4,
+              borderRadius: 2,
+              backgroundColor: colors.border,
+              marginBottom: spacing.lg,
+            }}
+          />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <SafeImage
+              source={{ uri: photoUri }}
+              style={{ width: 44, height: 44, borderRadius: 22 }}
+            />
+            <View style={{ flex: 1 }}>
+              <Text
+                numberOfLines={1}
+                style={{
+                  ...typo.subtitle,
+                  color: colors.text,
+                  textTransform: 'capitalize',
+                }}
+              >
+                Message {firstName}
+              </Text>
+              <Text style={{ ...typo.caption, color: colors.textTertiary }}>
+                {remaining == null
+                  ? 'Sent with a like — stand out before you match'
+                  : `Sent with a like · ${remaining} direct message${
+                      remaining === 1 ? '' : 's'
+                    } left`}
+              </Text>
+            </View>
+            <Pressable hitSlop={10} onPress={onClose}>
+              <IIcon name="close" size={24} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+
+          {context?.type === 'about' && (
+            <View
+              style={{
+                marginTop: spacing.lg,
+                borderLeftWidth: 3,
+                borderLeftColor: colors.primary,
+                backgroundColor: colors.backgroundSecondary,
+                borderRadius: radius.sm,
+                paddingVertical: spacing.sm,
+                paddingHorizontal: spacing.md,
+              }}
+            >
+              <Text
+                style={{
+                  ...typo.caption,
+                  color: colors.primary,
+                  marginBottom: 2,
+                }}
+              >
+                Replying to their About
+              </Text>
+              <Text
+                numberOfLines={3}
+                style={{ ...typo.callout, color: colors.textSecondary }}
+              >
+                {context.text}
+              </Text>
+            </View>
+          )}
+          {context?.type === 'photo' && (
+            <View
+              style={{
+                marginTop: spacing.lg,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.md,
+                backgroundColor: colors.backgroundSecondary,
+                borderRadius: radius.md,
+                padding: spacing.sm,
+              }}
+            >
+              <SafeImage
+                source={{ uri: (imageDomain ?? '') + context.p }}
+                style={{ width: 52, height: 68, borderRadius: radius.sm }}
+              />
+              <Text style={{ ...typo.callout, color: colors.textSecondary }}>
+                Commenting on this photo
+              </Text>
+            </View>
+          )}
+
+          {remaining === 0 ? (
+            <View
+              style={{
+                marginTop: spacing.lg,
+                borderRadius: radius.lg,
+                padding: spacing.lg,
+                gap: spacing.md,
+                alignItems: 'center',
+                backgroundColor: colors.primarySoft,
+              }}
+            >
+              <IIcon
+                name="chatbubble-ellipses"
+                size={26}
+                color={colors.primary}
+              />
+              <Text
+                style={{
+                  ...typo.callout,
+                  color: colors.text,
+                  textAlign: 'center',
+                }}
+              >
+                You're out of direct messages for today.
+              </Text>
+              <Pressable
+                onPress={onGetMore}
+                style={({ pressed }) => ({
+                  height: 44,
+                  paddingHorizontal: spacing.xl,
+                  borderRadius: 22,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: colors.primary,
+                  opacity: pressed ? 0.85 : 1,
+                })}
+              >
+                <Text style={{ ...typo.bodyStrong, color: colors.onPrimary }}>
+                  Get more direct messages
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'flex-end',
+                gap: spacing.sm,
+                marginTop: spacing.lg,
+              }}
+            >
+              <RNTextInput
+                autoFocus
+                value={text}
+                onChangeText={setText}
+                placeholder={`Say something to ${firstName}…`}
+                placeholderTextColor={colors.placeholder}
+                multiline
+                maxLength={DIRECT_MESSAGE_MAX}
+                style={{
+                  flex: 1,
+                  minHeight: 48,
+                  maxHeight: 140,
+                  borderRadius: 24,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: colors.inputBackground,
+                  color: colors.text,
+                  paddingHorizontal: spacing.lg,
+                  paddingTop: 13,
+                  paddingBottom: 13,
+                  fontSize: 15,
+                }}
+              />
+              <Pressable
+                disabled={!trimmed}
+                accessibilityLabel="Send direct message"
+                onPress={() => onSend(trimmed)}
+                style={({ pressed }) => ({
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: trimmed ? colors.primary : colors.disabled,
+                  opacity: pressed ? 0.85 : 1,
+                })}
+              >
+                <IIcon
+                  name="paper-plane"
+                  size={20}
+                  color={colors.onPrimary}
+                  style={{ marginLeft: -2 }}
+                />
+              </Pressable>
+            </View>
+          )}
+          {text.length > DIRECT_MESSAGE_MAX * 0.8 && (
+            <Text
+              style={{
+                ...typo.caption,
+                color: colors.textTertiary,
+                textAlign: 'right',
+                marginTop: 4,
+              }}
+            >
+              {text.length} / {DIRECT_MESSAGE_MAX}
+            </Text>
+          )}
+        </SafeAreaView>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
@@ -2314,6 +2799,33 @@ function createDeckStyles(colors: ThemeColors) {
       borderWidth: 1.5,
       borderColor: 'rgba(255,255,255,0.35)',
     },
+    sectionHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    sectionMsgBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primarySoft,
+    },
+    dmFab: {
+      marginLeft: 'auto',
+      borderRadius: 26,
+      ...elevation('#000', 3),
+    },
+    dmFabFill: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1.5,
+      borderColor: 'rgba(255,255,255,0.35)',
+    },
     detailGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -2349,6 +2861,19 @@ function createDeckStyles(colors: ThemeColors) {
       borderColor: colors.primary,
     },
     interestChipTextShared: { color: colors.primary },
+    zoomButton: {
+      position: 'absolute',
+      top: 14,
+      right: spacing.md,
+      zIndex: 30,
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(10,6,14,0.45)',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.25)',
     zoomButton: {
       position: 'absolute',
       top: 14,

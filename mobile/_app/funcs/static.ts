@@ -268,6 +268,7 @@ export const namer = {
     products: 'j6yn65ik57y',
     themeMode: 'pk3nf7vqxz8w2m',
     lastLocationPush: 'qm3nc7xr9wfj2t',
+    apiBuild: 'xw8br4ktq2zj7m', // X-Api-Build the caches were filled under
   },
   navigation: {
     devpage: 'zz_devv',
@@ -286,6 +287,7 @@ export const namer = {
     editProfilePrompts: 'EditProfilePrompts',
     editProfileInterests: 'EditProfileInterests',
     editpreference: 'Editpreference',
+    verifyProfile: 'VerifyProfile',
     signup: 'signup',
     login: 'login',
     subscription: 'payments',
@@ -295,7 +297,9 @@ export const namer = {
     mainsub: 'mainsub',
     superlike: 'superlike',
     directmessage: 'directmessage',
+    directmessage: 'directmessage',
     rewind: 'rewind',
+    boost: 'boost',
     boost: 'boost',
   },
 };
@@ -303,8 +307,8 @@ export const namer = {
 export const resourceMap = {
   lottie: {
     pulsingLoading: require('../assets/lottie/pulsing.json'),
-    infinityLoading: require('../assets/lottie/infinity.json'), 
-  }
+    infinityLoading: require('../assets/lottie/infinity.json'),
+  },
 };
 
 //
@@ -318,7 +322,10 @@ export const __CONFIG__ = {
     {
       HTTPS_DOMAIN: 'http://10.50.0.2:9052',
       HTTPS_API_DOMAIN: 'http://10.50.0.2:9051',
+      HTTPS_DOMAIN: 'http://10.50.0.2:9052',
+      HTTPS_API_DOMAIN: 'http://10.50.0.2:9051',
     },
+  ][DeviceInfo.isEmulatorSync() && Platform.OS === 'android' ? 1 : 0],
   ][DeviceInfo.isEmulatorSync() && Platform.OS === 'android' ? 1 : 0],
 
   BRAND_NAME: 'SuyoApp',

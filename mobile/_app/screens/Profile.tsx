@@ -1,6 +1,5 @@
 import React, { useLayoutEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,6 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Dialogx } from '../funcs/customDialog';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeImage } from '../funcs/customImage';
 import LinearGradient from 'react-native-linear-gradient';
@@ -24,6 +24,7 @@ import {
   screenWidth,
 } from '../funcs/functions';
 import { Loaderx } from '../funcs/functions_stateful';
+import { ConsumableSheet } from '../funcs/customConsumableSheet';
 import { ConsumableSheet } from '../funcs/customConsumableSheet';
 import { namer, resourceMap, styles, __CONFIG__ } from '../funcs/static';
 import { useTheme, ThemeColors } from '../funcs/theme';
@@ -52,6 +53,9 @@ const PLAN_UI: Record<
 // Day-7 reward circle once reached -- deliberately off-palette so it pops.
 const STREAK_REWARD_COLORS = ['#FF3D77', '#FF9F1C'];
 
+// Day-7 reward circle once reached -- deliberately off-palette so it pops.
+const STREAK_REWARD_COLORS = ['#FF3D77', '#FF9F1C'];
+
 const getPlanUi = (plan?: string | null) =>
   PLAN_UI[
     String(plan ?? '')
@@ -67,6 +71,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
   const mapper = cacheStorage.CONFIG.get()?.mapper;
   const imageDomain = mapper?.img_domain ?? '';
+  const [buyCategory, setBuyCategory] = useState<string | null>(null);
   const [buyCategory, setBuyCategory] = useState<string | null>(null);
 
   const profileCore = profile?.profile ?? {};
@@ -87,16 +92,6 @@ export function Screen_profile({ navigation }: { navigation: any }) {
   const subscriptionState = help.getSubscriptionState(profile);
   const activeSubscription = subscriptionState.hasActive;
   const subscriptionPlanUi = getPlanUi(subscriptionState.tier);
-  const subscriptionCancelPending = Boolean(
-    profile?.subscription?.cancel_at_period_end,
-  );
-  const subscriptionRenewalDate = profile?.subscription?.end_date
-    ? new Date(profile.subscription.end_date).toLocaleDateString(undefined, {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-      })
-    : null;
 
   // Counts come from getProfile; pack prices are loaded from getProducts by
   // ConsumableSheet when one is tapped.
@@ -175,7 +170,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
     if (response?.code === 200) {
       const gotRoses = Number(response?.granted?.roses ?? 0);
       const gotDirectMessages = Number(response?.granted?.directMessages ?? 0);
-      Alert.alert(
+      Dialogx.alert(
         'Reward claimed!',
         [
           gotRoses > 0 && `+${gotRoses} roses`,
@@ -186,52 +181,17 @@ export function Screen_profile({ navigation }: { navigation: any }) {
         ]
           .filter(Boolean)
           .join('\n') || 'Enjoy your reward.',
+        [{ text: 'Awesome' }],
+        { tone: 'success', icon: 'gift' },
       );
     } else {
-      Alert.alert('Oops', response?.message ?? 'Please try again.');
+      Dialogx.alert(
+        "Couldn't claim your reward",
+        response?.message ?? 'Please try again.',
+        undefined,
+        { tone: 'error' },
+      );
     }
-  };
-
-  const confirmCancelSubscription = () => {
-    const subscriptionId = profile?.subscription?.id;
-    if (!subscriptionId) return;
-
-    Alert.alert(
-      'Cancel subscription',
-      `Your ${
-        subscriptionState.plan ?? 'subscription'
-      } plan will stay active until ${
-        subscriptionRenewalDate ?? 'the end of the current billing period'
-      }, then it will not renew.`,
-      [
-        { text: 'Keep subscription', style: 'cancel' },
-        {
-          text: 'Cancel subscription',
-          style: 'destructive',
-          onPress: async () => {
-            Loaderx.show();
-            const response: any = await _http_request({
-              customApiUrl: `${__CONFIG__.HTTPS_API_DOMAIN}/api/secure/gateway/cancel-subscription`,
-              reqType: 'POST',
-              bodyArray: { subscriptionId },
-            });
-            await refreshProfile();
-            Loaderx.hide();
-            if (response?.code === 200) {
-              Alert.alert(
-                'Subscription cancelled',
-                'You will keep access until the end of your current billing period.',
-              );
-            } else {
-              Alert.alert(
-                'Cancellation failed',
-                response?.message ?? 'Please try again.',
-              );
-            }
-          },
-        },
-      ],
-    );
   };
 
   const visibleMainSubProducts = useMemo(() => {
@@ -247,16 +207,25 @@ export function Screen_profile({ navigation }: { navigation: any }) {
     return mainSubProducts;
   }, [mainSubProducts, subscriptionState.isPlus, subscriptionState.isVip]);
 
-  const profileCompletion = useMemo(() => {
-    const checkpoints = [
-      String(profile?.user_bio_about ?? profileCore?.about ?? '').trim()
-        .length >= 3,
-      images.length >= 3,
-      (profile?.user_bio_prompt ?? []).length > 0,
-    ];
-    const score = checkpoints.filter(Boolean).length;
-    return Math.round((score / checkpoints.length) * 100);
-  }, [images.length, profile, profileCore?.about]);
+  // Computed by the server from the saved profile (api global/profileCompleteness.js),
+  // with the missing items ordered by how much each would add.
+  const completeness = profile?.completeness;
+  const profileCompletion = Math.max(
+    0,
+    Math.min(100, Number(completeness?.percent ?? 0)),
+  );
+  const missingItems: any[] = Array.isArray(completeness?.missing)
+    ? completeness.missing
+    : [];
+  const openCompletenessItem = (item: any) =>
+    item?.action === 'verify'
+      ? navigation.navigate(namer.navigation.verifyProfile)
+      : navigation.navigate(namer.navigation.editprofile, {
+          focusSection:
+            item?.action === 'editprofile' ? item?.key : item?.action,
+        });
+  // verified | pending | rejected | none (api global/verification.js)
+  const verificationStatus: string = profile?.verification?.status ?? 'none';
 
   useFocusEffect(
     React.useCallback(() => {
@@ -402,8 +371,15 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                     : 'Free plan'}
                 </Text>
               </View>
-              <Text style={stylesx.completionText}>
-                {profileCompletion}% profile complete
+              <Text
+                style={[
+                  stylesx.completionText,
+                  profileCompletion === 100 && { color: colors.success },
+                ]}
+              >
+                {profileCompletion === 100
+                  ? 'Profile complete'
+                  : `${profileCompletion}% profile complete`}
               </Text>
             </View>
           </View>
@@ -418,11 +394,19 @@ export function Screen_profile({ navigation }: { navigation: any }) {
             />
             {!userVerified && (
               <ProfileAction
-                icon="camera-outline"
-                label="Verify Account"
+                icon={
+                  verificationStatus === 'pending'
+                    ? 'clock-outline'
+                    : 'camera-outline'
+                }
+                label={
+                  verificationStatus === 'pending'
+                    ? 'Verification pending'
+                    : 'Verify Account'
+                }
                 secondary
                 onPress={() =>
-                  navigation.navigate(namer.navigation.editprofile)
+                  navigation.navigate(namer.navigation.verifyProfile)
                 }
                 stylesx={stylesx}
                 secondaryColor={colors.accent}
@@ -430,6 +414,57 @@ export function Screen_profile({ navigation }: { navigation: any }) {
             )}
           </View>
         </View>
+
+        {completeness && missingItems.length > 0 && (
+          <View style={stylesx.card}>
+            <SectionHeader
+              title="Complete your profile"
+              hint="Complete profiles get more likes and better matches."
+              icon="account-check-outline"
+              colors={colors}
+              stylesx={stylesx}
+            />
+            <View style={stylesx.completenessBarTrack}>
+              <View
+                style={[
+                  stylesx.completenessBarFill,
+                  { width: `${profileCompletion}%` },
+                ]}
+              />
+            </View>
+            {missingItems.slice(0, 3).map((item: any, idx: number) => (
+              <Pressable
+                key={item.key}
+                onPress={() => openCompletenessItem(item)}
+                style={({ pressed }) => [
+                  stylesx.completenessRow,
+                  idx > 0 && stylesx.completenessRowBorder,
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <View style={stylesx.completenessIcon}>
+                  <MIcon
+                    name={COMPLETENESS_ICONS[item.key] ?? 'plus'}
+                    size={18}
+                    color={colors.primary}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={stylesx.completenessLabel}>{item.label}</Text>
+                  <Text style={stylesx.completenessHint}>{item.hint}</Text>
+                </View>
+                <Text style={stylesx.completenessGain}>
+                  +{Math.round(item.weight * (1 - item.progress))}%
+                </Text>
+                <IIcon
+                  name="chevron-forward"
+                  size={18}
+                  color={colors.textTertiary}
+                />
+              </Pressable>
+            ))}
+          </View>
+        )}
 
         <View style={stylesx.card}>
           <SectionHeader title="Power-ups" colors={colors} stylesx={stylesx} />
@@ -452,59 +487,6 @@ export function Screen_profile({ navigation }: { navigation: any }) {
             ))}
           </View>
         </View>
-
-        {activeSubscription && (
-          <View style={stylesx.card}>
-            <SectionHeader
-              title="Manage subscription"
-              icon="credit-card-outline"
-              colors={colors}
-              stylesx={stylesx}
-            />
-            <View style={stylesx.manageSubRow}>
-              <Text style={stylesx.manageSubLabel}>Plan</Text>
-              <Text style={stylesx.manageSubValue}>
-                {`${subscriptionState.plan ?? ''} ${
-                  subscriptionState.variant ?? ''
-                }`.trim() || 'Active'}
-              </Text>
-            </View>
-            <View style={stylesx.manageSubRow}>
-              <Text style={stylesx.manageSubLabel}>
-                {subscriptionCancelPending ? 'Access ends' : 'Renews'}
-              </Text>
-              <Text style={stylesx.manageSubValue}>
-                {subscriptionRenewalDate ?? '—'}
-              </Text>
-            </View>
-            {subscriptionCancelPending ? (
-              <View style={stylesx.manageSubNotice}>
-                <MIcon
-                  name="information-outline"
-                  size={16}
-                  color={colors.textSecondary}
-                />
-                <Text style={stylesx.manageSubNoticeText}>
-                  This subscription will not renew and ends on the date above.
-                </Text>
-              </View>
-            ) : (
-              <Pressable
-                style={stylesx.cancelSubButton}
-                onPress={confirmCancelSubscription}
-              >
-                <MIcon
-                  name="close-circle-outline"
-                  size={18}
-                  color={colors.danger}
-                />
-                <Text style={stylesx.cancelSubButtonText}>
-                  Cancel subscription
-                </Text>
-              </Pressable>
-            )}
-          </View>
-        )}
 
         {visibleMainSubProducts.length > 0 && (
           // show items
@@ -686,7 +668,103 @@ export function Screen_profile({ navigation }: { navigation: any }) {
             </TouchableOpacity>
           )}
         </View>
+        <View style={stylesx.card}>
+          <SectionHeader
+            title={`${streakDays} day streak`}
+            icon="fire"
+            colors={colors}
+            stylesx={stylesx}
+          />
+          <View style={stylesx.streakRow}>
+            {Array.from({ length: streakDays }).map((_, index) => {
+              const isActive = index < streakCount;
+              const isRewardDay = index === streakDays - 1;
+              if (isRewardDay && isActive) {
+                return (
+                  <LinearGradient
+                    key={index}
+                    colors={STREAK_REWARD_COLORS}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={[stylesx.streakDot, stylesx.streakRewardDotActive]}
+                  >
+                    <MIcon name="gift" size={26} color="#fff" />
+                  </LinearGradient>
+                );
+              }
+              return (
+                <View
+                  key={index}
+                  style={[
+                    stylesx.streakDot,
+                    isActive && stylesx.streakDotActive,
+                    isRewardDay && stylesx.streakRewardDot,
+                  ]}
+                >
+                  <MIcon
+                    name={isRewardDay ? 'gift-outline' : 'fire'}
+                    size={isRewardDay ? 21 : 23}
+                    color={
+                      isActive || isRewardDay
+                        ? colors.premium
+                        : colors.textTertiary
+                    }
+                  />
+                </View>
+              );
+            })}
+          </View>
+          {streakRewards.length > 0 && (
+            <View
+              style={[
+                stylesx.streakRewards,
+                streakRewardsPending > 0 && stylesx.streakRewardsEarned,
+              ]}
+            >
+              <Text style={stylesx.streakRewardsTitle}>
+                {streakRewardsPending > 0
+                  ? 'Streak complete! You earned'
+                  : `Day ${streakDays} rewards`}
+              </Text>
+              <View style={stylesx.streakRewardsList}>
+                {streakRewards.map(item => (
+                  <View key={item.key} style={stylesx.streakRewardItem}>
+                    <IIcon name={item.icon} size={18} color={colors.premium} />
+                    <Text style={stylesx.streakRewardAmount}>
+                      +{item.amount}
+                    </Text>
+                    <Text style={stylesx.streakRewardLabel}>
+                      {item.amount === 1 ? item.singular : item.plural}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+          {streakRewardsPending > 0 && (
+            <TouchableOpacity
+              style={stylesx.streakClaimButton}
+              onPress={claimStreakReward}
+            >
+              <MIcon name="gift" size={18} color={colors.onPrimary} />
+              <Text style={stylesx.streakClaimText}>
+                Claim reward
+                {streakRewardsPending > 1 ? ` x${streakRewardsPending}` : ''}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </ScrollView>
+
+      <ConsumableSheet
+        visible={!!buyItem}
+        category={buyItem?.category ?? ''}
+        title={buyItem?.label ?? ''}
+        subtitle={buyItem?.subtitle}
+        icon={buyItem?.icon ?? 'flash'}
+        onClose={() => setBuyCategory(null)}
+        onPurchased={refreshProfile}
+      />
 
       <ConsumableSheet
         visible={!!buyItem}
@@ -744,6 +822,17 @@ const CircularProgress = ({
       />
     </Svg>
   );
+};
+
+// MaterialCommunityIcons per completeness item key
+const COMPLETENESS_ICONS: Record<string, string> = {
+  photos: 'image-multiple-outline',
+  about: 'text-account',
+  prompts: 'comment-quote-outline',
+  interests: 'star-four-points-outline',
+  work: 'briefcase-outline',
+  basics: 'card-account-details-outline',
+  background: 'earth',
 };
 
 const ProfileAction = ({
@@ -889,6 +978,52 @@ function createStylesx(colors: ThemeColors) {
       color: colors.textSecondary,
       fontSize: 13,
       fontWeight: '700',
+    },
+    completenessBarTrack: {
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: colors.border,
+      overflow: 'hidden',
+      marginTop: 4,
+      marginBottom: 6,
+    },
+    completenessBarFill: {
+      height: '100%',
+      borderRadius: 3,
+      backgroundColor: colors.primary,
+    },
+    completenessRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 10,
+    },
+    completenessRowBorder: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.hairline,
+    },
+    completenessIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primarySoft,
+    },
+    completenessLabel: {
+      fontSize: 14.5,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    completenessHint: {
+      fontSize: 12.5,
+      color: colors.textSecondary,
+      marginTop: 1,
+    },
+    completenessGain: {
+      fontSize: 12.5,
+      fontWeight: '800',
+      color: colors.primary,
     },
     subscriptionBadge: {
       alignSelf: 'flex-start',
@@ -1192,51 +1327,6 @@ function createStylesx(colors: ThemeColors) {
       color: colors.onPrimary,
       fontSize: 15,
       fontWeight: '900',
-    },
-    manageSubRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingVertical: 6,
-    },
-    manageSubLabel: {
-      color: colors.textSecondary,
-      fontSize: 13,
-    },
-    manageSubValue: {
-      color: colors.text,
-      fontSize: 13,
-      fontWeight: '700',
-    },
-    manageSubNotice: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      marginTop: 8,
-      paddingTop: 10,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-    },
-    manageSubNoticeText: {
-      color: colors.textSecondary,
-      fontSize: 12,
-      flex: 1,
-    },
-    cancelSubButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-      marginTop: 8,
-      paddingTop: 12,
-      paddingVertical: 10,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-    },
-    cancelSubButtonText: {
-      color: colors.danger,
-      fontSize: 13,
-      fontWeight: '700',
     },
   });
 }

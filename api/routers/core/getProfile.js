@@ -14,11 +14,16 @@ import {
   getBoostStatus,
   getDirectMessageStatus,
   getEntitlements,
+  getBoostStatus,
+  getDirectMessageStatus,
+  getEntitlements,
   getRoseStatus,
   FREE_LIKE_DAILY_LIMIT,
 } from "../../global/entitlements.js";
 import { peekRateLimit } from "../../global/rateLimit.js";
 import { getStreakStatus } from "../../global/streaks.js";
+import { computeProfileCompleteness } from "../../global/profileCompleteness.js";
+import { getVerificationState } from "../../global/verification.js";
 
 export default async function getProfile() {
   /** @type { any } */
@@ -215,7 +220,16 @@ export default async function getProfile() {
         getBoostStatus(sessions.currentUserID),
         getStreakStatus(sessions.currentUserID),
       ]);
+    const [entitlements, roses, directMessages, boosts, streak] =
+      await Promise.all([
+        getEntitlements(sessions.currentUserID),
+        getRoseStatus(sessions.currentUserID),
+        getDirectMessageStatus(sessions.currentUserID),
+        getBoostStatus(sessions.currentUserID),
+        getStreakStatus(sessions.currentUserID),
+      ]);
     let likesRemainingToday = null;
+    if (!entitlements.features.unlimitedLikes) {
     if (!entitlements.features.unlimitedLikes) {
       const likesPeek = await peekRateLimit(
         `${namer.ratelimit.likes_daily}${sessions.currentUserID}`,
@@ -224,6 +238,9 @@ export default async function getProfile() {
       likesRemainingToday = likesPeek.remaining;
     }
 
+    // Plans with freeRewind rewind at no cost (pushRewindMatch); others buy a
+    // one-time rewind per match instead.
+    const rewind = { freeForTier: entitlements.features.freeRewind };
     // Plans with freeRewind rewind at no cost (pushRewindMatch); others buy a
     // one-time rewind per match instead.
     const rewind = { freeForTier: entitlements.features.freeRewind };
@@ -316,6 +333,9 @@ export default async function getProfile() {
         streak_count: streak.count,
         // { count, days, activeToday, rewardsPending, reward: { roses, boosts } }
         streak,
+        streak_count: streak.count,
+        // { count, days, activeToday, rewardsPending, reward: { roses, boosts } }
+        streak,
       },
 
       // subscription
@@ -324,7 +344,12 @@ export default async function getProfile() {
       // entitlements -- { tier, features }: what the server will actually allow.
       // The app should gate UI on these, never on the subscription's product name.
       entitlements,
+      // entitlements -- { tier, features }: what the server will actually allow.
+      // The app should gate UI on these, never on the subscription's product name.
+      entitlements,
       roses,
+      directMessages,
+      boosts,
       directMessages,
       boosts,
       likesRemainingToday,
@@ -335,6 +360,15 @@ export default async function getProfile() {
       last_accessed: userProfile.user_last_accessed,
       device_stats: userProfile.user_signedup_device_stats,
     };
+    // { percent, items, missing } -- see global/profileCompleteness.js
+    const verification = await getVerificationState(sessions.currentUserID);
+    // { status: verified|pending|rejected|none, rejectReason, submittedAt }
+    response.currentUser.verification = verification;
+    response.currentUser.completeness = computeProfileCompleteness({
+      images: response.currentUser.profile.images,
+      bio: response.currentUser.bio,
+      verification: verification.status,
+    });
   } catch (err) {
     tools.serverLog(`Error in getProfile: ${err}`, "getProfile-101");
     response.message = "Database error retrieving profile.";

@@ -11,14 +11,24 @@ import getPeopleToMatch from "./core/getPeopleToMatch.js";
 import pushPeopleToMatch from "./core/pushPeopleToMatch.js";
 import pushRewindMatch from "./core/pushRewindMatch.js";
 import pushDirectMessage from "./core/pushDirectMessage.js";
+import pushRewindMatch from "./core/pushRewindMatch.js";
+import pushDirectMessage from "./core/pushDirectMessage.js";
 import pushConversation from "./core/pushConversation.js";
 import pushDeleteMessage from "./core/pushDeleteMessage.js";
 import pushNewEmail from "./core/pushNewEmail.js";
 import pushLogReport from "./core/pushLogReports.js";
+import { checkRateLimit } from "../global/rateLimit.js";
+import { namer } from "../global/namer.js";
 import pushDevice from "./core/pushDevice.js";
 import handleFileUpload from "./core/handleFileUpload.js";
 import getProducts from "./core/getProducts.js";
 import getPaymentHistory from "./core/getPaymentHistory.js";
+import getPaymentStatus from "./core/getPaymentStatus.js";
+import getPaymentNotices from "./core/getPaymentNotices.js";
+import getBadgeCounts from "./core/getBadgeCounts.js";
+import getConversationStarters from "./core/getConversationStarters.js";
+import getVerification from "./core/getVerification.js";
+import pushVerification from "./core/pushVerification.js";
 import getInterests from "./core/getInterests.js";
 import getPrompts from "./core/getPrompts.js";
 import getReligions from "./core/getReligions.js";
@@ -35,6 +45,9 @@ import pushDeleteFeedComment from "./core/pushDeleteFeedComment.js";
 import pushDeleteAccount from "./core/pushDeleteAccount.js";
 import pushClaimStreakReward from "./core/pushClaimStreakReward.js";
 
+// pushLogReport is open to signed-out clients, so it's throttled per IP instead.
+const LOG_REQUESTS_PER_MINUTE = 60;
+
 const core_router = express.Router();
 core_router.post("/:action", async (req, res) => {
   const { action } = req.params;
@@ -49,6 +62,26 @@ core_router.post("/:action", async (req, res) => {
     case "getMapper": {
       const mapper = await getMapper();
       return res.json(mapper);
+    }
+    case "pushLogReport": {
+      // Logs aren't account-dependent: signed-out devices (signup/login errors)
+      // must be able to report too. A valid session only decides attribution
+      // (see pushLogReports.js); a missing/invalid one just leaves it empty.
+      const logLimit = await checkRateLimit(
+        `${namer.ratelimit.logs_ip}${req.ip}`,
+        LOG_REQUESTS_PER_MINUTE,
+        60,
+      );
+      if (!logLimit.allowed) {
+        return res
+          .status(429)
+          .json({ code: 429, message: "Too many log reports." });
+      }
+      if (auth_token) sessions.verifyFullSession(auth_token);
+      const logResp = await pushLogReport(req.body?.scripts, req.ip);
+      // Reflect the real outcome so the client keeps failed logs queued for a
+      // later retry instead of dropping them on a silent server-side failure.
+      return res.status(logResp.code).json(logResp);
     }
     case "handleFileUpload": {
       if (req.body?.meta?.bucketType === "signup-void") {
@@ -76,7 +109,11 @@ core_router.post("/:action", async (req, res) => {
     }
     case "getConversation": {
       const matchID = req.body?.matchID;
-      const convo = await getConversation(matchID, req.app.get("io"));
+      const convo = await getConversation(
+        matchID,
+        req.app.get("io"),
+        req.body?.since,
+      );
       return res.json(convo);
     }
     case "getProfile": {
@@ -174,8 +211,40 @@ core_router.post("/:action", async (req, res) => {
       );
       return res.json(direct);
     }
+    case "getPaymentStatus": {
+      const status = await getPaymentStatus({ paymentId: req.body?.paymentId });
+      return res.json(status);
+    }
+    case "getVerification": {
+      const verification = await getVerification();
+      return res.json(verification);
+    }
+    case "pushVerification": {
+      const submitted = await pushVerification({
+        selfiePath: req.body?.selfiePath,
+        pose: req.body?.pose,
+      });
+      return res.json(submitted);
+    }
+    case "getConversationStarters": {
+      const starters = await getConversationStarters({
+        matchId: req.body?.matchId,
+      });
+      return res.json(starters);
+    }
+    case "getBadgeCounts": {
+      const badges = await getBadgeCounts();
+      return res.json(badges);
+    }
+    case "getPaymentNotices": {
+      const notices = await getPaymentNotices();
+      return res.json(notices);
+    }
     case "pushRewindMatch": {
-      const rewound = await pushRewindMatch({ matchId: req.body?.matchId });
+      const rewound = await pushRewindMatch(
+        { matchId: req.body?.matchId },
+        req.app.get("io"),
+      );
       return res.json(rewound);
     }
     case "pushFeedPost": {
@@ -213,6 +282,16 @@ core_router.post("/:action", async (req, res) => {
         reason: reportReason,
       });
       return res.json(reportUserResult);
+    }
+    case "pushClaimStreakReward": {
+      const claimResult = await pushClaimStreakReward();
+      return res.json(claimResult);
+    }
+    case "pushDeleteAccount": {
+      const deleteAccountResult = await pushDeleteAccount({
+        reason: req.body?.reason,
+      });
+      return res.json(deleteAccountResult);
     }
     case "pushClaimStreakReward": {
       const claimResult = await pushClaimStreakReward();
@@ -277,13 +356,6 @@ core_router.post("/:action", async (req, res) => {
       const profileUpdates = req.body;
       const uprofile = await pushProfile(profileUpdates);
       return res.json(uprofile);
-    }
-    case "pushLogReport": {
-      const logvalue = req.body?.scripts;
-      const logResp = await pushLogReport(logvalue, req.ip);
-      // Reflect the real outcome so the client keeps failed logs queued for a
-      // later retry instead of dropping them on a silent server-side failure.
-      return res.status(logResp.code).json(logResp);
     }
     case "pushDevice": {
       const deviceInfo = req.body?.device;

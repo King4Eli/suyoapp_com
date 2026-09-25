@@ -4,7 +4,9 @@ import axios from 'axios';
 import NetInfo from '@react-native-community/netinfo';
 import { namer } from '../static';
 import { Toastx } from '../customNotification';
+import { Dialogx } from '../customDialog';
 import { logReport } from '../functions';
+import { noteApiBuild } from './apiBuild';
 
 // HTTP request function (GET/POST)
 export const xxa__http_requests = async ({
@@ -57,6 +59,7 @@ export const xxa__http_requests = async ({
     }
 
     axiosResponse = await axios(config);
+    noteApiBuild(axiosResponse?.headers?.['x-api-build']);
     //console.log(axiosResponse);
     const contentType = axiosResponse?.headers['content-type'];
     if (contentType?.includes('application/json')) {
@@ -80,12 +83,18 @@ export const xxa__http_requests = async ({
       : JSON.stringify(axiosResponse?.data);
   } catch (err: any) {
     const status = err.response?.status;
+    noteApiBuild(err.response?.headers?.['x-api-build']);
     if (err.response) {
       if (status === 401) {
         //session expired
         sessionManager?.updateSession({ x_omi_payload: null });
         await AsyncStorage.removeItem(namer.storage.sessionId);
-        Toastx.show({ type: 'info', message: 'Session expired, login again.' });
+        Dialogx.alert(
+          'Please sign in again',
+          'Your session expired, so we signed you out to keep your account safe.',
+          [{ text: 'Sign in' }],
+          { tone: 'info', icon: 'lock-closed' },
+        );
         return;
       } else if (status === 404) {
         Toastx.show({ type: 'error', message: 'Resource not found!' });

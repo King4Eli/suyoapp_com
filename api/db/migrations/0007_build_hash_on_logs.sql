@@ -1,0 +1,1 @@
+ALTER TABLE `logs_application` ADD `build_hash` varchar(64);

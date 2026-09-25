@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/mysql2";
 import { and, eq, sql } from "drizzle-orm";
 import { tools, stripe_gateway } from "../global/functions.js";
 import { sessions } from "../global/sessions.js";
-import GatewayPay from "./payments/gateway.js";
+import GatewayPay, { describeStripeError } from "./payments/gateway.js";
 import { db, pool } from "../db/client.js";
 import * as schema from "../db/schema.js";
 import {
@@ -76,6 +76,77 @@ async function findActiveProduct(userId, sku, variantId) {
   return rows?.[0];
 }
 
+/**
+ * The caller's current active/past-due subscription, any platform, with its tier.
+ * @param {string} userId
+ */
+async function findCurrentSubscription(userId) {
+  const [row] = await db
+    .select({
+      id: subscriptions.id,
+      externalId: subscriptions.externalId,
+      platform: subscriptions.externalPlatform,
+      status: subscriptions.status,
+      cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
+      endDate: subscriptions.endDate,
+      tier: productLists.tier,
+    })
+    .from(subscriptions)
+    .innerJoin(
+      productListVariant,
+      eq(subscriptions.variantIdRef, productListVariant.idAi),
+    )
+    .innerJoin(
+      productLists,
+      eq(productListVariant.productListsIdRef, productLists.plSku),
+    )
+    .where(
+      and(
+        eq(subscriptions.userId, userId),
+        sql`${subscriptions.status} IN (1, 2)`,
+        sql`${subscriptions.endDate} > NOW()`,
+      ),
+    )
+    .orderBy(sql`${subscriptions.dateCreated} DESC`)
+    .limit(1);
+  return row ?? null;
+}
+
+/**
+ * The caller's own Stripe subscription by local id, or an error response.
+ * @param {string} subscriptionId
+ */
+async function findOwnStripeSubscription(subscriptionId) {
+  if (!subscriptionId) {
+    return { error: { code: 400, message: "Missing subscription." } };
+  }
+  const [row] = await db
+    .select({
+      id: subscriptions.id,
+      userId: subscriptions.userId,
+      externalId: subscriptions.externalId,
+      platform: subscriptions.externalPlatform,
+      status: subscriptions.status,
+      cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
+    })
+    .from(subscriptions)
+    .where(eq(subscriptions.id, subscriptionId))
+    .limit(1);
+  if (!row || row.userId !== sessions?.currentUserID) {
+    return { error: { code: 404, message: "Subscription not found." } };
+  }
+  if (row.platform !== 1) {
+    return {
+      error: {
+        code: 409,
+        reason: "manage_in_store",
+        message: `This plan was bought through ${row.platform === 2 ? "the App Store" : "Google Play"} -- manage it in your ${row.platform === 2 ? "Apple ID" : "Google Play"} subscriptions.`,
+      },
+    };
+  }
+  return { row };
+}
+
 pay_router.post("/:division", async (req, res) => {
   const { division } = req.params;
 
@@ -108,6 +179,20 @@ pay_router.post("/:division", async (req, res) => {
           });
         }
 
+        // One plan at a time. Buying the plan you already have is refused; buying a
+        // different one is a switch -- the webhook cancels the old plan once the new
+        // one is paid. Store (Apple/Google) plans can't be cancelled from here, so
+        // switching away from those has to start in the store.
+        let current;
+        try {
+          current = await findCurrentSubscription(sessions?.currentUserID);
+        } catch {
+          return res.status(500).json({
+            code: 500,
+            message: "Database error occurred. Please try again later.",
+          });
+        }
+
         // Fetch product details with retry logic
         let product;
         try {
@@ -124,9 +209,34 @@ pay_router.post("/:division", async (req, res) => {
         }
 
         if (!product) {
-          return res
-            .status(404)
-            .json({ code: 404, message: "Product not found or inactive." });
+          return res.status(404).json({
+            code: 404,
+            message: "This plan isn't available right now.",
+          });
+        }
+
+        if (current) {
+          const [wanted] = await db
+            .select({ tier: productLists.tier })
+            .from(productLists)
+            .where(eq(productLists.plSku, s_sku))
+            .limit(1);
+          if (current.platform !== 1) {
+            return res.status(409).json({
+              code: 409,
+              reason: "manage_in_store",
+              message: `Your current plan was bought through ${current.platform === 2 ? "the App Store" : "Google Play"}. Cancel it there first, then switch plans here.`,
+            });
+          }
+          if (wanted?.tier && wanted.tier === current.tier) {
+            return res.status(409).json({
+              code: 409,
+              reason: "already_subscribed",
+              message: current.cancelAtPeriodEnd
+                ? "You already have this plan. It's set to end -- you can turn renewal back on in Settings."
+                : "You already have this plan.",
+            });
+          }
         }
 
         const v_price = product.price;
@@ -179,9 +289,12 @@ pay_router.post("/:division", async (req, res) => {
             return res.json(sub);
           } else {
             await connection.rollback();
-            return res
-              .status(sub.code)
-              .json({ code: sub.code, message: sub.message });
+            return res.status(sub.code).json({
+              code: sub.code,
+              message: sub.message,
+              // @ts-ignore
+              ...(sub.reason ? { reason: sub.reason } : {}),
+            });
           }
         } catch (error) {
           await connection.rollback();
@@ -190,7 +303,7 @@ pay_router.post("/:division", async (req, res) => {
           );
           return res.status(500).json({
             code: 500,
-            message: "Payment initialization failed. Please try again.",
+            message: "We couldn't start checkout. Please try again.",
           });
         } finally {
           connection.release();
@@ -225,9 +338,10 @@ pay_router.post("/:division", async (req, res) => {
         }
 
         if (!onetimeProduct) {
-          return res
-            .status(404)
-            .json({ code: 404, message: "Product not found or inactive." });
+          return res.status(404).json({
+            code: 404,
+            message: "This item isn't available right now.",
+          });
         }
 
         const onetimePrice = onetimeProduct.price;
@@ -291,6 +405,8 @@ pay_router.post("/:division", async (req, res) => {
             return res.status(onetimeResult.code).json({
               code: onetimeResult.code,
               message: onetimeResult.message,
+              // @ts-ignore
+              ...(onetimeResult.reason ? { reason: onetimeResult.reason } : {}),
             });
           }
         } catch (error) {
@@ -300,8 +416,7 @@ pay_router.post("/:division", async (req, res) => {
           );
           return res.status(500).json({
             code: 500,
-            message:
-              "One-time payment initialization failed. Please try again.",
+            message: "We couldn't start checkout. Please try again.",
           });
         } finally {
           onetimeConnection.release();
@@ -309,99 +424,147 @@ pay_router.post("/:division", async (req, res) => {
       }
 
       case "cancel-subscription": {
-        const { subscriptionId } = req.body;
+        const found = await findOwnStripeSubscription(req.body?.subscriptionId);
+        if (found.error) return res.status(found.error.code).json(found.error);
+        const subscriptionRow = found.row;
 
-        if (!subscriptionId) {
-          return res.status(400).json({
-            code: 400,
-            message: "Missing required parameter: subscriptionId.",
+        if (subscriptionRow.status !== 1 && subscriptionRow.status !== 2) {
+          return res.status(409).json({
+            code: 409,
+            message: "This plan has already ended.",
           });
         }
-
-        let subscriptionRow;
-        try {
-          const subRows = await db
-            .select({
-              id: subscriptions.id,
-              user_id: subscriptions.userId,
-              external_id: subscriptions.externalId,
-              status: subscriptions.status,
-              cancel_at_period_end: subscriptions.cancelAtPeriodEnd,
-            })
-            .from(subscriptions)
-            .where(eq(subscriptions.id, subscriptionId))
-            .limit(1);
-          subscriptionRow = subRows?.[0];
-        } catch {
-          return res.status(500).json({
-            code: 500,
-            message: "Database error occurred. Please try again later.",
-          });
-        }
-
-        if (
-          !subscriptionRow ||
-          subscriptionRow.user_id !== sessions?.currentUserID
-        ) {
-          return res
-            .status(404)
-            .json({ code: 404, message: "Subscription not found." });
-        }
-
-        if (subscriptionRow.status !== 1) {
-          return res.status(400).json({
-            code: 400,
-            message: "Only active subscriptions can be cancelled.",
-          });
-        }
-
-        if (subscriptionRow.cancel_at_period_end) {
-          return res.status(400).json({
-            code: 400,
-            message: "This subscription is already scheduled to cancel.",
+        if (subscriptionRow.cancelAtPeriodEnd) {
+          return res.status(409).json({
+            code: 409,
+            message: "This plan is already set to end.",
           });
         }
 
         try {
           await stripe_gateway.subscriptions.update(
-            subscriptionRow.external_id,
-            { cancel_at_period_end: true },
+            subscriptionRow.externalId,
+            {
+              cancel_at_period_end: true,
+            },
           );
         } catch (stripeError) {
           tools.serverLog(
-            `Stripe cancel-subscription failed for ${subscriptionId}: ${stripeError}`,
+            `Stripe cancel-subscription failed for ${subscriptionRow.id}: ${stripeError}`,
             "pay-cancel-0",
           );
-          return res.status(502).json({
-            code: 502,
-            message: "Unable to reach the payment provider. Please try again.",
-          });
+          const described = describeStripeError(stripeError);
+          return res
+            .status(described.code)
+            .json({ code: described.code, message: described.message });
         }
 
-        try {
-          await db
-            .update(subscriptions)
-            .set({ cancelAtPeriodEnd: 1, canceledAt: sql`NOW()` })
-            .where(eq(subscriptions.id, subscriptionId));
-        } catch (dbError) {
-          tools.serverLog(
-            `Local cancel-subscription update failed for ${subscriptionId}: ${dbError}`,
-            "pay-cancel-1",
+        // The customer.subscription.updated webhook also records this (and tells
+        // the user); writing it here too makes Settings update immediately.
+        await db
+          .update(subscriptions)
+          .set({ cancelAtPeriodEnd: 1, canceledAt: sql`NOW()` })
+          .where(eq(subscriptions.id, subscriptionRow.id))
+          .catch((dbError) =>
+            tools.serverLog(
+              `Local cancel update failed for ${subscriptionRow.id} (webhook will sync): ${dbError}`,
+              "pay-cancel-1",
+            ),
           );
-          return res.status(500).json({
-            code: 500,
-            message:
-              "Cancellation was recorded with the payment provider, but failed to save locally. Please contact support.",
-          });
-        }
 
         return res.json({
           code: 200,
           message:
-            "Subscription will be cancelled at the end of the current billing period.",
-          subscriptionId,
+            "Your plan won't renew. You'll keep it until the end of this billing period.",
+          subscriptionId: subscriptionRow.id,
           cancel_at_period_end: true,
         });
+      }
+
+      case "resume-subscription": {
+        const found = await findOwnStripeSubscription(req.body?.subscriptionId);
+        if (found.error) return res.status(found.error.code).json(found.error);
+        const subscriptionRow = found.row;
+
+        if (
+          subscriptionRow.status !== 1 ||
+          !subscriptionRow.cancelAtPeriodEnd
+        ) {
+          return res.status(409).json({
+            code: 409,
+            message:
+              subscriptionRow.status !== 1
+                ? "This plan has already ended -- subscribe again to get it back."
+                : "This plan is already set to renew.",
+          });
+        }
+
+        try {
+          await stripe_gateway.subscriptions.update(
+            subscriptionRow.externalId,
+            {
+              cancel_at_period_end: false,
+            },
+          );
+        } catch (stripeError) {
+          tools.serverLog(
+            `Stripe resume-subscription failed for ${subscriptionRow.id}: ${stripeError}`,
+            "pay-resume-0",
+          );
+          const described = describeStripeError(stripeError);
+          return res
+            .status(described.code)
+            .json({ code: described.code, message: described.message });
+        }
+
+        await db
+          .update(subscriptions)
+          .set({ cancelAtPeriodEnd: 0, canceledAt: null })
+          .where(eq(subscriptions.id, subscriptionRow.id))
+          .catch((dbError) =>
+            tools.serverLog(
+              `Local resume update failed for ${subscriptionRow.id} (webhook will sync): ${dbError}`,
+              "pay-resume-1",
+            ),
+          );
+
+        return res.json({
+          code: 200,
+          message: "Your plan will renew as usual.",
+          subscriptionId: subscriptionRow.id,
+          cancel_at_period_end: false,
+        });
+      }
+
+      case "manage-billing": {
+        // Stripe's hosted billing portal: update the card after a failed renewal,
+        // see invoices. Needs the portal enabled in the Stripe dashboard.
+        const found = await findOwnStripeSubscription(req.body?.subscriptionId);
+        if (found.error) return res.status(found.error.code).json(found.error);
+
+        try {
+          const stripeSub = await stripe_gateway.subscriptions.retrieve(
+            found.row.externalId,
+          );
+          const customerId =
+            typeof stripeSub.customer === "string"
+              ? stripeSub.customer
+              : stripeSub.customer?.id;
+          const portal = await stripe_gateway.billingPortal.sessions.create({
+            customer: customerId,
+            return_url: `${(process.env.PAYMENT_RETURN_BASE_URL || "https://suyoapp.com").replace(/\/$/, "")}/payment/billing`,
+          });
+          return res.json({ code: 301, type: "external", url: portal.url });
+        } catch (stripeError) {
+          tools.serverLog(
+            `Stripe billing portal failed for ${found.row.id}: ${stripeError}`,
+            "pay-billing-0",
+          );
+          const described = describeStripeError(stripeError);
+          return res
+            .status(described.code)
+            .json({ code: described.code, message: described.message });
+        }
       }
 
       case "iap-verify": {
@@ -467,9 +630,10 @@ pay_router.post("/:division", async (req, res) => {
         }
 
         if (!variant) {
-          return res
-            .status(404)
-            .json({ code: 404, message: "Product not found or inactive." });
+          return res.status(404).json({
+            code: 404,
+            message: "This item isn't available right now.",
+          });
         }
         if (variant.external_3rdparty_store_product_id !== productId) {
           tools.serverLog(

@@ -35,6 +35,8 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Suyo uses your location to show you nearby matches.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Suyo uses your camera to take a selfie that verifies your profile.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Suyo uses your microphone to record voice messages.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

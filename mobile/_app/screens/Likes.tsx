@@ -25,7 +25,7 @@ import {
   logReport,
 } from '../funcs/functions';
 import { likesBadge } from '../funcs/tabBadges';
-import { useFocusEffect } from '@react-navigation/native';
+import { useLiveRefresh } from '../funcs/useLiveRefresh';
 import { styles, namer, __CONFIG__ } from '../funcs/static';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import { BlurView } from '@react-native-community/blur';
@@ -37,12 +37,17 @@ import { Skeleton } from '../funcs/functions_stateful';
 import { useTheme, ThemeColors } from '../funcs/theme';
 
 type LikesFilter = 'all' | 'messages' | 'verifiedOnly';
+type LikesFilter = 'all' | 'messages' | 'verifiedOnly';
 
 const likesFilters: { id: LikesFilter; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'messages', label: 'Messages' },
+  { id: 'messages', label: 'Messages' },
   { id: 'verifiedOnly', label: 'Verified only' },
 ];
+
+// Likes sent with a direct message (pushDirectMessage).
+const isDirectMessageLike = (item: any) => item?.hasDirectMessage === true;
 
 // Likes sent with a direct message (pushDirectMessage).
 const isDirectMessageLike = (item: any) => item?.hasDirectMessage === true;
@@ -78,6 +83,8 @@ export function Screen_likes({ navigation }: { navigation: any }) {
   const subscriptionState = help.getSubscriptionState(getProfile);
   // Server sends anonymous teaser cards (no id/name/photo) to plans without this.
   const canSeeLikes = subscriptionState.features.seeWhoLikedYou;
+  // Server sends anonymous teaser cards (no id/name/photo) to plans without this.
+  const canSeeLikes = subscriptionState.features.seeWhoLikedYou;
 
   const [getNewLikes, setNewLikes] = useState<any>(null);
   const [activeFilter, setActiveFilter] = useState<LikesFilter>('all');
@@ -96,7 +103,8 @@ export function Screen_likes({ navigation }: { navigation: any }) {
 
   // keep the Likes tab badge in step with the list shown here
   useEffect(() => {
-    if (Array.isArray(getNewLikes)) likesBadge.set(getNewLikes.length);
+    // The list is only a teaser for free plans, so the badge comes from the server.
+    if (Array.isArray(getNewLikes)) likesBadge.refresh();
   }, [getNewLikes]);
 
   // profile
@@ -139,6 +147,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
         </View>
       ),
     });
+  }, [canSeeLikes, navigation, colors.background]);
   }, [canSeeLikes, navigation, colors.background]);
 
   // Calculate responsive layout based on orientation and device width
@@ -211,6 +220,8 @@ export function Screen_likes({ navigation }: { navigation: any }) {
       list = list.filter(isVerifiedLike);
     } else if (activeFilter === 'messages') {
       list = list.filter(isDirectMessageLike);
+    } else if (activeFilter === 'messages') {
+      list = list.filter(isDirectMessageLike);
     } else {
       list = list
         .map((item: any, index: number) => ({ item, index }))
@@ -226,7 +237,9 @@ export function Screen_likes({ navigation }: { navigation: any }) {
 
   const processedLikes = useMemo(() => {
     const maxItems = canSeeLikes ? visibleLikes : 8;
+    const maxItems = canSeeLikes ? visibleLikes : 8;
     return filteredLikes.slice(0, maxItems);
+  }, [canSeeLikes, filteredLikes, visibleLikes]);
   }, [canSeeLikes, filteredLikes, visibleLikes]);
 
   const filteredLikesCount = filteredLikes.length;
@@ -237,6 +250,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
   }, [activeFilter, filteredLikesCount]);
 
   const handleEndReached = useCallback(() => {
+    if (!canSeeLikes) {
     if (!canSeeLikes) {
       setIsLoadingMore(false);
       navigation.navigate(namer.navigation.subscription);
@@ -257,35 +271,36 @@ export function Screen_likes({ navigation }: { navigation: any }) {
       });
     }, 1000);
   }, [canSeeLikes, filteredLikesCount, navigation, visibleLikes]);
+  }, [canSeeLikes, filteredLikesCount, navigation, visibleLikes]);
 
-  // Fetch new likes when screen is focused
-  useFocusEffect(
-    React.useCallback(() => {
-      _http_request({
-        reqType: 'POST',
-        customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getLikes',
-      })
-        .then((response: any) => {
-          setTimeout(
-            () => {
-              setNewLikes((prev: any) => {
-                const incoming = response?.likedlist;
-                if (
-                  incoming === null ||
-                  incoming === undefined ||
-                  !Array.isArray(incoming)
-                ) {
-                  return prev ?? [];
-                }
-                return incoming;
-              });
-            },
-            getNewLikes ? 0 : 1000,
-          );
-        })
-        .finally(() => {});
-    }, []),
-  );
+  // Likes stay current through the socket (lists-changed / new-like) rather
+  // than refetching on every visit -- see funcs/useLiveRefresh.ts.
+  const hasLoadedLikes = useRef(false);
+  const loadLikes = useCallback(() => {
+    _http_request({
+      reqType: 'POST',
+      customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getLikes',
+    }).then((response: any) => {
+      setTimeout(
+        () => {
+          setNewLikes((prev: any) => {
+            const incoming = response?.likedlist;
+            if (
+              incoming === null ||
+              incoming === undefined ||
+              !Array.isArray(incoming)
+            ) {
+              return prev ?? [];
+            }
+            return incoming;
+          });
+        },
+        hasLoadedLikes.current ? 0 : 1000,
+      );
+      hasLoadedLikes.current = true;
+    });
+  }, []);
+  useLiveRefresh('likes-screen', loadLikes);
 
   if (getNewLikes === null) {
     const skeletonWidth = Dimensions.get('window').width;
@@ -370,6 +385,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                       />
                       <Text style={{ color: '#fff', fontWeight: '700' }}>
                         {canSeeLikes ? 'Boost visibility' : 'Unlock all likes'}
+                        {canSeeLikes ? 'Boost visibility' : 'Unlock all likes'}
                       </Text>
                     </Pressable>
                   </View>
@@ -428,6 +444,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                   onPress={() => {
                     navigation.navigate(
                       canSeeLikes
+                      canSeeLikes
                         ? namer.navigation.peoplesOnePerson
                         : namer.navigation.subscription,
                       {
@@ -446,6 +463,9 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                           uri: item?.likedUserImages?.p
                             ? __MAPPER?.img_domain + item.likedUserImages.p
                             : undefined,
+                          uri: item?.likedUserImages?.p
+                            ? __MAPPER?.img_domain + item.likedUserImages.p
+                            : undefined,
                         }}
                         onError={() => {
                           return logReport({
@@ -459,6 +479,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                         }}
                       />
                       {!canSeeLikes && (
+                      {!canSeeLikes && (
                         <BlurView
                           pointerEvents="none"
                           style={StyleSheet.absoluteFill}
@@ -469,6 +490,26 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                       )}
                     </View>
                     <View style={stylesoy.topChips}>
+                      {isDirectMessageLike(item) && (
+                        <View
+                          style={[
+                            stylesoy.pill,
+                            {
+                              backgroundColor: colors.primary,
+                              opacity: 0.95,
+                            },
+                          ]}
+                        >
+                          <IIcon
+                            name="chatbubble-ellipses"
+                            size={15}
+                            color="#fff"
+                          />
+                          <Text style={[stylesoy.pillText, { color: '#fff' }]}>
+                            Message
+                          </Text>
+                        </View>
+                      )}
                       {isDirectMessageLike(item) && (
                         <View
                           style={[
@@ -543,7 +584,29 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                           ? item.likedUserFullname + ', '
                           : '••••••, '}
                         {help.getageFromDOB(item?.likedUserDob)}
+                        {canSeeLikes && item?.likedUserFullname
+                          ? item.likedUserFullname + ', '
+                          : '••••••, '}
+                        {help.getageFromDOB(item?.likedUserDob)}
                       </Text>
+                      {item?.hasDirectMessage && (
+                        <View style={stylesoy.dmRow}>
+                          <IIcon
+                            name="chatbubble-ellipses"
+                            size={12}
+                            color="#fff"
+                          />
+                          <Text style={stylesoy.dmText} numberOfLines={2}>
+                            {canSeeLikes && item?.directMessage
+                              ? (item.directMessageOn === 'photo'
+                                  ? 'On your photo: '
+                                  : item.directMessageOn === 'about'
+                                  ? 'On your About: '
+                                  : '') + item.directMessage
+                              : 'Sent you a message'}
+                          </Text>
+                        </View>
+                      )}
                       {item?.hasDirectMessage && (
                         <View style={stylesoy.dmRow}>
                           <IIcon
@@ -603,6 +666,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
             removeClippedSubviews={false}
           />
 
+          {!canSeeLikes && (
           {!canSeeLikes && (
             <View
               style={{
@@ -727,6 +791,19 @@ function createStylesoy(colors: ThemeColors) {
       fontWeight: '700',
       color: '#fff',
       marginBottom: 4,
+    },
+    dmRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 5,
+      marginBottom: 2,
+    },
+    dmText: {
+      flex: 1,
+      fontSize: 12,
+      lineHeight: 16,
+      color: '#fff',
+      fontStyle: 'italic',
     },
     dmRow: {
       flexDirection: 'row',

@@ -5,16 +5,18 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  Alert,
   Animated,
   Dimensions,
   Platform,
 } from 'react-native';
+import { Dialogx } from '../funcs/customDialog';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { cacheStorage, parseCategoryProducts } from '../funcs/functions';
+import { cacheStorage, parseCategoryProducts } from '../funcs/functions';
 import { Loaderx } from '../funcs/functions_stateful';
 import { purchaseNative } from '../funcs/iap';
+import { startWebOnetimeCheckout } from '../funcs/customConsumableSheet';
 import { startWebOnetimeCheckout } from '../funcs/customConsumableSheet';
 import { namer, __CONFIG__ } from '../funcs/static';
 
@@ -65,6 +67,8 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
     productCategory === namer.productCategoryName.superlike;
   const requestedMatchId = route?.params?.matchId;
   const isRewindCategory = productCategory === namer.productCategoryName.rewind;
+  const isDirectMessageCategory =
+    productCategory === namer.productCategoryName.directmessage;
   const isDirectMessageCategory =
     productCategory === namer.productCategoryName.directmessage;
 
@@ -144,6 +148,13 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
       matchId: requestedMatchId,
     }).then(ok => {
       if (ok) setShowConfirm(false);
+    if (!variantId) return;
+    startWebOnetimeCheckout({
+      sku: selectedProduct.sku,
+      variantId,
+      matchId: requestedMatchId,
+    }).then(ok => {
+      if (ok) setShowConfirm(false);
     });
   };
 
@@ -168,11 +179,21 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
 
     if (result.code === 200) {
       setShowConfirm(false);
-      Alert.alert('Success', 'Your purchase was completed.');
+      Dialogx.alert(
+        'Purchase complete',
+        'Your purchase was added to your account.',
+        undefined,
+        {
+          tone: 'success',
+          icon: 'gift',
+        },
+      );
     } else if (result.code !== 499) {
-      Alert.alert(
-        'Error',
-        result.message ?? 'Purchase failed. Please try again.',
+      Dialogx.alert(
+        "Purchase didn't go through",
+        result.message ?? 'Please try again. You have not been charged.',
+        undefined,
+        { tone: 'error' },
       );
     }
   };
@@ -305,6 +326,8 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
                   ? 'arrow-undo'
                   : isDirectMessageCategory
                   ? 'chatbubble-ellipses'
+                  : isDirectMessageCategory
+                  ? 'chatbubble-ellipses'
                   : 'flash'
               }
               size={24}
@@ -319,6 +342,8 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
                   ? 'Spend roses on Super Likes'
                   : isRewindCategory
                   ? 'Recover a match you passed on'
+                  : isDirectMessageCategory
+                  ? 'Message someone before you match'
                   : isDirectMessageCategory
                   ? 'Message someone before you match'
                   : 'Boost your profile visibility')}
@@ -430,6 +455,8 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
                   ? 'arrow-undo'
                   : isDirectMessageCategory
                   ? 'chatbubble-ellipses'
+                  : isDirectMessageCategory
+                  ? 'chatbubble-ellipses'
                   : 'flash'
               }
               size={48}
@@ -443,6 +470,8 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
               ? 'Rewind'
               : isDirectMessageCategory
               ? 'Direct Messages'
+              : isDirectMessageCategory
+              ? 'Direct Messages'
               : 'Super Likes'}
           </Text>
           <Text style={styles.subtitle}>
@@ -450,6 +479,8 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
               ? 'Roses are spent on Super Likes to get noticed instantly'
               : isRewindCategory
               ? 'Recover a match you accidentally passed on'
+              : isDirectMessageCategory
+              ? 'Message someone before you match — it lands in their Likes with your like'
               : isDirectMessageCategory
               ? 'Message someone before you match — it lands in their Likes with your like'
               : 'Get noticed instantly by more people'}

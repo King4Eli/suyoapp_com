@@ -51,6 +51,9 @@ jobs:
         with:
           context: ${{ matrix.context }}
           push: true
+          # api reads it as BUILD_HASH and stamps it on every log row
+          build-args: |
+            BUILD_HASH=${{ github.sha }}
           tags: |
             ${{ matrix.registry_image }}:latest
             ${{ matrix.registry_image }}:${{ github.sha }}
@@ -115,6 +118,9 @@ jobs:
           script_stop: true
           script: |
             cd ${{ secrets.DEPLOY_PATH }}
+            # Run exactly the images this workflow just built, not whatever
+            # :latest happens to point at by the time the pull runs.
+            export IMAGE_TAG=${{ github.sha }}
             # Migrate and seed before the new api starts.
             # A failure aborts here and leaves the old containers running.
             docker compose -f docker-compose.yml run --rm --no-deps suyoapp_com_api sh -c \

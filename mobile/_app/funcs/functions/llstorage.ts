@@ -426,6 +426,34 @@ export class cacheStorage {
 
   // Full mapper payload: every mapping_lookup row keyed by map_type, e.g. __MAPPER.bio_gender
   private static tempMapper: any = null;
+
+  /**
+   * Drops everything cached from the server whose shape or content can change
+   * with an API release -- profile, products, both mappers, cached chats -- from
+   * memory and storage. Session, theme, device info and the log queue are kept.
+   * Called when the API build changes (functions/apiBuild.ts).
+   */
+  public static clearServerCaches = async (): Promise<void> => {
+    cacheStorage.profileMemoryCache = null;
+    cacheStorage.profileLoadingPromise = null;
+    cacheStorage.productsMemoryCache = null;
+    cacheStorage.productsLoadingPromise = null;
+    cacheStorage.mapperMemoryCache = null;
+    cacheStorage.mapperLoadingPromise = null;
+    try {
+      const keys = await AsyncStorage.getAllKeys();
+      const chatKeys = keys.filter(k => k.startsWith('convo:'));
+      await AsyncStorage.multiRemove([
+        namer.storage.currentUserProfile,
+        namer.storage.products,
+        namer.storage.mapper,
+        namer.storage.mapper_payload,
+        ...chatKeys,
+      ]);
+    } catch (error) {
+      console.error('clearServerCaches failed:', error);
+    }
+  };
   public static CONFIG = {
     get: (): { mapper: any } => {
       return { mapper: cacheStorage.tempMapper };

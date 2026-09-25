@@ -4,6 +4,10 @@ import {
   getActiveSubscription,
   getEntitlements,
 } from "../../global/entitlements.js";
+import {
+  getActiveSubscription,
+  getEntitlements,
+} from "../../global/entitlements.js";
 
 /**
  * Lightweight entitlement snapshot, meant to be polled by the frontend right
@@ -17,11 +21,12 @@ export default async function getEntitlement() {
     subscription: null,
     hasActiveSubscription: false,
     entitlements: null,
+    entitlements: null,
   };
   try {
     const subscription = await getActiveSubscription(sessions.currentUserID);
     response.subscription = subscription;
-    response.hasActiveSubscription = subscription !== null;
+    response.hasActiveSubscription = subscription?.status === "active";
     response.entitlements = await getEntitlements(sessions.currentUserID);
   } catch (err) {
     tools.serverLog(`Error in getEntitlement: ${err}`, "getEntitlement-0");

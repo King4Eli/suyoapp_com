@@ -3,6 +3,7 @@ import { db } from "../../db/client.js";
 import { conversations, matches } from "../../db/schema.js";
 import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
+import { pushBadgeCounts } from "../../global/badges.js";
 
 /**
  * `allowPending` is internal-only (pushDirectMessage): the router never passes it,
@@ -181,7 +182,7 @@ export default async function pushConversation(
         if (recipientPresent) {
           await db
             .update(conversations)
-            .set({ convoStatus: "1" })
+            .set({ convoStatus: "1", convoDateUpdated: sql`UNIX_TIMESTAMP()` })
             .where(
               and(
                 inArray(conversations.convoId, insertedConvoIds),
@@ -199,6 +200,9 @@ export default async function pushConversation(
           "pushConversation-200",
         );
       }
+      // The recipient's Chats badge (unless they read it live, above), and both
+      // sides' chat lists (new last-message preview).
+      pushBadgeCounts(io, recipientID, sessions.currentUserID);
     }
   } catch (err) {
     tools.serverLog(

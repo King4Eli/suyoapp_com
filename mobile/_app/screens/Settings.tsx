@@ -10,7 +10,6 @@ import {
   Text,
   StyleSheet,
   Linking,
-  Alert,
   Share,
   TouchableOpacity,
   TextInput,
@@ -19,6 +18,8 @@ import {
   KeyboardAvoidingView,
   ScrollView,
 } from 'react-native';
+import { Dialogx } from '../funcs/customDialog';
+import { getApiBuild } from '../funcs/functions/apiBuild';
 import { sessionManager } from '../funcs/SessionContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { namer, styles, __CONFIG__ } from '../funcs/static';
@@ -38,6 +39,11 @@ import { Toastx } from '../funcs/customNotification';
 import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
 import { bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import { useTheme, ThemeMode, ThemeColors } from '../funcs/theme';
+import {
+  SubscriptionCard,
+  confirmCancelPlan,
+  describePlan,
+} from '../funcs/customSubscriptionCard';
 
 export function Screen_settings({ navigation }: { navigation: any }) {
   const [getProfile, setProfile] = useState<any>(null);
@@ -53,13 +59,16 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   const [notifyEmailEnabled, setNotifyEmailEnabled] = useState(true);
 
   const subscriptionState = help.getSubscriptionState(getProfile);
-  const activeSubscription = subscriptionState.hasActive;
+  const currentPlan = describePlan(getProfile);
+  // Which API build answered last (X-Api-Build), shown under the app version.
+  const [apiBuild, setApiBuild] = useState<string | null>(null);
+  useEffect(() => {
+    getApiBuild().then(setApiBuild);
+  }, []);
   const profileDetails = getProfile?.profile ?? {};
   const profileEmail = profileDetails?.email ?? getProfile?.user_email ?? '';
   const profilePhone =
     profileDetails?.phonenumber ?? getProfile?.user_phonenumber ?? '';
-  const profileName =
-    profileDetails?.fullname ?? getProfile?.user_fullname ?? 'User';
 
   // Bottom sheet refs with larger snap points for keyboard
   const bottomSheetRef_push = {
@@ -90,6 +99,17 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     pushEnabled: true,
     emailEnabled: true,
   };
+
+  // Plan changes (checkout, renewal, cancel) refresh the cached profile elsewhere;
+  // pick them up whenever Settings comes back into view.
+  useEffect(() => {
+    return navigation.addListener('focus', () => {
+      cacheStorage
+        .getCurrentUserProfile()
+        .then((profile: any) => profile && setProfile(profile))
+        .catch(() => {});
+    });
+  }, [navigation]);
 
   useEffect(() => {
     let mounted = true;
@@ -265,47 +285,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     }
   };
 
-  // Profile header with modern design
-  const ProfileHeader = () => (
-    <View
-      style={{
-        backgroundColor: colors.primary,
-        padding: 10,
-        marginTop: 2,
-        borderRadius: 15,
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
-      }}
-    >
-      <View style={modernStyles.avatarContainer}>
-        <View style={modernStyles.avatar}>
-          <Text style={modernStyles.avatarText}>
-            {profileName?.charAt(0) || 'U'}
-          </Text>
-        </View>
-        {activeSubscription && (
-          <View style={modernStyles.premiumBadge}>
-            <Feather name="star" size={12} color="#FFF" />
-          </View>
-        )}
-      </View>
-      <View style={modernStyles.profileDetails}>
-        <Text
-          style={{
-            fontSize: 22,
-            fontWeight: 'bold',
-            color: '#FFFFFF',
-            marginBottom: 4,
-            textTransform: 'capitalize',
-          }}
-        >
-          {profileName}
-        </Text>
-      </View>
-    </View>
-  );
-
   // Modern card component
   const ModernCard = ({ children, style }: any) => (
     <View style={[modernStyles.card, style]}>{children}</View>
@@ -404,11 +383,23 @@ export function Screen_settings({ navigation }: { navigation: any }) {
       <TouchableOpacity
         onPress={() => {
           if (premiumLock && !subscriptionState.features.readReceipts) {
-            Toastx.show({
-              type: 'warning',
-              message: 'Upgrade to VIP to unlock this feature',
-              duration: 3000,
-            });
+            Dialogx.alert(
+              'This is a VIP perk',
+              `Upgrade to VIP to turn on ${
+                title?.toLowerCase?.() ?? 'this feature'
+              }.`,
+              [
+                { text: 'Not now', style: 'cancel' },
+                {
+                  text: 'See VIP',
+                  onPress: () =>
+                    navigation.navigate(namer.navigation.subscription, {
+                      tab: 'vip',
+                    }),
+                },
+              ],
+              { tone: 'info', icon: 'star' },
+            );
           } else {
             onValueChange(!value);
           }
@@ -420,6 +411,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
             modernStyles.switchTrack,
             value && modernStyles.switchTrackActive,
             premiumLock &&
+              !subscriptionState.features.readReceipts &&
               !subscriptionState.features.readReceipts &&
               modernStyles.switchTrackDisabled,
           ]}
@@ -767,10 +759,12 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                     });
 
                     if (response?.code === 200) {
-                      Toastx.show({
-                        type: 'success',
-                        message: 'Email updated successfully!',
-                      });
+                      Dialogx.alert(
+                        'Email updated',
+                        'Receipts and account emails will go to your new address from now on.',
+                        undefined,
+                        { tone: 'success', icon: 'mail' },
+                      );
                       onComplete();
                     } else {
                       setError(
@@ -1087,10 +1081,12 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                     });
 
                     if (response?.code === 200) {
-                      Toastx.show({
-                        type: 'success',
-                        message: 'Phone number updated successfully!',
-                      });
+                      Dialogx.alert(
+                        'Phone number updated',
+                        'Use your new number the next time you sign in.',
+                        undefined,
+                        { tone: 'success', icon: 'call' },
+                      );
                       onComplete();
                     } else {
                       setError(
@@ -1176,7 +1172,11 @@ export function Screen_settings({ navigation }: { navigation: any }) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.conainerScrollView}
         >
-          <ProfileHeader />
+          <SubscriptionCard
+            profile={getProfile}
+            navigation={navigation}
+            onChanged={setProfile}
+          />
 
           <View style={[{ paddingVertical: 20 }]}>
             {/* Quick Actions */}
@@ -1262,13 +1262,39 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               />
             </ModernSection>
 
-            {/* Logout & Delete Section */}
+            {/* Red zone: things that end something */}
             <View style={modernStyles.dangerSection}>
               <ModernCard>
+                {currentPlan.sub && !currentPlan.cancelPending && (
+                  <ModernOption
+                    icon="close-circle-outline"
+                    title="Cancel Subscription"
+                    subtitle={
+                      currentPlan.platform === 1
+                        ? `${currentPlan.title} · stops renewing, you keep it until the period ends`
+                        : `${currentPlan.title} · managed in ${
+                            currentPlan.platform === 2
+                              ? 'the App Store'
+                              : 'Google Play'
+                          }`
+                    }
+                    onPress={() => confirmCancelPlan(getProfile, setProfile)}
+                    danger
+                  />
+                )}
+
                 <ModernOption
                   icon="log-out-outline"
                   title="Log Out"
                   onPress={async () => {
+                    const ok = await Dialogx.confirm({
+                      title: 'Log out?',
+                      message: "You'll need your phone number to sign back in.",
+                      confirmText: 'Log out',
+                      destructive: true,
+                      icon: 'log-out-outline',
+                    });
+                    if (!ok) return;
                     await AsyncStorage.removeItem(namer.storage.sessionId);
                     sessionManager.updateSession({ x_omi_payload: null });
                     if (navigation.canGoBack()) navigation.goBack();
@@ -1279,48 +1305,50 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 <ModernOption
                   icon="trash-outline"
                   title="Delete Account"
-                  onPress={() => {
-                    Alert.alert(
-                      'Delete Account?',
-                      'This action cannot be undone. Your profile will be deleted immediately.',
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        {
-                          text: 'Delete',
-                          style: 'destructive',
-                          onPress: async () => {
-                            try {
-                              const response = await _http_request({
-                                customApiUrl:
-                                  __CONFIG__.HTTPS_API_DOMAIN +
-                                  '/api/core/v1/pushDeleteAccount',
-                                reqType: 'POST',
-                                bodyArray: { reason: 'user_requested' },
-                              });
-                              if (response?.code !== 200) {
-                                throw new Error(
-                                  response?.message ??
-                                    'Unable to delete account.',
-                                );
-                              }
-                              await AsyncStorage.removeItem(
-                                namer.storage.sessionId,
-                              );
-                              sessionManager.updateSession({
-                                x_omi_payload: null,
-                              });
-                              if (navigation.canGoBack()) navigation.goBack();
-                            } catch (err: any) {
-                              Toastx.show({
-                                type: 'error',
-                                message:
-                                  err?.message ?? 'Unable to delete account.',
-                              });
-                            }
-                          },
-                        },
-                      ],
-                    );
+                  onPress={async () => {
+                    // A live plan changes what deleting means -- say so up front.
+                    const planNote = !currentPlan.sub
+                      ? ''
+                      : currentPlan.platform === 1
+                      ? `\n\nYour ${currentPlan.title} plan will be cancelled right away and you won't be charged again.`
+                      : `\n\nYour ${currentPlan.title} plan is billed through ${
+                          currentPlan.platform === 2
+                            ? 'the App Store'
+                            : 'Google Play'
+                        } -- cancel it there too, or you'll keep being charged.`;
+                    const ok = await Dialogx.confirm({
+                      title: 'Delete your account?',
+                      message: `This can't be undone. Your profile, matches and messages will be deleted immediately.${planNote}`,
+                      confirmText: 'Delete account',
+                      cancelText: 'Keep account',
+                      destructive: true,
+                      icon: 'trash',
+                    });
+                    if (!ok) return;
+                    try {
+                      const response = await _http_request({
+                        customApiUrl:
+                          __CONFIG__.HTTPS_API_DOMAIN +
+                          '/api/core/v1/pushDeleteAccount',
+                        reqType: 'POST',
+                        bodyArray: { reason: 'user_requested' },
+                      });
+                      if (response?.code !== 200) {
+                        throw new Error(
+                          response?.message ?? 'Unable to delete account.',
+                        );
+                      }
+                      await AsyncStorage.removeItem(namer.storage.sessionId);
+                      sessionManager.updateSession({ x_omi_payload: null });
+                      if (navigation.canGoBack()) navigation.goBack();
+                    } catch (err: any) {
+                      Dialogx.alert(
+                        "Your account wasn't deleted",
+                        err?.message ?? 'Please try again.',
+                        undefined,
+                        { tone: 'error' },
+                      );
+                    }
                   }}
                   danger
                   hr={false}
@@ -1347,6 +1375,9 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               <Text style={modernStyles.versionText}>
                 {DeviceInfo.getVersion()}:{DeviceInfo.getBuildNumber()}
               </Text>
+              {apiBuild && (
+                <Text style={modernStyles.versionSubText}>API: {apiBuild}</Text>
+              )}
             </View>
           </View>
         </ScrollView>
@@ -1653,41 +1684,6 @@ function createModernStyles(colors: ThemeColors) {
       backgroundColor: colors.primary,
       width: 12,
     },
-    avatarContainer: {
-      position: 'relative',
-    },
-    avatar: {
-      width: 70,
-      height: 70,
-      borderRadius: 35,
-      backgroundColor: 'rgba(255, 255, 255, 0.2)',
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 3,
-      borderColor: 'rgba(255, 255, 255, 0.3)',
-    },
-    avatarText: {
-      fontSize: 28,
-      fontWeight: 'bold',
-      color: '#FFFFFF',
-    },
-    premiumBadge: {
-      position: 'absolute',
-      bottom: -2,
-      right: -2,
-      backgroundColor: colors.premium,
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 2,
-      borderColor: '#FFFFFF',
-    },
-    profileDetails: {
-      marginLeft: 16,
-      flex: 1,
-    },
     profileSubtitle: {
       fontSize: 14,
       color: 'rgba(255, 255, 255, 0.8)',
@@ -1921,6 +1917,11 @@ function createModernStyles(colors: ThemeColors) {
       fontSize: 14,
       color: colors.textSecondary,
       marginBottom: 4,
+    },
+    versionSubText: {
+      fontSize: 12,
+      color: colors.textTertiary,
+      fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     },
   });
 }

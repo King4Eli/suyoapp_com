@@ -1,12 +1,18 @@
 name: suyoapp_com
 services:
   suyoapp_com_api:
-    build: ./api
+    build:
+      context: ./api
+      args:
+        # local builds report "dev" in logs; CI bakes the commit sha
+        BUILD_HASH: ${BUILD_HASH:-dev}
     volumes:
       - ./api:/app
     command: npm run http-dev
     environment:
       - NODE_TLS_REJECT_UNAUTHORIZED=0
+    ports:
+      - "9054:80"
 
   suyoapp_com_admin:
     build: ./admin
@@ -18,3 +24,8 @@ services:
       context: ./web
       target: build
     command: npm run dev -- --host 0.0.0.0
+
+  suyoapp_com_llm:
+    # reachable from the host for trying prompts: curl localhost:11434/api/tags
+    ports:
+      - "127.0.0.1:11434:11434"

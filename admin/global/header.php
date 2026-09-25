@@ -7,6 +7,7 @@ $nav_items = [
     'users' => ['Users', 'users.php'],
     'devices' => ['Devices', 'devices.php'],
     'user_reports' => ['User Reports', 'user_reports.php'],
+    'verifications' => ['Verifications', 'verifications.php'],
     'applogs' => ['App Logs', 'applogs.php'],
     'logout' => ['Logout', '?logout=true'],
 ];

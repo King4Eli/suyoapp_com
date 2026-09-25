@@ -21,6 +21,7 @@ import {
 } from 'react-native';
 import { Loaderx } from '../funcs/functions_stateful';
 import { useFocusEffect } from '@react-navigation/native';
+import { useLiveRefresh } from '../funcs/useLiveRefresh';
 import { namer, resourceMap, styles, __CONFIG__ } from '../funcs/static';
 import {
   _http_request,
@@ -28,6 +29,7 @@ import {
   help,
   logReport,
 } from '../funcs/functions';
+import { chatsBadge, countUnreadChats } from '../funcs/tabBadges';
 import { chatsBadge, countUnreadChats } from '../funcs/tabBadges';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import MIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -60,6 +62,10 @@ export function Screen_chat({ navigation }: { navigation: any }) {
     w: string;
     h: string;
   }>({ p: '', w: '', h: '' });
+  const subscriptionState = help.getSubscriptionState(getProfile);
+  const activeSubscription = subscriptionState.hasActive;
+  // The server only sends the latest liker's photo to plans with this feature.
+  const canSeeLikes = subscriptionState.features.seeWhoLikedYou;
   const subscriptionState = help.getSubscriptionState(getProfile);
   const activeSubscription = subscriptionState.hasActive;
   // The server only sends the latest liker's photo to plans with this feature.
@@ -361,6 +367,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
                   progressiveRenderingEnabled={true}
                   blurRadius={
                     canSeeLikes ? 0 : Platform.OS === 'android' ? 60 : 30
+                    canSeeLikes ? 0 : Platform.OS === 'android' ? 60 : 30
                   }
                   style={{
                     width: '100%',
@@ -370,6 +377,9 @@ export function Screen_chat({ navigation }: { navigation: any }) {
                   }}
                   source={{
                     cache: 'default',
+                    uri: getImageLikes?.p
+                      ? imageDomain + getImageLikes.p
+                      : undefined,
                     uri: getImageLikes?.p
                       ? imageDomain + getImageLikes.p
                       : undefined,
@@ -544,6 +554,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
     );
   }, [
     canSeeLikes,
+    canSeeLikes,
     bounceInterpolate,
     getCountLikes,
     getNewMatches,
@@ -556,69 +567,74 @@ export function Screen_chat({ navigation }: { navigation: any }) {
     navigation,
   ]);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      _http_request({
-        customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getChatLists',
-        reqType: 'POST',
-      }).then((response: any) => {
-        setTimeout(
-          () => {
-            Loaderx.hide();
-            setNewMatches((prev: any) => {
-              const incoming = response?.chatsListings?.withoutmessages;
-              if (
-                incoming === null ||
-                incoming === undefined ||
-                !Array.isArray(incoming)
-              ) {
-                return prev ?? [];
-              }
-              return incoming;
-            });
-            const unreadChats = countUnreadChats(
-              response?.chatsListings?.withmessages,
-            );
-            if (Number.isFinite(unreadChats)) chatsBadge.set(unreadChats);
-            setEngagedMessages((prev: any) => {
-              const incoming = response?.chatsListings?.withmessages;
-              if (
-                incoming === null ||
-                incoming === undefined ||
-                !Array.isArray(incoming)
-              ) {
-                return prev ?? [];
-              }
-              return incoming;
-            });
-            setCountLikes((prev: number) => {
-              const incoming = response?.chatsListings?.countLikes;
-              if (
-                incoming === null ||
-                incoming === undefined ||
-                incoming === ''
-              ) {
-                return prev;
-              }
-              return incoming;
-            });
-            setImageLikes((prev: {}) => {
-              const incoming = response?.chatsListings?.imageLikes;
-              if (
-                incoming === null ||
-                incoming === undefined ||
-                incoming === ''
-              ) {
-                return prev;
-              }
-              return incoming;
-            });
-          },
-          getNewMatches ? 0 : 1000,
-        );
-      });
-    }, []),
-  );
+  // Matches and chats stay current through the socket (lists-changed, new
+  // messages/matches) rather than refetching on every visit -- see
+  // funcs/useLiveRefresh.ts.
+  const hasLoadedChats = useRef(false);
+  const loadChats = useCallback(() => {
+    _http_request({
+      customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getChatLists',
+      reqType: 'POST',
+    }).then((response: any) => {
+      setTimeout(
+        () => {
+          Loaderx.hide();
+          setNewMatches((prev: any) => {
+            const incoming = response?.chatsListings?.withoutmessages;
+            if (
+              incoming === null ||
+              incoming === undefined ||
+              !Array.isArray(incoming)
+            ) {
+              return prev ?? [];
+            }
+            return incoming;
+          });
+          const unreadChats = countUnreadChats(
+            response?.chatsListings?.withmessages,
+          );
+          if (Number.isFinite(unreadChats))
+            chatsBadge.set(Math.min(unreadChats, 10));
+          setEngagedMessages((prev: any) => {
+            const incoming = response?.chatsListings?.withmessages;
+            if (
+              incoming === null ||
+              incoming === undefined ||
+              !Array.isArray(incoming)
+            ) {
+              return prev ?? [];
+            }
+            return incoming;
+          });
+          setCountLikes((prev: number) => {
+            const incoming = response?.chatsListings?.countLikes;
+            if (
+              incoming === null ||
+              incoming === undefined ||
+              incoming === ''
+            ) {
+              return prev;
+            }
+            return incoming;
+          });
+          setImageLikes((prev: {}) => {
+            const incoming = response?.chatsListings?.imageLikes;
+            if (
+              incoming === null ||
+              incoming === undefined ||
+              incoming === ''
+            ) {
+              return prev;
+            }
+            return incoming;
+          });
+        },
+        hasLoadedChats.current ? 0 : 1000,
+      );
+      hasLoadedChats.current = true;
+    });
+  }, []);
+  useLiveRefresh('chats-screen', loadChats);
 
   if (getNewMatches === null) {
     return (
