@@ -20,12 +20,12 @@ import { Auth_Login } from './Auth_Login';
 import { Loaderx } from '../funcs/functions_stateful';
 import { Screen_settings } from './Settings';
 import { Screen_editprofile } from './ProfileEdit';
+import { Screen_profileVerify } from './ProfileVerify';
 import { Screen_editProfilePrompts } from './ProfileEditPrompts';
 import { Screen_editProfileInterests } from './ProfileEditInterests';
 import { sessionManager, SessionTypes } from '../funcs/SessionContext';
 import { Screen_editpreference } from './PreferenceEdit';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Zz_nofilee } from './zz_nofilee';
 import { namer, resourceMap } from '../funcs/static';
 import { Screen_PurchaseSubscribe } from './Purchase_Subscribe';
 import {
@@ -35,10 +35,12 @@ import {
   navigationRef,
 } from '../funcs/functions';
 import { SocketClient } from '../funcs/socket_realtimeData';
+import { chatsBadge, likesBadge, useBadgeCount } from '../funcs/tabBadges';
 import { Linking, StatusBar, View } from 'react-native';
 import { ThemeProvider, useTheme } from '../funcs/theme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Toastx } from '../funcs/customNotification';
+import { Dialogx } from '../funcs/customDialog';
 import LottieView from 'lottie-react-native';
 import { Zz_devv } from './zz_devv';
 import { Auth_Signup } from './Auth_Signup';
@@ -134,47 +136,54 @@ const MainApp: React.FC = () => {
     };
   }, []); // Runs only once on mount
 
-  const BottomTabNavigator = () => (
-    <TabBottom.Navigator
-      initialRouteName={namer.navigation.peoples}
-      screenOptions={{ tabBarShowLabel: true }}
-    >
-      <TabBottom.Screen
-        name={namer.navigation.likes}
-        component={Screen_likes}
-        options={{
-          tabBarLabel: 'Likes',
-          tabBarIcon: () => (
-            <IIcon name="heart-half-outline" size={32} color="#4F8EF7" />
-          ),
-        }}
-      />
-      <TabBottom.Screen
-        name={namer.navigation.chat}
-        component={Screen_chat}
-        options={{
-          tabBarLabel: 'Chat',
-          tabBarIcon: () => (
-            <IIcon
-              name="chatbubble-ellipses-outline"
-              size={30}
-              color="#4F8EF7"
-            />
-          ),
-          headerTitleAlign: 'center',
-        }}
-      />
-      <TabBottom.Screen
-        name={namer.navigation.peoples}
-        component={Peoples_Screen}
-        options={{
-          tabBarLabel: 'Peoples',
-          tabBarIcon: () => (
-            <MIcon name="cards-outline" size={30} color="#4F8EF7" />
-          ),
-        }}
-      />
-      {/*<TabBottom.Screen
+  const BottomTabNavigator = () => {
+    const likesCount = useBadgeCount(likesBadge);
+    const chatsCount = useBadgeCount(chatsBadge);
+    return (
+      <TabBottom.Navigator
+        initialRouteName={namer.navigation.peoples}
+        screenOptions={{ tabBarShowLabel: true }}
+      >
+        <TabBottom.Screen
+          name={namer.navigation.likes}
+          component={Screen_likes}
+          options={{
+            tabBarLabel: 'Likes',
+            tabBarBadge:
+              likesCount > 0 ? (likesCount > 9 ? '9+' : likesCount) : undefined,
+            tabBarIcon: () => (
+              <IIcon name="heart-half-outline" size={32} color="#4F8EF7" />
+            ),
+          }}
+        />
+        <TabBottom.Screen
+          name={namer.navigation.chat}
+          component={Screen_chat}
+          options={{
+            tabBarLabel: 'Chat',
+            tabBarBadge:
+              chatsCount > 0 ? (chatsCount > 9 ? '9+' : chatsCount) : undefined,
+            tabBarIcon: () => (
+              <IIcon
+                name="chatbubble-ellipses-outline"
+                size={30}
+                color="#4F8EF7"
+              />
+            ),
+            headerTitleAlign: 'center',
+          }}
+        />
+        <TabBottom.Screen
+          name={namer.navigation.peoples}
+          component={Peoples_Screen}
+          options={{
+            tabBarLabel: 'Peoples',
+            tabBarIcon: () => (
+              <MIcon name="cards-outline" size={30} color="#4F8EF7" />
+            ),
+          }}
+        />
+        {/*<TabBottom.Screen
         name={namer.navigation.feed}
         component={Screen_feed}
         options={{
@@ -185,18 +194,19 @@ const MainApp: React.FC = () => {
         }}
       />*/}
 
-      <TabBottom.Screen
-        name={namer.navigation.profile}
-        component={Screen_profile}
-        options={{
-          tabBarLabel: 'Profile',
-          tabBarIcon: () => (
-            <IIcon name="person-outline" size={30} color="#4F8EF7" />
-          ),
-        }}
-      />
-    </TabBottom.Navigator>
-  );
+        <TabBottom.Screen
+          name={namer.navigation.profile}
+          component={Screen_profile}
+          options={{
+            tabBarLabel: 'Profile',
+            tabBarIcon: () => (
+              <IIcon name="person-outline" size={30} color="#4F8EF7" />
+            ),
+          }}
+        />
+      </TabBottom.Navigator>
+    );
+  };
 
   if (getAllGood === false) {
     return (
@@ -275,6 +285,11 @@ const MainApp: React.FC = () => {
                 options={{ headerBackTitle: '' }}
               />
               <Stack.Screen
+                name={namer.navigation.verifyProfile}
+                component={Screen_profileVerify}
+                options={{ headerBackTitle: '' }}
+              />
+              <Stack.Screen
                 name={namer.navigation.editpreference}
                 component={Screen_editpreference}
               />
@@ -334,11 +349,6 @@ const MainApp: React.FC = () => {
             component={Zz_devv}
             options={{}}
           />
-          <Stack.Screen
-            name={'zz_nofile'}
-            component={Zz_nofilee}
-            options={{}}
-          />
         </Stack.Navigator>
       </NavigationContainer>
     </>
@@ -353,6 +363,7 @@ const App = () => (
           <Loaderx />
           <MainApp />
           <Toastx />
+          <Dialogx />
         </BottomSheetModalProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>

@@ -3,7 +3,7 @@ import { db } from "../../db/client.js";
 import { users, usersInterests, usersPrompt } from "../../db/schema.js";
 import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
-import { getSubscriptionTier } from "../../global/entitlements.js";
+import { hasFeature } from "../../global/entitlements.js";
 // Platforms the client offers a field for. Keep in sync with ProfileEdit.tsx's SOCIAL_PLATFORMS.
 const ALLOWED_SOCIAL_PLATFORMS = ["instagram", "snapchat", "tiktok", "twitter"];
 
@@ -40,6 +40,22 @@ function normalizeSocialLinks(rawLinks) {
   }
   return normalized;
 }
+
+// users columns that are ENUMs of digit strings (see db/schema.js)
+const ENUM_FIELDS = new Set([
+  "user_bio_smoking",
+  "user_bio_drinking",
+  "user_bio_children",
+  "user_bio_haspet",
+]);
+// varchar sizes of the free-text profile columns (see db/schema.js)
+const TEXT_FIELD_MAX = {
+  user_bio_about: 400,
+  user_bio_hometown: 50,
+  user_bio_schoolattended: 50,
+  user_bio_company: 30,
+  user_bio_jobrole: 20,
+};
 
 /**
  * @param {string | number} val
@@ -115,10 +131,21 @@ export default async function pushProfile(input = {}) {
       // @ts-ignore
       if (!hasKey(input, inputKey)) continue;
       if (numeric ? onlyNumber(val) : val !== undefined && val !== null) {
-        const formattedVal =
+        let formattedVal =
           dbField === "user_location" && typeof val === "object"
             ? JSON.stringify(val)
             : val;
+        // ENUM('0','1',...) columns: a numeric 1 would select the 1st member
+        // ('0') in MySQL, so always write the string value.
+        // @ts-ignore
+        if (ENUM_FIELDS.has(dbField)) formattedVal = String(formattedVal);
+        // Text columns: trim and cut to the column size so one long field
+        // can't make the whole save fail.
+        // @ts-ignore
+        const maxLen = TEXT_FIELD_MAX[dbField];
+        if (maxLen && typeof formattedVal === "string") {
+          formattedVal = formattedVal.trim().slice(0, maxLen);
+        }
         profUpdates.push({ field: dbField, value: formattedVal });
       }
     }
@@ -223,7 +250,7 @@ export default async function pushProfile(input = {}) {
       if (typeof readReceiptsVal === "boolean") {
         const canTurnOn =
           readReceiptsVal &&
-          (await getSubscriptionTier(sessions.currentUserID)) === "vip";
+          (await hasFeature(sessions.currentUserID, "readReceipts"));
         profUpdates.push({
           field: "user_privacy_read_receipts",
           value: canTurnOn ? "1" : "0",

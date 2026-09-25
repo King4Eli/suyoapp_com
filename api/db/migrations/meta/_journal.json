@@ -15,6 +15,48 @@
       "when": 1790309655116,
       "tag": "0001_soft_delete_users_free_phonenumber",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1790313722289,
+      "tag": "0002_add_user_boost_usage_for_boost_purchases",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1790388475330,
+      "tag": "0003_product_tier_for_server_side_entitlements",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1790395513361,
+      "tag": "0004_direct_message_allowance_and_balance",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1790457204885,
+      "tag": "0005_payment_notices_for_user_facing_payment_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1790459953728,
+      "tag": "0006_selfie_verification_requests",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1790477334991,
+      "tag": "0007_build_hash_on_logs",
+      "breakpoints": true
     }
   ]
 }

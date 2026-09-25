@@ -193,7 +193,8 @@ signup_router.post("/", async (req, res) => {
         geoHash: location.hash,
         geoLong: location.long,
         geoLatd: location.latd,
-        userVerified: "1",
+        // Verified only after a selfie review (pushVerification + admin).
+        userVerified: "0",
         userSignedupDeviceStats: JSON.stringify(req.body.device_stats ?? {}),
         userBioRelationshipgoal: intent,
         userBioGender: gender,

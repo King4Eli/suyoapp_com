@@ -9,6 +9,7 @@ Usage:
 source ~/.venv/bin/activate  && python main.py match --rand --limit 8000 --loops 116 --status 1
 source ~/.venv/bin/activate  && python main.py match --preference --limit 7000 --loops 221 --status 1 --attempts 300
 source ~/.venv/bin/activate  && python main.py conversation --rand --limit 6000 --loops 131 --min-messages 2 --max-messages 10
+source ~/.venv/bin/activate  && python main.py geo --rand
 """
 import argparse
 

@@ -3,7 +3,6 @@ import React, {
   useEffect,
   useRef,
   useLayoutEffect,
-  useMemo,
   useCallback,
 } from 'react';
 import {
@@ -11,7 +10,6 @@ import {
   Text,
   Pressable,
   TextInput,
-  Alert,
   FlatList,
   Platform,
   TouchableOpacity,
@@ -20,7 +18,9 @@ import {
   Linking,
   ImageBackground,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
+import { Dialogx } from '../funcs/customDialog';
 import {
   Loaderx,
   bottomsheet_renderBackdrop,
@@ -37,6 +37,7 @@ import {
   uploadHandler,
   navigationRef,
   cacheStorage,
+  reportUser,
 } from '../funcs/functions';
 import { Asset } from 'react-native-image-picker';
 import { ScrollView } from 'react-native';
@@ -49,11 +50,21 @@ import Sound, {
 } from 'react-native-nitro-sound';
 import RNFS from 'react-native-fs';
 import Icon from 'react-native-vector-icons/Ionicons';
-import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
+import BottomSheet, {
+  BottomSheetView,
+  BottomSheetTextInput,
+} from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
 import FastImage from '@d11/react-native-fast-image';
 import { SafeImage } from '../funcs/customImage';
 import { SocketClient } from '../funcs/socket_realtimeData';
+import { chatsBadge } from '../funcs/tabBadges';
+import {
+  clearConversationCache,
+  mergeServerMessages,
+  readConversationCache,
+  writeConversationCache,
+} from '../funcs/functions/conversationCache';
 import ImageViewing from 'react-native-image-viewing';
 import { useTheme } from '../funcs/theme';
 
@@ -184,6 +195,13 @@ interface convoInterface {
   type: 'media' | 'text' | 'audio' | 'image' | 'video' | 'file' | 'deleted';
   message: string | null;
   src: any[] | null;
+  dateAdded?: number | null;
+  // Made on this device (optimistic send / socket preview), not yet confirmed by
+  // the server -- replaced on the next sync and never written to the cache.
+  local?: boolean;
+  // Set on a direct message: the profile photo or About text it commented on.
+  // The photo/About belongs to whoever received the message.
+  replyTo?: { k: 'photo'; p: string } | { k: 'about'; str: string } | null;
   isUploading?: boolean;
   // 'failed' keeps the bubble on screen (instead of deleting it) with a retry
   // affordance -- `src`/`message` still hold the original local data needed to
@@ -192,6 +210,399 @@ interface convoInterface {
   // Only ever present on fromMe messages, and only when the viewer is entitled
   // to see it (VIP + mutual read-receipts privacy setting) -- see getConversation.js.
   read?: boolean;
+}
+
+const REPORT_REASONS = [
+  'Inappropriate messages',
+  'Harassment or Hate Speech',
+  'Fake profile or Impersonation',
+  'Spam or Scam',
+  'Underage User/Content',
+  'Asking for money',
+  'Violence or Harmful Behavior',
+  'Privacy Violation',
+  'Other',
+];
+
+type ConvoToolsSheetProps = {
+  user: any;
+  imageDomain?: string;
+  view: 'menu' | 'report';
+  setView: (view: 'menu' | 'report') => void;
+  onPlanDate: () => void;
+  onViewProfile: () => void;
+  onUnmatch: () => void;
+  onBlock: () => void;
+  onReport: (reason: string) => void;
+};
+
+// Contents of the "..." sheet in a conversation: match header, quick actions, and a
+// safety group (unmatch / block / report). Report swaps the sheet to a reason picker
+// in place instead of stacking a second sheet on top.
+function ConvoToolsSheet({
+  user,
+  imageDomain,
+  view,
+  setView,
+  onPlanDate,
+  onViewProfile,
+  onUnmatch,
+  onBlock,
+  onReport,
+}: ConvoToolsSheetProps) {
+  const { colors } = useTheme();
+  const [selectedReason, setSelectedReason] = useState<string | null>(null);
+  const [otherText, setOtherText] = useState('');
+  const firstName = (user?.fullname ?? '').split(' ')[0] || 'this person';
+
+  useEffect(() => {
+    if (view === 'menu') {
+      setSelectedReason(null);
+      setOtherText('');
+    }
+  }, [view]);
+
+  const Row = ({
+    icon,
+    label,
+    hint,
+    onPress,
+    tone = 'default',
+    chevron = false,
+    last = false,
+  }: {
+    icon: string;
+    label: string;
+    hint?: string;
+    onPress: () => void;
+    tone?: 'default' | 'danger';
+    chevron?: boolean;
+    last?: boolean;
+  }) => {
+    const tint = tone === 'danger' ? colors.danger : colors.accent;
+    return (
+      <Pressable
+        onPress={onPress}
+        android_ripple={{ color: colors.borderLight }}
+        style={({ pressed }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 14,
+          paddingHorizontal: 14,
+          paddingVertical: 12,
+          backgroundColor: pressed ? colors.backgroundSecondary : 'transparent',
+          borderBottomWidth: last ? 0 : 1,
+          borderBottomColor: colors.hairline,
+        })}
+      >
+        <View
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 19,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor:
+              tone === 'danger' ? colors.primarySoft : colors.accentSoft,
+          }}
+        >
+          <IonIcon name={icon} size={19} color={tint} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={{
+              fontSize: 15.5,
+              fontWeight: '600',
+              color: tone === 'danger' ? colors.danger : colors.text,
+            }}
+          >
+            {label}
+          </Text>
+          {hint ? (
+            <Text
+              style={{
+                fontSize: 12.5,
+                color: colors.textTertiary,
+                marginTop: 2,
+              }}
+            >
+              {hint}
+            </Text>
+          ) : null}
+        </View>
+        {chevron && (
+          <IonIcon
+            name="chevron-forward"
+            size={18}
+            color={colors.textTertiary}
+          />
+        )}
+      </Pressable>
+    );
+  };
+
+  const groupStyle = {
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    overflow: 'hidden' as const,
+  };
+
+  const sectionLabel = (text: string) => (
+    <Text
+      style={{
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 0.8,
+        textTransform: 'uppercase',
+        color: colors.textTertiary,
+        marginLeft: 6,
+        marginBottom: 8,
+        marginTop: 18,
+      }}
+    >
+      {text}
+    </Text>
+  );
+
+  if (view === 'report') {
+    const finalReason =
+      selectedReason === 'Other' ? otherText.trim() : selectedReason;
+    return (
+      <View style={{ paddingHorizontal: 18, paddingBottom: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Pressable
+            onPress={() => setView('menu')}
+            hitSlop={10}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: colors.backgroundSecondary,
+            }}
+          >
+            <IonIcon name="chevron-back" size={20} color={colors.text} />
+          </Pressable>
+          <Text
+            style={{
+              fontSize: 19,
+              fontWeight: '800',
+              letterSpacing: -0.2,
+              color: colors.text,
+              textTransform: 'capitalize',
+              flex: 1,
+            }}
+            numberOfLines={1}
+          >
+            Report {firstName}
+          </Text>
+        </View>
+        <Text
+          style={{
+            fontSize: 13.5,
+            lineHeight: 19,
+            color: colors.textSecondary,
+            marginTop: 10,
+            marginBottom: 14,
+          }}
+        >
+          Your report is anonymous — {firstName} won't be told. This match will
+          also be removed from your chats.
+        </Text>
+
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {REPORT_REASONS.map(reason => {
+            const selected = selectedReason === reason;
+            return (
+              <Pressable
+                key={reason}
+                onPress={() => setSelectedReason(reason)}
+                style={{
+                  paddingHorizontal: 14,
+                  paddingVertical: 9,
+                  borderRadius: 999,
+                  borderWidth: 1,
+                  borderColor: selected ? colors.danger : colors.border,
+                  backgroundColor: selected
+                    ? colors.primarySoft
+                    : colors.surface,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13.5,
+                    fontWeight: selected ? '700' : '500',
+                    color: selected ? colors.danger : colors.text,
+                  }}
+                >
+                  {reason}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {selectedReason === 'Other' && (
+          <View style={{ marginTop: 12 }}>
+            <BottomSheetTextInput
+              placeholder="Tell us what happened"
+              placeholderTextColor={colors.placeholder}
+              value={otherText}
+              onChangeText={setOtherText}
+              multiline
+              maxLength={300}
+              style={{
+                minHeight: 90,
+                textAlignVertical: 'top',
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: colors.border,
+                backgroundColor: colors.inputBackground,
+                color: colors.text,
+                padding: 12,
+                fontSize: 14.5,
+              }}
+            />
+            <Text
+              style={{
+                fontSize: 11,
+                color: colors.textTertiary,
+                textAlign: 'right',
+                marginTop: 4,
+              }}
+            >
+              {otherText.length} / 300
+            </Text>
+          </View>
+        )}
+
+        <Pressable
+          disabled={!finalReason}
+          onPress={() => finalReason && onReport(finalReason)}
+          style={({ pressed }) => ({
+            marginTop: 18,
+            height: 50,
+            borderRadius: 999,
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'row',
+            gap: 8,
+            backgroundColor: finalReason ? colors.danger : colors.disabled,
+            opacity: pressed ? 0.85 : 1,
+          })}
+        >
+          <IonIcon name="flag" size={17} color={colors.textInverse} />
+          <Text
+            style={{
+              fontSize: 15.5,
+              fontWeight: '700',
+              color: colors.textInverse,
+            }}
+          >
+            Submit report
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 12,
+          paddingHorizontal: 4,
+          paddingBottom: 2,
+        }}
+      >
+        <SafeImage
+          source={{
+            uri: user?.image?.p ? imageDomain + user.image.p : undefined,
+            cache: FastImage.cacheControl.immutable,
+          }}
+          style={{ width: 48, height: 48, borderRadius: 24 }}
+        />
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <Text
+              numberOfLines={1}
+              style={{
+                fontSize: 17,
+                fontWeight: '800',
+                letterSpacing: -0.2,
+                color: colors.text,
+                textTransform: 'capitalize',
+                flexShrink: 1,
+              }}
+            >
+              {user?.fullname || 'Your match'}
+            </Text>
+            {user?.verified ? (
+              <IonIcon
+                name="checkmark-done-circle-sharp"
+                size={17}
+                color={colors.accent}
+              />
+            ) : null}
+          </View>
+          <Text
+            style={{ fontSize: 13, color: colors.textTertiary, marginTop: 2 }}
+          >
+            {user?.city ? `${user.city} · ` : ''}You matched
+          </Text>
+        </View>
+      </View>
+
+      {sectionLabel('Chat')}
+      <View style={groupStyle}>
+        <Row
+          icon="sparkles-outline"
+          label="Plan a date idea"
+          hint="Drop a coffee invite into your message"
+          onPress={onPlanDate}
+        />
+        <Row
+          icon="person-outline"
+          label="View profile"
+          onPress={onViewProfile}
+          chevron
+          last
+        />
+      </View>
+
+      {sectionLabel('Privacy & safety')}
+      <View style={groupStyle}>
+        <Row
+          icon="heart-dislike-outline"
+          label="Unmatch"
+          hint="Remove this match and conversation"
+          onPress={onUnmatch}
+          tone="danger"
+        />
+        <Row
+          icon="ban-outline"
+          label={`Block ${firstName}`}
+          hint="They won't see your profile or message you"
+          onPress={onBlock}
+          tone="danger"
+        />
+        <Row
+          icon="flag-outline"
+          label="Report"
+          hint="Anonymous — helps keep the community safe"
+          onPress={() => setView('report')}
+          tone="danger"
+          chevron
+          last
+        />
+      </View>
+    </View>
+  );
 }
 
 export function Screen_conversation({
@@ -211,6 +622,10 @@ export function Screen_conversation({
   const [getConversations, setConversations] = useState<convoInterface[]>([]);
   const [getUser2Deets, setUser2Deets] = useState<any>([]);
   const [getConvoStarter, setConvoStarter] = useState<any>([]);
+  // Opening-message ideas for an empty chat come from the local LLM
+  // (api getConversationStarters) -- it can take a few seconds the first time.
+  const [startersLoading, setStartersLoading] = useState(false);
+  const [hasSynced, setHasSynced] = useState(false);
   const [starterIndex, setStarterIndex] = useState<number>(0);
   const [inputText, setInputText] = useState<string>('');
   const [getInputImageVideo, setInputImageVideo] = useState<Asset[]>([]);
@@ -240,8 +655,10 @@ export function Screen_conversation({
 
   const bottomSheet_convotools = {
     ref: useRef<BottomSheet>(null),
-    snap: useMemo(() => ['35%'], []),
   };
+  const [convoToolsView, setConvoToolsView] = useState<'menu' | 'report'>(
+    'menu',
+  );
   const [getFullscreenClickImage, setFullscreenClickImage] = useState<
     any | null
   >(null);
@@ -285,6 +702,7 @@ export function Screen_conversation({
           type: 'text',
           message: routeRetrivedData?.lastMessage,
           src: null,
+          local: true,
         },
         ...prev,
       ]);
@@ -554,10 +972,15 @@ export function Screen_conversation({
         },
       );
       if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-        Toastx.show({
-          message: 'Microphone permission is required to record.',
-          type: 'info',
-        });
+        Dialogx.alert(
+          'Microphone access needed',
+          'Allow microphone access in your phone settings to send voice notes.',
+          [
+            { text: 'Not now', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() },
+          ],
+          { tone: 'warning', icon: 'mic-off' },
+        );
         return false;
       }
       return true;
@@ -662,10 +1085,15 @@ export function Screen_conversation({
       autoStopRecordingRef.current = false;
 
       if (error?.message?.includes('permission')) {
-        Toastx.show({
-          message: 'Microphone permission required',
-          type: 'error',
-        });
+        Dialogx.alert(
+          'Microphone access needed',
+          'Allow microphone access in your phone settings to send voice notes.',
+          [
+            { text: 'Not now', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() },
+          ],
+          { tone: 'warning', icon: 'mic-off' },
+        );
       } else {
         Toastx.show({
           message: 'Unable to start recording',
@@ -768,109 +1196,95 @@ export function Screen_conversation({
 
   const funt = {
     matchId: route.params?.matchId,
-    convoTools: (
-      <>
-        <View>
-          <Pressable
-            onPress={() => {
-              bottomSheet_convotools?.ref?.current?.close();
-              handleInsertPrompt(
-                "Let's plan a quick coffee this week? What day works for you.",
-              );
-            }}
-            style={{
-              paddingHorizontal: 10,
-              paddingVertical: 15,
-              flexDirection: 'row',
-              alignItems: 'center',
-            }}
-          >
-            <IonIcon name="sparkles-outline" size={20} color={colors.accent} />
-            <Text style={{ fontSize: 16, marginLeft: 10 }}>
-              Plan a date idea
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => {
-              bottomSheet_convotools?.ref?.current?.close();
-              navigation.push(namer.navigation.peoplesOnePerson, {
-                alreadyLiked: true,
-                likedMatchedId: funt.matchId,
-                getOnePersonId: getUser2Deets?.uid,
-              });
-            }}
-            style={{
-              paddingHorizontal: 10,
-              paddingVertical: 15,
-              flexDirection: 'row',
-              alignItems: 'center',
-            }}
-          >
-            <IonIcon name="person-outline" size={20} color={colors.accent} />
-            <Text style={{ fontSize: 16, marginLeft: 10 }}>View Profile</Text>
-          </Pressable>
-          <Pressable
-            onPress={async () => {
-              function showConfirmAlert() {
-                return new Promise(resolve => {
-                  Alert.alert(
-                    'Block this person?',
-                    'Blocking this person prevents them from ever seeing your profile or message you!', // Message
-                    [
-                      {
-                        text: 'No',
-                        onPress: () => {
-                          resolve(false);
-                        },
-                        style: 'cancel',
-                      },
-                      {
-                        text: 'Block',
-                        onPress: () => {
-                          resolve(true);
-                        },
-                      },
-                    ],
-                    { cancelable: false },
-                  );
-                });
-              }
-              if ((await showConfirmAlert()) === true) {
-                Loaderx.show();
-
-                await _http_request({
-                  customApiUrl:
-                    __CONFIG__.HTTPS_API_DOMAIN +
-                    '/api/core/v1/pushPeopleToMatch',
-                  reqType: 'POST',
-                  bodyArray: {
-                    match_status: 3,
-                    matchId: funt.matchId,
-                  },
-                }).then(() => {
-                  bottomSheet_convotools?.ref?.current?.close();
-                  navigation.goBack();
-                });
-              }
-            }}
-            style={{
-              paddingHorizontal: 10,
-              paddingVertical: 15,
-              flexDirection: 'row',
-              alignItems: 'center',
-            }}
-          >
-            <IonIcon name="ban-outline" size={20} color={colors.accent} />
-            <Text style={{ fontSize: 16, marginLeft: 10 }}>Block User</Text>
-          </Pressable>
-          {/*<Pressable onPress={() => { bottomSheetRef_convotools.current?.close(); navigation.navigate("ReportUser", { userId: getUser2Deets?.u2id }); }}
-                    style={{ paddingHorizontal: 10, paddingVertical: 15, flexDirection: "row", alignItems: "center" }}>
-                    <IonIcon name="warning-outline" size={20} color={colors.accent} />
-                    <Text style={{ fontSize: 16, marginLeft: 10 }}>Report User</Text>
-                </Pressable>*/}
-        </View>
-      </>
-    ),
+    // match_status: 2=notinterested (unmatch), 3=block, 4=reported -- all three drop
+    // the chat from both users' lists and stop further messages (pushConversation.js).
+    // doneTitle/doneMessage: shown as a dialog for reports (worth acknowledging),
+    // a toast otherwise.
+    endMatch: async (
+      matchStatus: 2 | 3 | 4,
+      doneMessage: string,
+      doneTitle?: string,
+    ) => {
+      Loaderx.show();
+      try {
+        const response = await _http_request({
+          customApiUrl:
+            __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/pushPeopleToMatch',
+          reqType: 'POST',
+          bodyArray: {
+            user_id2: getUser2Deets?.uid,
+            match_status: matchStatus,
+            matchId: route.params?.matchId,
+          },
+        });
+        if (response?.code !== 200) {
+          Dialogx.alert(
+            "That didn't work",
+            response?.message ?? 'Something went wrong, please try again.',
+            undefined,
+            { tone: 'error' },
+          );
+          return;
+        }
+        chatsBadge.refresh();
+        clearConversationCache(cacheUserIdRef.current, funt.matchId);
+        bottomSheet_convotools?.ref?.current?.close();
+        if (doneTitle) {
+          Dialogx.alert(doneTitle, doneMessage, [{ text: 'OK' }], {
+            tone: 'success',
+            icon: 'shield-checkmark',
+          });
+        } else {
+          Toastx.show({ type: 'success', message: doneMessage });
+        }
+        navigation.goBack();
+      } finally {
+        Loaderx.hide();
+      }
+    },
+    unmatch: async () => {
+      const ok = await Dialogx.confirm({
+        title: 'Unmatch?',
+        message:
+          "You'll lose this conversation and won't be able to message each other again.",
+        confirmText: 'Unmatch',
+        destructive: true,
+        icon: 'heart-dislike',
+      });
+      if (ok) await funt.endMatch(2, 'Unmatched');
+    },
+    block: async () => {
+      const ok = await Dialogx.confirm({
+        title: 'Block this person?',
+        message: "They won't be able to see your profile or message you again.",
+        confirmText: 'Block',
+        destructive: true,
+        icon: 'ban',
+      });
+      if (ok) await funt.endMatch(3, 'User blocked');
+    },
+    report: async (reason: string) => {
+      Loaderx.show();
+      const reported = await reportUser({
+        reportedUserId: getUser2Deets?.uid,
+        reason,
+      });
+      Loaderx.hide();
+      if (!reported) {
+        Dialogx.alert(
+          "Couldn't send your report",
+          'Please check your connection and try again.',
+          undefined,
+          { tone: 'error' },
+        );
+        return;
+      }
+      await funt.endMatch(
+        4,
+        'Our safety team will review it. This match has been removed from your chats.',
+        'Thanks for reporting',
+      );
+    },
 
     isLocalFile: (item: any) => {
       if (!item) return false;
@@ -1011,45 +1425,123 @@ export function Screen_conversation({
     }
   };
 
+  // The thread is cached on the device (funcs/functions/conversationCache.ts):
+  // opening it shows the cached copy at once, then only what changed since the
+  // last sync is fetched and merged. Re-runs (a file arrived over the socket)
+  // are deltas too.
+  const cacheUserIdRef = useRef<string | null>(null);
+  const syncedAtRef = useRef<number>(0);
   useEffect(() => {
-    Loaderx.show();
-    // get convo
+    let cancelled = false;
     (async () => {
-      await _http_request({
+      if (!cacheUserIdRef.current) {
+        const me = await cacheStorage.getCurrentUserProfile().catch(() => null);
+        cacheUserIdRef.current = me?.profile?.id ?? null;
+      }
+      if (!syncedAtRef.current) {
+        const cached = await readConversationCache(
+          cacheUserIdRef.current,
+          funt.matchId,
+        );
+        if (cancelled) return;
+        if (cached) {
+          setConversations(prev => mergeServerMessages(prev, cached.messages));
+          setUser2Deets((prev: any) => cached.u2deets ?? prev);
+          syncedAtRef.current = cached.syncedAt;
+        } else {
+          Loaderx.show();
+        }
+      }
+
+      const response: any = await _http_request({
         customApiUrl:
           __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getConversation',
         reqType: 'POST',
         bodyArray: {
           matchID: funt.matchId,
+          // A couple of seconds of overlap covers clock edges; merging by id
+          // makes the repeats harmless.
+          ...(syncedAtRef.current ? { since: syncedAtRef.current - 2 } : {}),
         },
-      })
-        .then(response => {
-          if (response?.code === 200) {
-            setConversations(
-              prev => response?.chatsMessageListings?.reverse() ?? prev,
-            );
-            setUser2Deets((prev: any) => response?.u2deets ?? prev);
-            setConvoStarter((prev: any) => response?.convostarter ?? prev);
+      }).finally(() => Loaderx.hide());
+      if (cancelled) return;
 
-            navigationRef.setParams({ matchId: funt.matchId });
-          } else if (response !== null) {
-            Alert.alert('Error!', response?.message);
-            logReport({
-              type: 'http -' + response.code,
-              useraction: 'getConversation',
-              logMessage: response?.message ?? 'Failed to fetch conversation',
-            });
-          }
-        })
-        .finally(() => {
-          setTimeout(() => {
-            Loaderx.hide();
-          }, 1000);
+      if (response?.code === 200) {
+        const incoming = Array.isArray(response?.chatsMessageListings)
+          ? response.chatsMessageListings
+          : [];
+        setConversations(prev => mergeServerMessages(prev, incoming));
+        setUser2Deets((prev: any) => response?.u2deets ?? prev);
+        if (Number(response?.syncedAt) > 0) {
+          syncedAtRef.current = Number(response.syncedAt);
+        }
+        setHasSynced(true);
+        // getConversation just marked this thread read -- recount the Chat tab badge
+        chatsBadge.refresh();
+        navigationRef.setParams({ matchId: funt.matchId });
+      } else if (response?.code === 404) {
+        // Match is gone (unmatched / blocked): drop the stale copy too.
+        clearConversationCache(cacheUserIdRef.current, funt.matchId);
+        Dialogx.alert(
+          "This chat isn't available",
+          response?.message ?? 'This match may have ended.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }],
+          { tone: 'info' },
+        );
+      } else if (response !== null && !syncedAtRef.current) {
+        // Only interrupt when there's nothing cached to show.
+        Dialogx.alert(
+          "Couldn't load this chat",
+          response?.message ?? 'Please try again.',
+          undefined,
+          { tone: 'error' },
+        );
+        logReport({
+          type: 'http -' + response?.code,
+          useraction: 'getConversation',
+          logMessage: response?.message ?? 'Failed to fetch conversation',
         });
+      }
     })();
 
-    return () => {};
-  }, [reloadIfRealtimeData_File, funt.matchId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadIfRealtimeData_File, funt.matchId, navigation]);
+
+  // Empty chat (confirmed by the server, not just the cache): fetch ideas once.
+  const isEmptyChat = hasSynced && getConversations.length === 0;
+  const startersRequested = useRef(false);
+  useEffect(() => {
+    if (!isEmptyChat || startersRequested.current) return;
+    startersRequested.current = true;
+    setStartersLoading(true);
+    _http_request({
+      customApiUrl:
+        __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getConversationStarters',
+      reqType: 'POST',
+      bodyArray: { matchId: funt.matchId },
+    })
+      .then((response: any) => {
+        if (Array.isArray(response?.starters)) {
+          setConvoStarter(response.starters);
+        }
+      })
+      .finally(() => setStartersLoading(false));
+  }, [isEmptyChat, funt.matchId]);
+
+  // Save the thread (server-confirmed messages only) shortly after it changes.
+  useEffect(() => {
+    if (!syncedAtRef.current) return;
+    const timer = setTimeout(() => {
+      writeConversationCache(cacheUserIdRef.current, funt.matchId, {
+        messages: getConversations,
+        u2deets: getUser2Deets,
+        syncedAt: syncedAtRef.current,
+      });
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [getConversations, getUser2Deets, funt.matchId]);
 
   // Update the useEffect cleanup:
   useEffect(() => {
@@ -1449,7 +1941,7 @@ export function Screen_conversation({
   const deleteMessage = (item: convoInterface) => {
     if (!item.fromMe || item.type === 'deleted') return;
 
-    Alert.alert('Delete this message?', "This can't be undone.", [
+    Dialogx.alert('Delete this message?', "This can't be undone.", [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -1624,7 +2116,10 @@ export function Screen_conversation({
     }
 
     // Add optimistic messages to UI
-    setConversations(prev => [...outgoingMessages, ...prev]);
+    setConversations(prev => [
+      ...outgoingMessages.map(m => ({ ...m, local: true })),
+      ...prev,
+    ]);
     setIsUploadingMedia(true);
 
     try {
@@ -1642,6 +2137,10 @@ export function Screen_conversation({
   };
 
   const flatListRef = useRef<FlatList>(null);
+  const firstNameOf2 = (() => {
+    const first = String(getUser2Deets?.fullname ?? '').split(' ')[0];
+    return first ? first[0].toUpperCase() + first.slice(1) : 'their';
+  })();
   const renderMessage = ({ item }: { item: convoInterface }) => {
     // Handle different message types
     const isImage = item.type === 'image' && item.src && item.src.length > 0;
@@ -1722,6 +2221,84 @@ export function Screen_conversation({
             >
               Message deleted
             </Text>
+          )}
+
+          {!isDeleted && isText && item.replyTo && (
+            <View
+              style={{
+                marginBottom: 6,
+                borderRadius: 12,
+                padding: 6,
+                gap: 6,
+                backgroundColor: item.fromMe
+                  ? 'rgba(255,255,255,0.16)'
+                  : colors.backgroundSecondary,
+              }}
+            >
+              <View
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}
+              >
+                <IonIcon
+                  name="paper-plane"
+                  size={11}
+                  color={
+                    item.fromMe ? 'rgba(255,255,255,0.85)' : colors.primary
+                  }
+                />
+                <Text
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: '700',
+                    color: item.fromMe
+                      ? 'rgba(255,255,255,0.85)'
+                      : colors.primary,
+                  }}
+                >
+                  {item.replyTo.k === 'photo'
+                    ? item.fromMe
+                      ? `You commented on ${firstNameOf2}'s photo`
+                      : 'Commented on your photo'
+                    : item.fromMe
+                    ? `You replied to ${firstNameOf2}'s About`
+                    : 'Replied to your About'}
+                </Text>
+              </View>
+              {item.replyTo.k === 'photo' ? (
+                <Pressable
+                  onPress={() =>
+                    item.replyTo?.k === 'photo' &&
+                    setFullscreenClickImage(imageDomain + item.replyTo.p)
+                  }
+                >
+                  <SafeImage
+                    source={{
+                      uri: imageDomain + item.replyTo.p,
+                      cache: FastImage.cacheControl.immutable,
+                    }}
+                    style={{ width: 150, height: 190, borderRadius: 10 }}
+                  />
+                </Pressable>
+              ) : (
+                <Text
+                  numberOfLines={4}
+                  style={{
+                    fontSize: 13,
+                    lineHeight: 18,
+                    fontStyle: 'italic',
+                    color: item.fromMe
+                      ? 'rgba(255,255,255,0.9)'
+                      : colors.textSecondary,
+                    borderLeftWidth: 2,
+                    borderLeftColor: item.fromMe
+                      ? 'rgba(255,255,255,0.6)'
+                      : colors.primary,
+                    paddingLeft: 8,
+                  }}
+                >
+                  {item.replyTo.str}
+                </Text>
+              )}
+            </View>
           )}
 
           {!isDeleted && isText && (
@@ -2048,77 +2625,6 @@ export function Screen_conversation({
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1 }}
         >
-          <View style={{ paddingVertical: 5 }}>
-            <Pressable
-              onPress={() => {
-                navigation.push(namer.navigation.peoplesOnePerson, {
-                  alreadyLiked: true,
-                  likedMatchedId: funt.matchId,
-                  getOnePersonId: getUser2Deets?.uid,
-                });
-              }}
-              style={{
-                backgroundColor: colors.surface,
-                borderWidth: 1,
-                borderColor: colors.hairline,
-                borderRadius: 16,
-                padding: 10,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 12,
-              }}
-            >
-              <SafeImage
-                source={{
-                  uri: getUser2Deets?.image?.p
-                    ? imageDomain + getUser2Deets.image.p
-                    : undefined,
-                  cache: FastImage.cacheControl.immutable,
-                }}
-                style={{ width: 64, height: 64, borderRadius: 32 }}
-              />
-              <View style={{ flex: 1, gap: 4 }}>
-                <View
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: '800',
-                      letterSpacing: -0.2,
-                      textTransform: 'capitalize',
-                      color: colors.text,
-                    }}
-                  >
-                    {getUser2Deets?.fullname || 'Your match'}
-                  </Text>
-                </View>
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 10,
-                  }}
-                >
-                  {getUser2Deets?.city && (
-                    <Text style={{ color: colors.textSecondary }}>
-                      <IonIcon
-                        name="location-outline"
-                        size={14}
-                        color={colors.accent}
-                      />{' '}
-                      {getUser2Deets?.city}
-                    </Text>
-                  )}
-                </View>
-                <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
-                  Read bio for conversation idea.
-                </Text>
-              </View>
-              <IonIcon name="chevron-forward" size={20} color={colors.accent} />
-            </Pressable>
-          </View>
-
           <FlatList
             ref={flatListRef}
             data={getConversations}
@@ -2137,6 +2643,86 @@ export function Screen_conversation({
             ListHeaderComponent={
               peerTyping ? <TypingBubble bg={colors.primary} /> : null
             }
+            ListFooterComponent={
+              <View style={{ paddingVertical: 5 }}>
+                <Pressable
+                  onPress={() => {
+                    navigation.push(namer.navigation.peoplesOnePerson, {
+                      alreadyLiked: true,
+                      likedMatchedId: funt.matchId,
+                      getOnePersonId: getUser2Deets?.uid,
+                    });
+                  }}
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderWidth: 1,
+                    borderColor: colors.hairline,
+                    borderRadius: 16,
+                    padding: 10,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                  }}
+                >
+                  <SafeImage
+                    source={{
+                      uri: getUser2Deets?.image?.p
+                        ? imageDomain + getUser2Deets.image.p
+                        : undefined,
+                      cache: FastImage.cacheControl.immutable,
+                    }}
+                    style={{ width: 64, height: 64, borderRadius: 32 }}
+                  />
+                  <View style={{ flex: 1, gap: 4 }}>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 6,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          fontWeight: '800',
+                          letterSpacing: -0.2,
+                          textTransform: 'capitalize',
+                          color: colors.text,
+                        }}
+                      >
+                        {getUser2Deets?.fullname || 'Your match'}
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 10,
+                      }}
+                    >
+                      {getUser2Deets?.city && (
+                        <Text style={{ color: colors.textSecondary }}>
+                          <IonIcon
+                            name="location-outline"
+                            size={14}
+                            color={colors.accent}
+                          />{' '}
+                          {getUser2Deets?.city}
+                        </Text>
+                      )}
+                    </View>
+                    <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+                      Read bio for conversation idea.
+                    </Text>
+                  </View>
+                  <IonIcon
+                    name="chevron-forward"
+                    size={20}
+                    color={colors.accent}
+                  />
+                </Pressable>
+              </View>
+            }
             ListEmptyComponent={
               <View
                 style={{
@@ -2145,6 +2731,38 @@ export function Screen_conversation({
                   width: '100%',
                 }}
               >
+                {startersLoading && getConvoStarter.length === 0 && (
+                  <View
+                    style={{
+                      width: screenWidth * 0.78,
+                      paddingVertical: 22,
+                      paddingHorizontal: 20,
+                      backgroundColor: colors.surface,
+                      borderWidth: 1,
+                      borderColor: colors.hairline,
+                      borderRadius: 20,
+                      alignItems: 'center',
+                      gap: 10,
+                    }}
+                  >
+                    <ActivityIndicator color={colors.primary} />
+                    <Text style={{ color: colors.textSecondary, fontSize: 14 }}>
+                      Thinking of ways to start the chat…
+                    </Text>
+                  </View>
+                )}
+                {getConvoStarter.length > 0 && (
+                  <Text
+                    style={{
+                      color: colors.textTertiary,
+                      fontSize: 12,
+                      fontWeight: '600',
+                      marginBottom: 10,
+                    }}
+                  >
+                    Ideas based on their profile
+                  </Text>
+                )}
                 <FlatList
                   ref={starterCarouselRef}
                   data={getConvoStarter}
@@ -2590,11 +3208,47 @@ export function Screen_conversation({
         ref={bottomSheet_convotools?.ref}
         index={-1}
         enablePanDownToClose
-        snapPoints={bottomSheet_convotools?.snap}
+        enableDynamicSizing
+        keyboardBehavior="interactive"
+        keyboardBlurBehavior="restore"
+        android_keyboardInputMode="adjustResize"
         backdropComponent={ajjj}
+        onChange={index => {
+          if (index === -1) setConvoToolsView('menu');
+        }}
+        backgroundStyle={{
+          backgroundColor: colors.background,
+          borderTopLeftRadius: 28,
+          borderTopRightRadius: 28,
+        }}
+        handleIndicatorStyle={{ backgroundColor: colors.border, width: 40 }}
       >
         <BottomSheetView>
-          <SafeAreaView edges={['bottom']}>{funt.convoTools}</SafeAreaView>
+          <SafeAreaView edges={['bottom']}>
+            <ConvoToolsSheet
+              user={getUser2Deets}
+              imageDomain={imageDomain}
+              view={convoToolsView}
+              setView={setConvoToolsView}
+              onPlanDate={() => {
+                bottomSheet_convotools?.ref?.current?.close();
+                handleInsertPrompt(
+                  "Let's plan a quick coffee this week? What day works for you.",
+                );
+              }}
+              onViewProfile={() => {
+                bottomSheet_convotools?.ref?.current?.close();
+                navigation.push(namer.navigation.peoplesOnePerson, {
+                  alreadyLiked: true,
+                  likedMatchedId: funt.matchId,
+                  getOnePersonId: getUser2Deets?.uid,
+                });
+              }}
+              onUnmatch={funt.unmatch}
+              onBlock={funt.block}
+              onReport={funt.report}
+            />
+          </SafeAreaView>
         </BottomSheetView>
       </BottomSheet>
 

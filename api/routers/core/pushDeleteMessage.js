@@ -1,8 +1,9 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { conversations, matches } from "../../db/schema.js";
 import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
+import { pushBadgeCounts } from "../../global/badges.js";
 
 /**
  * Deletes a message "for everyone" -- only the original sender may do this.
@@ -25,6 +26,7 @@ export default async function pushDeleteMessage(convoId, io) {
         convo_match_id: conversations.convoMatchId,
         convo_by_initiator: conversations.convoByInitiator,
         match_user_id_from: matches.matchUserIdFrom,
+        match_user_id_to: matches.matchUserIdTo,
       })
       .from(conversations)
       .innerJoin(matches, eq(matches.matchId, conversations.convoMatchId))
@@ -52,15 +54,27 @@ export default async function pushDeleteMessage(convoId, io) {
 
     const [result] = await db
       .update(conversations)
-      .set({ convoStatus: "-99" })
+      // date_updated bump: clients syncing with `since` pick up the deletion.
+      .set({ convoStatus: "-99", convoDateUpdated: sql`UNIX_TIMESTAMP()` })
       .where(eq(conversations.convoId, convoId));
 
     if (result.affectedRows > 0) {
       if (io) {
-        io.to(`match-${row.convo_match_id}`).emit("message-deleted", {
-          matchId: row.convo_match_id,
-          convoId,
-        });
+        // Also the recipient's user room, so their Chat tab badge updates even
+        // when they aren't inside this conversation. One emit to both rooms
+        // reaches each socket once.
+        const otherUserId =
+          row.match_user_id_from === sessions.currentUserID
+            ? row.match_user_id_to
+            : row.match_user_id_from;
+        io.to([`match-${row.convo_match_id}`, `user-${otherUserId}`]).emit(
+          "message-deleted",
+          {
+            matchId: row.convo_match_id,
+            convoId,
+          },
+        );
+        pushBadgeCounts(io, otherUserId);
       }
       response.code = 200;
       response.message = "Message deleted.";

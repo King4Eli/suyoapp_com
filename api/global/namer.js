@@ -4,6 +4,11 @@ export const namer = {
     verifyCode: "verify:code:",
     products: "products:list",
     mapper: "mapper:lookup",
+    streak: "streak:",
+    streakReward: "streak:reward:",
+    badgesLast: "badges:last:",
+    verifyPose: "verify:pose:",
+    starters: "starters:",
   },
   ratelimit: {
     login_ip: "ratelimit:login:ip:",
@@ -17,6 +22,7 @@ export const namer = {
     emailchange_otp_request: "ratelimit:emailchange:otp-request:",
     emailchange_otp_verify: "ratelimit:emailchange:otp-verify:",
     likes_daily: "ratelimit:likes:daily:",
+    logs_ip: "ratelimit:logs:ip:",
     feed_post_daily: "ratelimit:feed:post:daily:",
   },
 };

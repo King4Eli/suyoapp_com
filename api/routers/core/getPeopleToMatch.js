@@ -22,7 +22,7 @@ import {
 } from "../../db/schema.js";
 import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
-import { getSubscriptionTier } from "../../global/entitlements.js";
+import { getEntitlements } from "../../global/entitlements.js";
 import ngeohash from "ngeohash";
 
 // Fields safe to hand back about ANOTHER user (a match candidate). Deliberately
@@ -186,13 +186,13 @@ async function attachInterests(rows) {
 
 /**
  * Parses each candidate's `user_bio_social_links` JSON and replaces it with a
- * viewer-appropriate version: VIP viewers get the real url, everyone else gets
- * just the platform name (locked) -- the url itself must never reach a non-VIP
- * client, since withholding it only in the UI would be trivial to bypass.
+ * viewer-appropriate version: viewers whose plan has viewSocialLinks get the real
+ * url, everyone else gets just the platform name (locked) -- the url itself must
+ * never reach them, since withholding it only in the UI would be trivial to bypass.
  * @param {any[]} rows
- * @param {boolean} viewerIsVip
+ * @param {boolean} canViewLinks
  */
-function attachSocialLinks(rows, viewerIsVip) {
+function attachSocialLinks(rows, canViewLinks) {
   rows.forEach((u) => {
     /** @type {any[]} */
     let links;
@@ -206,7 +206,7 @@ function attachSocialLinks(rows, viewerIsVip) {
       links = [];
     }
     u.user_bio_social_links = (Array.isArray(links) ? links : []).map((link) =>
-      viewerIsVip
+      canViewLinks
         ? { platform: link.platform, url: link.url }
         : { platform: link.platform, locked: true },
     );
@@ -225,8 +225,12 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
   };
 
   try {
-    const viewerIsVip =
-      (await getSubscriptionTier(sessions.currentUserID)) === "vip";
+    const { features } = await getEntitlements(sessions.currentUserID);
+    // Lifestyle filters (smoking, pets, ethnicity, ...) are a paid feature. They're
+    // only applied when the plan includes them -- saved values stay in the profile,
+    // so they come back if the user resubscribes, but never filter for free users.
+    const paidFilter = (/** @type {any} */ condition) =>
+      features.advancedFilters ? condition : undefined;
 
     // ── Single person lookup (getOnePersons_id2 mode) ──────────────────────
     if (getOnePersons_id2) {
@@ -246,7 +250,7 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
         });
         await attachPrompts(rows);
         await attachInterests(rows);
-        attachSocialLinks(rows, viewerIsVip);
+        attachSocialLinks(rows, features.viewSocialLinks);
         response.code = 200;
         response.message = "ok";
         response.matchespeoples = rows;
@@ -348,24 +352,35 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
             eq(currentUserAlias.userPreferenceGender, -99),
             eq(users.userBioGender, currentUserAlias.userPreferenceGender),
           ),
-          or(
-            eq(currentUserAlias.userPreferenceSmoking, "-99"),
-            eq(users.userBioSmoking, currentUserAlias.userPreferenceSmoking),
-          ),
-          or(
-            eq(currentUserAlias.userPreferencePet, "-99"),
-            eq(users.userBioHaspet, currentUserAlias.userPreferencePet),
-          ),
-          or(
-            eq(currentUserAlias.userPreferenceEthnicity, -99),
-            eq(
-              users.userBioEthnicity,
-              currentUserAlias.userPreferenceEthnicity,
+          paidFilter(
+            or(
+              eq(currentUserAlias.userPreferenceSmoking, "-99"),
+              eq(users.userBioSmoking, currentUserAlias.userPreferenceSmoking),
             ),
           ),
-          or(
-            eq(currentUserAlias.userPreferenceChildren, "-99"),
-            eq(users.userBioChildren, currentUserAlias.userPreferenceChildren),
+          paidFilter(
+            or(
+              eq(currentUserAlias.userPreferencePet, "-99"),
+              eq(users.userBioHaspet, currentUserAlias.userPreferencePet),
+            ),
+          ),
+          paidFilter(
+            or(
+              eq(currentUserAlias.userPreferenceEthnicity, -99),
+              eq(
+                users.userBioEthnicity,
+                currentUserAlias.userPreferenceEthnicity,
+              ),
+            ),
+          ),
+          paidFilter(
+            or(
+              eq(currentUserAlias.userPreferenceChildren, "-99"),
+              eq(
+                users.userBioChildren,
+                currentUserAlias.userPreferenceChildren,
+              ),
+            ),
           ),
           or(
             eq(currentUserAlias.userPreferenceRelationshipgoal, -99),
@@ -374,26 +389,40 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
               currentUserAlias.userPreferenceRelationshipgoal,
             ),
           ),
-          or(
-            eq(currentUserAlias.userPreferenceDrinking, "-99"),
-            eq(users.userBioDrinking, currentUserAlias.userPreferenceDrinking),
-          ),
-          or(
-            eq(currentUserAlias.userPreferenceReligion, -99),
-            eq(users.userBioReligion, currentUserAlias.userPreferenceReligion),
-          ),
-          or(
-            eq(currentUserAlias.userPreferencePoliticalview, -99),
-            eq(
-              users.userBioPoliticalview,
-              currentUserAlias.userPreferencePoliticalview,
+          paidFilter(
+            or(
+              eq(currentUserAlias.userPreferenceDrinking, "-99"),
+              eq(
+                users.userBioDrinking,
+                currentUserAlias.userPreferenceDrinking,
+              ),
             ),
           ),
-          or(
-            eq(currentUserAlias.userPreferenceHighesteducation, -99),
-            eq(
-              users.userBioHighesteducation,
-              currentUserAlias.userPreferenceHighesteducation,
+          paidFilter(
+            or(
+              eq(currentUserAlias.userPreferenceReligion, -99),
+              eq(
+                users.userBioReligion,
+                currentUserAlias.userPreferenceReligion,
+              ),
+            ),
+          ),
+          paidFilter(
+            or(
+              eq(currentUserAlias.userPreferencePoliticalview, -99),
+              eq(
+                users.userBioPoliticalview,
+                currentUserAlias.userPreferencePoliticalview,
+              ),
+            ),
+          ),
+          paidFilter(
+            or(
+              eq(currentUserAlias.userPreferenceHighesteducation, -99),
+              eq(
+                users.userBioHighesteducation,
+                currentUserAlias.userPreferenceHighesteducation,
+              ),
             ),
           ),
           distanceCondition,
@@ -415,7 +444,7 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
       });
       await attachPrompts(rows);
       await attachInterests(rows);
-      attachSocialLinks(rows, viewerIsVip);
+      attachSocialLinks(rows, features.viewSocialLinks);
       response.code = 200;
       response.message = "ok";
       response.matchespeoples = rows;

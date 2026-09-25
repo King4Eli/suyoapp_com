@@ -1,7 +1,10 @@
 name: suyoapp_com
+# Our images are tagged by CI with both :latest and the git commit sha.
+# IMAGE_TAG=<sha> docker compose up -d   -> run that exact build (deploys do this)
+# docker compose up -d                   -> :latest
 services:
   suyoapp_com_api:
-    image: rg2.vintolab.com/suyoapp_com/api:latest
+    image: rg2.vintolab.com/suyoapp_com/api:${IMAGE_TAG:-latest}
     container_name: suyoapp_com_api
     restart: unless-stopped
     ports:
@@ -15,9 +18,12 @@ services:
       - .env/redis.env
       - .env/iap.env
       - .env/ratelimit.env
+      - .env/llm.env
+    depends_on:
+      - suyoapp_com_llm
 
   suyoapp_com_admin:
-    image: rg2.vintolab.com/suyoapp_com/admin:latest
+    image: rg2.vintolab.com/suyoapp_com/admin:${IMAGE_TAG:-latest}
     container_name: suyoapp_com_admin
     restart: unless-stopped
     ports:
@@ -30,8 +36,42 @@ services:
       - .env/redis.env
 
   suyoapp_com_webui:
-    image: rg2.vintolab.com/suyoapp_com/webui:latest
+    image: rg2.vintolab.com/suyoapp_com/webui:${IMAGE_TAG:-latest}
     container_name: suyoapp_com_webui
     restart: unless-stopped
     ports:
       - "10.50.0.2:9053:80"
+
+  # Small local LLM (Ollama) that writes conversation-starter ideas for empty
+  # chats from both people's profiles (api global/conversationStarters.js).
+  # Internal only -- the API reaches it over the compose network; profile data
+  # never leaves this host. The model is pulled on first start and kept in the
+  # volume, so restarts are instant.
+  suyoapp_com_llm:
+    image: ollama/ollama:latest
+    container_name: suyoapp_com_llm
+    restart: unless-stopped
+    env_file:
+      - .env/llm.env
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        ollama serve &
+        until ollama list >/dev/null 2>&1; do sleep 1; done
+        ollama pull "$${LLM_MODEL:-qwen2.5:3b}"
+        wait
+    environment:
+      # one model in memory, one request at a time: predictable RAM on a small box
+      - OLLAMA_MAX_LOADED_MODELS=1
+      - OLLAMA_NUM_PARALLEL=1
+      - OLLAMA_KEEP_ALIVE=30m
+    volumes:
+      - llm_models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  llm_models:

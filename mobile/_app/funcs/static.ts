@@ -268,6 +268,7 @@ export const namer = {
     products: 'j6yn65ik57y',
     themeMode: 'pk3nf7vqxz8w2m',
     lastLocationPush: 'qm3nc7xr9wfj2t',
+    apiBuild: 'xw8br4ktq2zj7m', // X-Api-Build the caches were filled under
   },
   navigation: {
     devpage: 'zz_devv',
@@ -286,6 +287,7 @@ export const namer = {
     editProfilePrompts: 'EditProfilePrompts',
     editProfileInterests: 'EditProfileInterests',
     editpreference: 'Editpreference',
+    verifyProfile: 'VerifyProfile',
     signup: 'signup',
     login: 'login',
     subscription: 'payments',
@@ -294,16 +296,17 @@ export const namer = {
   productCategoryName: {
     mainsub: 'mainsub',
     superlike: 'superlike',
-    instantmessage: 'instantmessage',
+    directmessage: 'directmessage',
     rewind: 'rewind',
+    boost: 'boost',
   },
 };
 
 export const resourceMap = {
   lottie: {
     pulsingLoading: require('../assets/lottie/pulsing.json'),
-    infinityLoading: require('../assets/lottie/infinity.json'), 
-  }
+    infinityLoading: require('../assets/lottie/infinity.json'),
+  },
 };
 
 //

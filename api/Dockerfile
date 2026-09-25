@@ -11,5 +11,11 @@ RUN npm ci --only=production
 # Copy application source (node_modules NOT included)
 COPY . .
 
+# Commit sha of this build (CI passes --build-arg BUILD_HASH=<sha>); read by
+# global/buildInfo.js and stamped on every log row. Declared late so a new sha
+# doesn't bust the npm ci layer cache.
+ARG BUILD_HASH=dev
+ENV BUILD_HASH=$BUILD_HASH
+
 EXPOSE 80
 CMD ["npm","run","http-prod"]

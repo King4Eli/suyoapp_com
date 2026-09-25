@@ -1,12 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  Alert,
   AppState,
   Dimensions,
   PermissionsAndroid,
   Platform,
   Vibration,
 } from 'react-native';
+import { Dialogx } from './customDialog';
 import { sessionManager } from './SessionContext';
 import Geolocation from 'react-native-geolocation-service';
 import ngeohash from 'ngeohash';
@@ -18,6 +18,7 @@ import {
 } from 'react-native-image-picker';
 import { Toastx } from './customNotification';
 import { SocketClient } from './socket_realtimeData';
+import { applyBadgeCounts, chatsBadge, likesBadge } from './tabBadges';
 import { createNavigationContainerRef } from '@react-navigation/native';
 import { xxa_logggingReport, flushLogQueue } from './functions/logging';
 import {
@@ -26,6 +27,10 @@ import {
 } from './functions/httpRequest';
 import { cacheStorage } from './functions/llstorage';
 import { reportUser } from './functions/reportUser';
+import {
+  checkPaymentNotices,
+  followCheckoutReturn,
+} from './functions/paymentNotices';
 
 export { cacheStorage };
 export { xxa_logggingReport as logReport };
@@ -178,28 +183,47 @@ export const help = {
 
     return 'just now';
   },
+  // UI gating only -- the server enforces every feature itself (api
+  // global/entitlements.js). `features` comes straight from the server's
+  // entitlements so the app never works out access from the product name.
   getSubscriptionState: (profile: any) => {
     const rawPlan = profile?.subscription?.product_name ?? null;
     const rawVariant = profile?.subscription?.plan_name ?? null;
     const hasActive = Boolean(profile?.subscription?.status === 'active');
-    const tier = String(rawPlan ?? '')
-      .trim()
-      .toLowerCase();
+    const tier: 'free' | 'plus' | 'vip' = profile?.entitlements?.tier ?? 'free';
+    const f = profile?.entitlements?.features ?? {};
+    const features = {
+      unlimitedLikes: f.unlimitedLikes === true,
+      seeWhoLikedYou: f.seeWhoLikedYou === true,
+      advancedFilters: f.advancedFilters === true,
+      freeRewind: f.freeRewind === true,
+      readReceipts: f.readReceipts === true,
+      viewSocialLinks: f.viewSocialLinks === true,
+      dailyRoses: Number(f.dailyRoses ?? 0),
+      dailyDirectMessages: Number(f.dailyDirectMessages ?? 0),
+    };
 
     return {
       hasActive,
       plan: rawPlan,
       variant: rawVariant,
       tier,
-      isPlus: hasActive && tier === 'plus',
-      isVip: hasActive && tier === 'vip',
+      isPlus: tier === 'plus',
+      isVip: tier === 'vip',
+      features,
     };
   },
 };
 
+let paymentNoticeWatcher: { remove: () => void } | null = null;
+
 export const __init__app = async (): Promise<void> => {
   // get mapper (public -- no session needed)
   await cacheStorage.CONFIG.getMapper();
+
+  // ship any logs that couldn't be delivered earlier -- no session needed, so
+  // signed-out devices (e.g. stuck on signup) still report their errors
+  flushLogQueue();
 
   // get session and verify
   const getSession_omi = sessionManager.getCurrentSession()?.x_omi_payload;
@@ -218,8 +242,21 @@ export const __init__app = async (): Promise<void> => {
   // device_id instead of re-sending the full device payload every time
   cacheStorage.registerDevice();
 
-  // ship any logs that couldn't be delivered while offline last session
-  flushLogQueue();
+  // pending likes / unread chats counts for the bottom tab badges
+  likesBadge.refresh();
+  chatsBadge.refresh();
+
+  // payment events that happened while the app was closed (renewals, failed
+  // payments, refunds...), and again whenever it comes back to the foreground
+  checkPaymentNotices();
+  if (!paymentNoticeWatcher) {
+    paymentNoticeWatcher = AppState.addEventListener('change', state => {
+      if (state !== 'active') return;
+      checkPaymentNotices();
+      // Pushes sent while the socket was down are gone -- resync the badges.
+      likesBadge.refresh();
+    });
+  }
 
   // 111111
   // update location -- gated so a re-launch in the same neighborhood doesn't
@@ -277,8 +314,10 @@ export const __init__app = async (): Promise<void> => {
                   realtimedata: retrivedData?.payload,
                 });
             } else {
+              chatsBadge.refresh();
             }
           } else {
+            chatsBadge.refresh();
             const nmessage =
               (retrivedData?.payload?.firstName ?? 'Someone') +
               ' has messaged you';
@@ -304,6 +343,8 @@ export const __init__app = async (): Promise<void> => {
           }
         } else if (data.event === 'new-like') {
           // Emitted by pushPeopleToMatch.js when someone likes/superlikes the current user.
+          // Re-counted rather than incremented -- a like upgraded to a superlike is still one person.
+          likesBadge.refresh();
           if (navigationRef.getCurrentRoute()?.name === namer.navigation.likes)
             return;
           if (AppState.currentState === 'active') {
@@ -320,6 +361,16 @@ export const __init__app = async (): Promise<void> => {
               },
             });
           }
+        } else if (data.event === 'badge-counts') {
+          // Pushed by the server whenever a tab badge changes (api global/badges.js).
+          applyBadgeCounts(data);
+        } else if (data.event === 'payment-event') {
+          // Emitted by the Stripe webhook (api global/paymentNotices.js). Fetched
+          // rather than shown from the payload so it's marked seen server-side.
+          checkPaymentNotices();
+        } else if (data.event === 'message-deleted') {
+          // Emitted by pushDeleteMessage.js -- a deleted unread last message no longer counts as unread.
+          chatsBadge.refresh();
         } else if (data.event === 'new-match') {
           // Emitted by pushPeopleToMatch.js to the party who liked first, once the other
           // side matches back -- they don't otherwise learn about it until they reopen the app.
@@ -361,47 +412,6 @@ export const __init__app = async (): Promise<void> => {
   })();
 };
 
-// Cold-start deep links (Linking.getInitialURL) can fire before <NavigationContainer>
-// has mounted, so navigationRef.isReady() is briefly false — poll instead of busy-looping
-// or checking once. Never call navigate/resetRoot while isReady() is false; it will throw.
-async function waitForNavigationReady(
-  timeoutMs = 4000,
-  intervalMs = 100,
-): Promise<boolean> {
-  const start = Date.now();
-  while (!navigationRef.isReady()) {
-    if (Date.now() - start >= timeoutMs) return false;
-    await new Promise<void>(resolve => setTimeout(() => resolve(), intervalMs));
-  }
-  return true;
-}
-
-// Stripe's webhook can land a moment after the success redirect, so poll the
-// lightweight entitlement endpoint briefly instead of trusting a single profile refetch.
-async function waitForEntitlementRefresh(
-  maxAttempts = 5,
-  delayMs = 2000,
-): Promise<boolean> {
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      const entitlement = await xxa__http_requests({
-        customApiUrl:
-          __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getEntitlement',
-        reqType: 'POST',
-      });
-      if (entitlement?.hasActiveSubscription) {
-        return true;
-      }
-    } catch (error) {
-      console.error('Entitlement refresh check failed:', error);
-    }
-    if (attempt < maxAttempts) {
-      await new Promise<void>(resolve => setTimeout(() => resolve(), delayMs));
-    }
-  }
-  return false;
-}
-
 export function handleDeepLink(url: string) {
   if (!url) return;
 
@@ -412,43 +422,39 @@ export function handleDeepLink(url: string) {
     // clean path
     const path = rawPath.split('?')[0].replace(/\/$/, '') || '/';
 
+    const query = rawPath.split('?')[1] ?? '';
+    const paymentId =
+      query
+        .split('&')
+        .map(pair => pair.split('='))
+        .find(([key]) => key === 'pid')?.[1] ?? null;
+
+    // Checkout returns: each shows what actually happened to that payment (see
+    // functions/paymentNotices.ts), not a blanket "payment successful".
     const paymentRoutes: Record<string, () => void> = {
-      '/payment/success': async () => {
+      '/payment/success': () => {
         Toastx.show({
-          type: 'success',
-          message: 'Payment successful — your plan is now active',
-          duration: 8000,
+          type: 'info',
+          title: 'Confirming your payment…',
+          message: 'Hang tight, this only takes a moment.',
+          duration: 4000,
         });
-
-        // Give the Stripe webhook a chance to land before pulling the fresh profile,
-        // since the checkout redirect can beat the webhook to our server.
-        await waitForEntitlementRefresh();
-
-        await Promise.all([
-          cacheStorage.getCurrentUserProfile(true),
-          cacheStorage.getProducts(true),
-        ]);
-
-        if (await waitForNavigationReady()) {
-          navigationRef.resetRoot({
-            index: 0,
-            routes: [
-              {
-                name: namer.navigation.home,
-                state: {
-                  routes: [{ name: namer.navigation.profile }],
-                },
-              },
-            ],
-          });
-        }
+        followCheckoutReturn(paymentId ? decodeURIComponent(paymentId) : null);
       },
       '/payment/cancelled': () => {
         Toastx.show({
           type: 'info',
-          message: 'Payment cancelled — no charge was made',
-          duration: 9000,
+          title: 'Checkout cancelled',
+          message:
+            "You weren't charged. You can pick up where you left off anytime.",
+          duration: 7000,
         });
+      },
+      '/payment/billing': () => {
+        // Back from Stripe's billing portal -- a card update may have retried a
+        // failed renewal, so pick up whatever that produced.
+        checkPaymentNotices();
+        cacheStorage.getCurrentUserProfile(true).catch(() => {});
       },
     };
 
@@ -591,8 +597,7 @@ export const _handle_Signup = async (
     }
   }
   if (err) {
-    Toastx.show({ type: 'error', message: 'Signup Error\n' + err });
-    Alert.alert('Signup Failed', err);
+    Dialogx.alert('Signup failed', err, undefined, { tone: 'error' });
   }
 };
 

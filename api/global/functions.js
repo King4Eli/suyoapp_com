@@ -3,6 +3,7 @@ import { db } from "../db/client.js";
 import { logsApplication } from "../db/schema.js";
 import { sessions } from "./sessions.js";
 import { namer } from "./namer.js";
+import { BUILD_HASH } from "./buildInfo.js";
 
 /**
  * Reads a positive integer from process.env, falling back to a default when unset,
@@ -74,6 +75,7 @@ export class tools {
           reportType: "server_" + title,
           reportData: message,
           reportCurrentuser: sessions.currentUserID || null,
+          buildHash: BUILD_HASH,
         });
         if (!jj || jj?.affectedRows === 0) {
           console.error(

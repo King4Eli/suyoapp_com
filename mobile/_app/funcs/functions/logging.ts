@@ -15,6 +15,26 @@ const MAX_BATCH_SIZE = 50;
 
 type LogPayload = Record<string, any>;
 
+// user_id of the signed-in account, read from the session JWT's payload (the
+// server signs { user_id }), or null when signed out. Stamped on each log when
+// it's created: the server credits a log to an account only if this matches the
+// session it arrives with, so a log from a signed-out moment -- or another
+// account -- is never pinned on whoever is signed in at flush time.
+const sessionUserId = (): string | null => {
+  try {
+    const token = sessionManager.getCurrentSession()?.x_omi_payload;
+    const payload = token?.split('.')?.[1];
+    if (!payload) return null;
+    // atob is provided by Hermes (RN 0.74+); RN's TS lib just doesn't declare it.
+    const json = (globalThis as any).atob(
+      payload.replace(/-/g, '+').replace(/_/g, '/'),
+    );
+    return JSON.parse(json)?.user_id ?? null;
+  } catch {
+    return null;
+  }
+};
+
 // Serialises every read-modify-write on the queue so concurrent failed sends
 // don't clobber each other's append. Network calls stay OUTSIDE this chain.
 let queueChain: Promise<unknown> = Promise.resolve();
@@ -78,15 +98,13 @@ const sendLogs = async (
 
 let flushing = false;
 // Drains the offline queue to the server in batches. Safe to call on every app
-// open / resume: it no-ops when the queue is empty, when a flush is already
-// running, or when logged out (the endpoint 400s without a session). Any batch
-// that fails to send is left in place and retried on the next call.
+// open / resume: it no-ops when the queue is empty or a flush is already
+// running. Works signed in or out -- logs don't need an account. Any batch that
+// fails to send is left in place and retried on the next call.
 export const flushLogQueue = async (): Promise<void> => {
   if (flushing) return;
   flushing = true;
   try {
-    if (!sessionManager.getCurrentSession()?.x_omi_payload) return;
-
     let guard = 0;
     while (guard++ < 20) {
       const batch = (await withQueue(readQueue)).slice(0, MAX_BATCH_SIZE);
@@ -157,6 +175,8 @@ export const xxa_logggingReport = ({
         // registerDevice on app init) -- only the reference is sent here,
         // not the full device payload, on every single log.
         device_id: deviceData?.InstallationId || deviceData?.Id,
+        // who was signed in when this happened (null = nobody) -- see sessionUserId
+        uid: sessionUserId(),
         app: await getAppMeta(),
         // When this log was created on-device -- preserved through an offline
         // spell so the server sees the original time, not the flush time.

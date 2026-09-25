@@ -57,6 +57,18 @@ const MAX_PHOTOS = 6;
 export const MAX_PROMPTS = 3;
 export const MAX_INTERESTS = 15;
 
+// user_bio_height is stored in centimetres.
+const heightLabel = (cm?: string | null) => {
+  const n = Number(cm);
+  if (!cm || !Number.isFinite(n) || n <= 0) return null;
+  const totalInches = Math.round(n / 2.54);
+  return `${Math.floor(totalInches / 12)}'${totalInches % 12}" (${n} cm)`;
+};
+const HEIGHT_OPTIONS = Array.from({ length: 81 }, (_, i) => {
+  const cm = String(140 + i);
+  return { id: cm, label: heightLabel(cm) as string };
+});
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface PhotoItem {
   p?: string;
@@ -501,12 +513,37 @@ const PhotoGrid = React.memo(
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
-export function Screen_editprofile({ navigation }: { navigation: any }) {
+// Profile-completeness checklist items (api global/profileCompleteness.js) that
+// open this screen at a specific spot via route.params.focusSection.
+type FocusSection =
+  | 'photos'
+  | 'about'
+  | 'basics'
+  | 'work'
+  | 'background'
+  | 'prompts'
+  | 'interests';
+
+export function Screen_editprofile({
+  navigation,
+  route,
+}: {
+  navigation: any;
+  route?: any;
+}) {
   const { colors } = useTheme();
   const photoStyles = useMemo(() => createPhotoStyles(colors), [colors]);
   const pgStyles = useMemo(() => createPgStyles(colors), [colors]);
 
   const [_getProfile, setProfile] = useState<any>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  // y of each focusable section inside the scroll content (formStack offset + own y)
+  const formStackY = useRef(0);
+  const sectionY = useRef<Partial<Record<FocusSection, number>>>({});
+  const trackSection = (key: FocusSection) => (e: any) => {
+    sectionY.current[key] = e.nativeEvent.layout.y;
+  };
+  const focusHandled = useRef(false);
   const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
 
   const imageDomain = __MAPPER?.img_domain ?? '';
@@ -561,10 +598,16 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
     religion: null as string | null,
     politicalview: null as string | null,
 
+    height: null as string | null,
+
     // Text fields
     hometown: '',
     schoolattended: '',
-    languages: [] as string[],
+    jobrole: '',
+    company: '',
+    // Raw text while editing ("English, Fr") -- parsed into a list on save, so a
+    // trailing comma isn't eaten mid-typing.
+    languagesText: '',
   });
 
   // ── Profile state ──────────────────────────────────────────────────────
@@ -574,6 +617,35 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
     {},
   );
   const [promptErrors, setPromptErrors] = useState<Record<number, string>>({});
+
+  // Opened from the completeness checklist: once the profile has loaded, go
+  // straight to what's missing -- the prompts/interests editor, or the section.
+  const focusSection: FocusSection | undefined = route?.params?.focusSection;
+  useEffect(() => {
+    if (!focusSection || !_getProfile || focusHandled.current) return;
+    focusHandled.current = true;
+    setTimeout(() => {
+      if (focusSection === 'prompts') {
+        navigation.navigate(namer.navigation.editProfilePrompts, {
+          existingPrompts: getPrompts,
+          onSave: (updated: PromptEntry[]) => setPrompts(updated),
+        });
+      } else if (focusSection === 'interests') {
+        navigation.navigate(namer.navigation.editProfileInterests, {
+          existingInterests: getInterests,
+          onSave: (updated: InterestEntry[]) => setInterests(updated),
+        });
+      } else {
+        const y = sectionY.current[focusSection];
+        if (y != null) {
+          scrollRef.current?.scrollTo({
+            y: Math.max(0, formStackY.current + y - 12),
+            animated: true,
+          });
+        }
+      }
+    }, 400);
+  }, [focusSection, _getProfile, getPrompts, getInterests, navigation]);
 
   // profile
   useEffect(() => {
@@ -607,15 +679,26 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                   ? '1'
                   : '0'
                 : null,
-            highEducation: profile?.bio?.highesteducation ?? null,
+            highEducation:
+              profile?.bio?.education != null
+                ? String(profile.bio.education)
+                : null,
             ethnicity: profile?.bio?.ethnicity ?? null,
             religion: profile?.bio?.religion ?? null,
             politicalview: profile?.bio?.politicalview ?? null,
 
+            height:
+              profile?.bio?.height != null ? String(profile.bio.height) : null,
+
             // Text fields
             hometown: profile?.bio?.hometown ?? '',
-            schoolattended: profile?.bio?.schoolattended ?? '',
-            languages: profile?.bio?.language ?? [],
+            schoolattended: profile?.bio?.school ?? '',
+            jobrole: profile?.bio?.jobrole ?? '',
+            company: profile?.bio?.company ?? '',
+            languagesText: (Array.isArray(profile?.bio?.language)
+              ? profile.bio.language
+              : []
+            ).join(', '),
           });
           setPrompts(
             Array.isArray(profile?.bio?.prompts) ? profile.bio.prompts : [],
@@ -770,10 +853,18 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
           prof_religion: getProfileEdit?.religion,
           prof_highesteducation: getProfileEdit?.highEducation,
           prof_relationshipgoal: getProfileEdit?.relationshipgoal,
-          prof_languages: JSON.stringify(getProfileEdit?.languages ?? []),
+          prof_languages: JSON.stringify(
+            (getProfileEdit?.languagesText ?? '')
+              .split(',')
+              .map(item => item.trim())
+              .filter(Boolean),
+          ),
           prof_gender: getProfileEdit?.gender,
           prof_hometown: getProfileEdit?.hometown,
           prof_schoolattended: getProfileEdit?.schoolattended,
+          prof_jobrole: getProfileEdit?.jobrole,
+          prof_company: getProfileEdit?.company,
+          prof_height: getProfileEdit?.height,
           prof_political: getProfileEdit?.politicalview,
           prof_prompts: JSON.stringify(
             (getPrompts ?? []).map(p => ({ id_ai: p.id_ai, answer: p.answer })),
@@ -992,6 +1083,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
         style={{ flex: 1 }}
       >
         <ScrollView
+          ref={scrollRef}
           style={{ flex: 1 }}
           contentContainerStyle={styles.conainerScrollView}
           keyboardShouldPersistTaps="handled"
@@ -1001,9 +1093,17 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
           automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
           showsVerticalScrollIndicator={false}
         >
-          <View style={pgStyles.formStack}>
+          <View
+            style={pgStyles.formStack}
+            onLayout={e => {
+              formStackY.current = e.nativeEvent.layout.y;
+            }}
+          >
             {/* ── Photo Grid ───────────────────────────────── */}
-            <View style={pgStyles.sectionCard}>
+            <View
+              style={pgStyles.sectionCard}
+              onLayout={trackSection('photos')}
+            >
               <View style={pgStyles.sectionHeader}>
                 <View style={pgStyles.sectionIcon}>
                   <MIcons
@@ -1109,7 +1209,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
             </View>
 
             {/* ── About ────────────────────────────────────── */}
-            <View style={pgStyles.formField}>
+            <View style={pgStyles.formField} onLayout={trackSection('about')}>
               <View style={pgStyles.inputHeader}>
                 <Text style={pgStyles.fieldLabel}>About you</Text>
                 <IIcon
@@ -1134,6 +1234,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
             </View>
 
             <FormGroup
+              onLayout={trackSection('basics')}
               title="Core Details"
               hint="These help people understand who you are looking for."
               pgStyles={pgStyles}
@@ -1175,6 +1276,21 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                       },
                     ],
                     onSelect: id => updateProfileEdit({ gender: id }),
+                  })
+                }
+                colors={colors}
+                pgStyles={pgStyles}
+              />
+              <PickerField
+                label="Height"
+                value={heightLabel(getProfileEdit.height)}
+                icon="human-male-height"
+                onPress={() =>
+                  openPicker({
+                    title: 'How tall are you?',
+                    selectedId: getProfileEdit.height,
+                    sections: [{ title: 'Height', options: HEIGHT_OPTIONS }],
+                    onSelect: id => updateProfileEdit({ height: id }),
                   })
                 }
                 colors={colors}
@@ -1269,6 +1385,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
             </FormGroup>
 
             <FormGroup
+              onLayout={trackSection('work')}
               title="Background"
               hint="A few real-world details for better context."
               pgStyles={pgStyles}
@@ -1314,16 +1431,12 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
               />
               <InlineTextField
                 label="Languages"
-                value={getProfileEdit.languages.join(', ')}
+                value={getProfileEdit.languagesText}
                 icon="translate"
                 placeholder="Languages you speak (comma separated)"
+                maxLength={200}
                 onChangeText={text =>
-                  updateProfileEdit({
-                    languages: text
-                      .split(',')
-                      .map(item => item.trim())
-                      .filter(Boolean),
-                  })
+                  updateProfileEdit({ languagesText: text })
                 }
                 colors={colors}
                 pgStyles={pgStyles}
@@ -1337,6 +1450,26 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                 onChangeText={text =>
                   updateProfileEdit({ schoolattended: text })
                 }
+                colors={colors}
+                pgStyles={pgStyles}
+              />
+              <InlineTextField
+                label="Job Title"
+                value={getProfileEdit.jobrole}
+                icon="briefcase-outline"
+                placeholder="What do you do?"
+                maxLength={20}
+                onChangeText={text => updateProfileEdit({ jobrole: text })}
+                colors={colors}
+                pgStyles={pgStyles}
+              />
+              <InlineTextField
+                label="Company"
+                value={getProfileEdit.company}
+                icon="office-building-outline"
+                placeholder="Where do you work?"
+                maxLength={30}
+                onChangeText={text => updateProfileEdit({ company: text })}
                 colors={colors}
                 pgStyles={pgStyles}
               />
@@ -1484,6 +1617,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
             </FormGroup>
 
             <FormGroup
+              onLayout={trackSection('background')}
               title="Identity"
               hint="Share as much or as little as feels right."
               pgStyles={pgStyles}
@@ -1627,13 +1761,15 @@ const FormGroup = ({
   hint,
   children,
   pgStyles,
+  onLayout,
 }: {
   title: string;
   hint?: string;
   children: React.ReactNode;
   pgStyles: any;
+  onLayout?: (e: any) => void;
 }) => (
-  <View style={pgStyles.groupCard}>
+  <View style={pgStyles.groupCard} onLayout={onLayout}>
     <View style={pgStyles.groupHeader}>
       <Text style={pgStyles.groupTitle}>{title}</Text>
       {!!hint && <Text style={pgStyles.groupHint}>{hint}</Text>}

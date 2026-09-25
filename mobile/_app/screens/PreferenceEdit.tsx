@@ -34,6 +34,28 @@ const defaultPreferences = {
   distance: { miles: 25, km: '40' },
 };
 
+function buildPreferencesPayload(
+  preferences: typeof defaultPreferences,
+  distanceMiles: number,
+) {
+  return {
+    min_age: preferences.minAge,
+    max_age: preferences.maxAge,
+    pref_smoking: preferences.smoking,
+    pref_drinking: preferences.drinking,
+    pref_children: preferences.children,
+    pref_ethnicity: preferences.ethnicity,
+    pref_pet: preferences.pets,
+    pref_religion: preferences.religion,
+    pref_politicalview: preferences.politicalview,
+    pref_highesteducation: preferences.highEducation,
+    pref_relationshipgoal: preferences.relationshipGoal,
+    pref_languages: preferences.languages,
+    pref_gender: preferences.gender,
+    pref_distance: distanceMiles,
+  };
+}
+
 export function Screen_editpreference({ navigation }: { navigation: any }) {
   const { colors } = useTheme();
   const localStyles = useMemo(() => createLocalStyles(colors), [colors]);
@@ -43,12 +65,24 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
 
   const [preferences, setPreferences] = useState(defaultPreferences);
 
-  const hasPremium = help.getSubscriptionState(getProfile).hasActive;
+  const hasPremium =
+    help.getSubscriptionState(getProfile).features.advancedFilters;
 
   const [getDistance, setDistance] = useState<{ miles: number; km: string }>({
     miles: defaultPreferences.distance.miles,
     km: defaultPreferences.distance.km,
   });
+
+  // pushProfile body as last loaded -- leaving the screen only saves when the
+  // current body differs from this
+  const savedPayloadRef = React.useRef(
+    JSON.stringify(
+      buildPreferencesPayload(
+        defaultPreferences,
+        defaultPreferences.distance.miles,
+      ),
+    ),
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -111,6 +145,12 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
             },
           };
 
+          savedPayloadRef.current = JSON.stringify(
+            buildPreferencesPayload(
+              nextPreferences,
+              nextPreferences.distance.miles,
+            ),
+          );
           setPreferences(nextPreferences);
           setDistance(nextPreferences.distance);
         }
@@ -174,30 +214,20 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
   };
 
   const persistPreferences = useCallback(async () => {
+    const payload = buildPreferencesPayload(preferences, getDistance.miles);
+    const serialized = JSON.stringify(payload);
+    if (serialized === savedPayloadRef.current) return;
+
     Loaderx.show();
     try {
       const response = await _http_request({
         customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/pushProfile',
         reqType: 'POST',
-        bodyArray: {
-          min_age: preferences.minAge,
-          max_age: preferences.maxAge,
-          pref_smoking: preferences.smoking,
-          pref_drinking: preferences.drinking,
-          pref_children: preferences.children,
-          pref_ethnicity: preferences.ethnicity,
-          pref_pet: preferences.pets,
-          pref_religion: preferences.religion,
-          pref_politicalview: preferences.politicalview,
-          pref_highesteducation: preferences.highEducation,
-          pref_relationshipgoal: preferences.relationshipGoal,
-          pref_languages: preferences.languages,
-          pref_gender: preferences.gender,
-          pref_distance: getDistance.miles,
-        },
+        bodyArray: payload,
       });
 
       if (response?.code === 200) {
+        savedPayloadRef.current = serialized;
         Toastx.show({
           type: 'success',
           message: response?.message ?? 'Preferences updated!',
@@ -215,7 +245,8 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
   }, [getDistance.miles, preferences]);
 
   // Autosave whenever the screen is left (back gesture, hardware back,
-  // header back button, or the explicit Save button below).
+  // header back button, or the explicit Save button below) -- a no-op when
+  // nothing changed since load.
   const hasAutoSavedRef = React.useRef(false);
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
@@ -294,6 +325,45 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
     />
   );
 
+  // One card per kind of premium filter (lifestyle, background, education).
+  // Locked plans still see what's in each card -- dimmed, with a lock chip --
+  // and tapping it goes to plans. The server ignores these filters for plans
+  // without them regardless (api getPeopleToMatch paidFilter).
+  const renderPremiumGroup = (
+    title: string,
+    icon: string,
+    children: React.ReactNode,
+  ) => (
+    <View style={localStyles.premiumGroup}>
+      <View style={localStyles.premiumGroupHeader}>
+        <View style={localStyles.premiumGroupIcon}>
+          <IIcon name={icon} size={16} color={colors.primary} />
+        </View>
+        <Text style={localStyles.premiumGroupTitle}>{title}</Text>
+        {!hasPremium && (
+          <View style={localStyles.premiumBadge}>
+            <IIcon name="lock-closed" size={11} color="#9a3412" />
+            <Text style={localStyles.premiumBadgeText}>Premium</Text>
+          </View>
+        )}
+      </View>
+      <Pressable
+        disabled={hasPremium}
+        onPress={() => navigation.push(namer.navigation.subscription)}
+      >
+        <View
+          pointerEvents={hasPremium ? 'auto' : 'none'}
+          style={[
+            localStyles.groupInner,
+            !hasPremium && localStyles.moreDisabledBlock,
+          ]}
+        >
+          {children}
+        </View>
+      </Pressable>
+    </View>
+  );
+
   return (
     <SafeAreaView
       style={[styles.container, localStyles.root, {}]}
@@ -308,73 +378,80 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
       >
         <View style={{ gap: 12 }}>
           <Text style={localStyles.sectionHeaderText}>Basic filters</Text>
-          <View style={[styles.editprofile_inputborder, localStyles.card,{paddingHorizontal: 10}]}>
-            
-            <View style={{ borderBottomWidth: 1,borderBottomColor: '#e5e7eb',}}>
-            <Text style={localStyles.inputTitle}>Age range</Text>
-            <Text style={localStyles.inputSubTitle}>
-              Between {preferences.minAge} - {preferences.maxAge}
-            </Text>
-            <RangeSlider
-              style={{ width: '100%', height: 30 }}
-              low={parseInt(preferences.minAge, 10) ?? 18}
-              high={parseInt(preferences.maxAge, 10) ?? 19}
-              min={18}
-              max={100}
-              step={1}
-              floatingLabel={true}
-              minRange={2}
-              onValueChanged={(low: number, high: number) => {
-                if (low.toString() !== preferences.minAge)
-                  setPreferences(prev => ({
-                    ...prev,
-                    minAge: low.toString(),
-                  }));
-                if (high.toString() !== preferences.maxAge)
-                  setPreferences(prev => ({
-                    ...prev,
-                    maxAge: high.toString(),
-                  }));
-              }}
-              renderThumb={() => <View style={styles.slider_thumb} />}
-              renderRail={() => <View style={styles.slider_rail} />}
-              renderRailSelected={() => (
-                <View style={styles.slider_railSelected} />
-              )}
-            />
+          <View
+            style={[
+              styles.editprofile_inputborder,
+              localStyles.card,
+              { paddingHorizontal: 10 },
+            ]}
+          >
+            <View
+              style={{ borderBottomWidth: 1, borderBottomColor: '#e5e7eb' }}
+            >
+              <Text style={localStyles.inputTitle}>Age range</Text>
+              <Text style={localStyles.inputSubTitle}>
+                Between {preferences.minAge} - {preferences.maxAge}
+              </Text>
+              <RangeSlider
+                style={{ width: '100%', height: 30 }}
+                low={parseInt(preferences.minAge, 10) ?? 18}
+                high={parseInt(preferences.maxAge, 10) ?? 19}
+                min={18}
+                max={100}
+                step={1}
+                floatingLabel={true}
+                minRange={2}
+                onValueChanged={(low: number, high: number) => {
+                  if (low.toString() !== preferences.minAge)
+                    setPreferences(prev => ({
+                      ...prev,
+                      minAge: low.toString(),
+                    }));
+                  if (high.toString() !== preferences.maxAge)
+                    setPreferences(prev => ({
+                      ...prev,
+                      maxAge: high.toString(),
+                    }));
+                }}
+                renderThumb={() => <View style={styles.slider_thumb} />}
+                renderRail={() => <View style={styles.slider_rail} />}
+                renderRailSelected={() => (
+                  <View style={styles.slider_railSelected} />
+                )}
+              />
             </View>
 
-
-            <View><Text style={localStyles.inputTitle}>{`Distance from you (${
-              getProfile?.profile?.location?.city || 'your area'
-            })`}</Text>
-            <Text style={localStyles.inputSubTitle}>
-              {getDistance.miles > 100
-                ? 'No limit on distance.'
-                : `${getDistance.miles} miles from you`}
-            </Text>
-            <RangeSlider
-              disableRange={true}
-              style={{ width: '100%', height: 30 }}
-              low={getDistance.miles ?? 55}
-              high={getDistance.miles ?? 60}
-              min={5}
-              max={105}
-              step={5}
-              onValueChanged={(va: number) => {
-                if (va !== getDistance.miles) {
-                  setDistance({
-                    miles: va,
-                    km: help.milesToKM(va)?.toString() ?? 'n/a',
-                  });
-                }
-              }}
-              renderThumb={() => <View style={styles.slider_thumb} />}
-              renderRail={() => <View style={styles.slider_rail} />}
-              renderRailSelected={() => (
-                <View style={styles.slider_railSelected} />
-              )}
-            />
+            <View>
+              <Text style={localStyles.inputTitle}>{`Distance from you (${
+                getProfile?.profile?.location?.city || 'your area'
+              })`}</Text>
+              <Text style={localStyles.inputSubTitle}>
+                {getDistance.miles > 100
+                  ? 'No limit on distance.'
+                  : `${getDistance.miles} miles from you`}
+              </Text>
+              <RangeSlider
+                disableRange={true}
+                style={{ width: '100%', height: 30 }}
+                low={getDistance.miles ?? 55}
+                high={getDistance.miles ?? 60}
+                min={5}
+                max={105}
+                step={5}
+                onValueChanged={(va: number) => {
+                  if (va !== getDistance.miles) {
+                    setDistance({
+                      miles: va,
+                      km: help.milesToKM(va)?.toString() ?? 'n/a',
+                    });
+                  }
+                }}
+                renderThumb={() => <View style={styles.slider_thumb} />}
+                renderRail={() => <View style={styles.slider_rail} />}
+                renderRailSelected={() => (
+                  <View style={styles.slider_railSelected} />
+                )}
+              />
             </View>
           </View>
 
@@ -432,14 +509,10 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
             </View>
           ) : null}
 
-          <View
-            pointerEvents={hasPremium ? 'auto' : 'none'}
-            style={[
-              localStyles.group,
-              !hasPremium && localStyles.moreDisabledBlock,
-            ]}
-          >
-            <View style={localStyles.groupInner}>
+          {renderPremiumGroup(
+            'Lifestyle',
+            'leaf-outline',
+            <>
               {renderRadioAccordion(
                 'Should they have kids?',
                 preferences.children,
@@ -459,16 +532,24 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
                 id => setPreferences(prev => ({ ...prev, smoking: id })),
               )}
               {renderRadioAccordion(
-                'Preferred ethnicity?',
-                preferences.ethnicity,
-                radioButtons.getEthnicity,
-                id => setPreferences(prev => ({ ...prev, ethnicity: id })),
-              )}
-              {renderRadioAccordion(
                 'Should they have pet(s)?',
                 preferences.pets,
                 radioButtons.getPets,
                 id => setPreferences(prev => ({ ...prev, pets: id })),
+                undefined,
+                true,
+              )}
+            </>,
+          )}
+          {renderPremiumGroup(
+            'Background & beliefs',
+            'earth-outline',
+            <>
+              {renderRadioAccordion(
+                'Preferred ethnicity?',
+                preferences.ethnicity,
+                radioButtons.getEthnicity,
+                id => setPreferences(prev => ({ ...prev, ethnicity: id })),
               )}
               {renderRadioAccordion(
                 'Preferred religion?',
@@ -481,7 +562,15 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
                 preferences.politicalview,
                 radioButtons.getPoliticalView,
                 id => setPreferences(prev => ({ ...prev, politicalview: id })),
+                undefined,
+                true,
               )}
+            </>,
+          )}
+          {renderPremiumGroup(
+            'Education & language',
+            'school-outline',
+            <>
               {renderRadioAccordion(
                 'Preferred highest education?',
                 preferences.highEducation,
@@ -496,8 +585,8 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
                 undefined,
                 true,
               )}
-            </View>
-          </View>
+            </>,
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -634,6 +723,33 @@ function createLocalStyles(colors: ThemeColors) {
       alignItems: 'center',
       gap: 10,
       ...elevation(colors.shadow, 1),
+    },
+    premiumGroup: {
+      borderRadius: 14,
+      backgroundColor: colors.surface,
+      paddingTop: 12,
+      ...elevation(colors.shadow, 1),
+    },
+    premiumGroupHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingHorizontal: 12,
+      paddingBottom: 6,
+    },
+    premiumGroupIcon: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primarySoft,
+    },
+    premiumGroupTitle: {
+      flex: 1,
+      fontSize: 15.5,
+      fontWeight: '700',
+      color: colors.text,
     },
     moreDisabledBlock: {
       opacity: 0.5,

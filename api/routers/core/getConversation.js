@@ -3,14 +3,25 @@ import { db } from "../../db/client.js";
 import { conversations, matches, users } from "../../db/schema.js";
 import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
-import { getSubscriptionTier } from "../../global/entitlements.js";
+import { pushBadgeCounts } from "../../global/badges.js";
+import { hasFeature } from "../../global/entitlements.js";
 
 /**
+ * With `since` (unix seconds, the `syncedAt` of the caller's last sync), only
+ * messages added or changed (read, deleted -- those bump convo_date_updated)
+ * after it are returned, so the app can keep the thread cached on the device
+ * and just merge the difference.
  * @param {string} matchId
  * @param {import("socket.io").Server} [io]
+ * @param {number | string} [since]
  */
-export default async function getConversation(matchId, io) {
+export default async function getConversation(matchId, io, since) {
   matchId = matchId?.trim() || "ERRNAME";
+  const sinceTs = Number(since);
+  const isDelta = Number.isFinite(sinceTs) && sinceTs > 0;
+  // Taken before the query, so anything written while it runs is caught by the
+  // next sync instead of slipping between the two.
+  const syncedAt = Math.floor(Date.now() / 1000);
 
   const rows = await db
     .select({
@@ -48,6 +59,12 @@ export default async function getConversation(matchId, io) {
         // loop below is what withholds the real content and reports it as deleted instead)
         // so the other party sees a "message deleted" placeholder instead of a silent gap.
         inArray(conversations.convoStatus, ["0", "1", "-99"]),
+        isDelta
+          ? or(
+              sql`${conversations.convoDateAdded} >= ${sinceTs}`,
+              sql`${conversations.convoDateUpdated} >= ${sinceTs}`,
+            )
+          : undefined,
       ),
     )
     .where(
@@ -123,8 +140,10 @@ export default async function getConversation(matchId, io) {
       .from(users)
       .where(eq(users.userId, sessions.currentUserID));
     if (viewerRow?.user_privacy_read_receipts === "1") {
-      canSeeReadReceipts =
-        (await getSubscriptionTier(sessions.currentUserID)) === "vip";
+      canSeeReadReceipts = await hasFeature(
+        sessions.currentUserID,
+        "readReceipts",
+      );
     }
   }
 
@@ -158,6 +177,8 @@ export default async function getConversation(matchId, io) {
           type: convo.t,
           message: isDeleted ? null : (convo.str ?? null),
           src: isDeleted ? null : (convo.src ?? null),
+          // What a direct message commented on: { k: "photo", p } | { k: "about", str }
+          replyTo: isDeleted ? null : (convo.ref ?? null),
           dateAdded: row.convo_date_added ?? null,
           // Only meaningful (and only sent) for messages the viewer sent -- whether
           // the viewer read something they received is never ambiguous to them.
@@ -185,7 +206,7 @@ export default async function getConversation(matchId, io) {
       rows[0]?.match_user_id_from === sessions.currentUserID;
     const [updateResult] = await db
       .update(conversations)
-      .set({ convoStatus: "1" })
+      .set({ convoStatus: "1", convoDateUpdated: sql`UNIX_TIMESTAMP()` })
       .where(
         and(
           eq(conversations.convoMatchId, matchId),
@@ -206,6 +227,8 @@ export default async function getConversation(matchId, io) {
         matchId,
         readByUserId: sessions.currentUserID,
       });
+      // Reading clears this chat from the reader's Chats badge (other devices too).
+      pushBadgeCounts(io, sessions.currentUserID);
     }
   } catch (error) {
     tools.serverLog(
@@ -219,6 +242,8 @@ export default async function getConversation(matchId, io) {
   response.u2deets = user2Details;
   response.chatsMessageListings = messages;
   response.convostarter = randomConvoStarter;
+  response.delta = isDelta;
+  response.syncedAt = syncedAt;
 
   return response;
 }
