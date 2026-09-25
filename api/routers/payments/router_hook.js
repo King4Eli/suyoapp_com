@@ -7,9 +7,8 @@ import {
   productLists,
   stripeEvents,
   subscriptions,
-  userBoostUsage,
-  userRoseUsage,
 } from "../../db/schema.js";
+import { grantBoosts, grantRoses } from "../../global/entitlements.js";
 import { stripe_gateway, tools } from "../../global/functions.js";
 
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_SIGNING_SECRET ?? "";
@@ -541,19 +540,7 @@ export async function fulfillOnetimePurchase(
     const roses = Number(description?.roses ?? 0);
     if (!Number.isFinite(roses) || roses <= 0) return;
 
-    // Upsert: the user may never have spent a rose before, so their row in
-    // user_rose_usage might not exist yet.
-    await db
-      .insert(userRoseUsage)
-      .values({
-        userId,
-        roseBalance: roses,
-        dailyUsed: 0,
-        dailyResetDate: sql`CURRENT_DATE`,
-      })
-      .onDuplicateKeyUpdate({
-        set: { roseBalance: sql`${userRoseUsage.roseBalance} + ${roses}` },
-      });
+    await grantRoses(userId, roses);
     tools.serverLog(
       `Granted ${roses} roses to user ${userId} for payment ${paymentId}`,
       "hook_9001",
@@ -565,15 +552,7 @@ export async function fulfillOnetimePurchase(
     const boosts = Number(description?.boosts ?? 0);
     if (!Number.isFinite(boosts) || boosts <= 0) return;
 
-    // Upsert: first boost purchase creates the user's row.
-    await db
-      .insert(userBoostUsage)
-      .values({ userId, boostBalance: boosts })
-      .onDuplicateKeyUpdate({
-        set: {
-          boostBalance: sql`${userBoostUsage.boostBalance} + ${boosts}`,
-        },
-      });
+    await grantBoosts(userId, boosts);
     tools.serverLog(
       `Granted ${boosts} boosts to user ${userId} for payment ${paymentId}`,
       "hook_9006",

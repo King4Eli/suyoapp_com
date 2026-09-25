@@ -16,6 +16,7 @@ import {
   FREE_LIKE_DAILY_LIMIT,
 } from "../../global/entitlements.js";
 import { peekRateLimit } from "../../global/rateLimit.js";
+import { getStreakStatus } from "../../global/streaks.js";
 
 export default async function getProfile() {
   /** @type { any } */
@@ -204,11 +205,10 @@ export default async function getProfile() {
     }
     userLocation = userProfile.geo_meta ?? {};
 
-    const streakCount = Number(userProfile?.user_last_accessed ?? 0);
-
-    const [roses, boosts] = await Promise.all([
+    const [roses, boosts, streak] = await Promise.all([
       getRoseStatus(sessions.currentUserID),
       getBoostStatus(sessions.currentUserID),
+      getStreakStatus(sessions.currentUserID),
     ]);
     let likesRemainingToday = null;
     if (roses.tier === "free") {
@@ -307,7 +307,9 @@ export default async function getProfile() {
 
       // stats
       stats: {
-        streak_count: streakCount,
+        streak_count: streak.count,
+        // { count, days, activeToday, rewardsPending, reward: { roses, boosts } }
+        streak,
       },
 
       // subscription

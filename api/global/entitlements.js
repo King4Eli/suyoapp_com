@@ -147,6 +147,43 @@ export async function getRoseStatus(userId) {
 }
 
 /**
+ * Adds roses to the purchased balance (creating the row on first grant).
+ * @param {string} userId
+ * @param {number} roses
+ * @param {any} [tx] drizzle db or transaction
+ */
+export async function grantRoses(userId, roses, tx = db) {
+  if (!(roses > 0)) return;
+  await tx
+    .insert(userRoseUsage)
+    .values({
+      userId,
+      roseBalance: roses,
+      dailyUsed: 0,
+      dailyResetDate: sql`CURRENT_DATE`,
+    })
+    .onDuplicateKeyUpdate({
+      set: { roseBalance: sql`${userRoseUsage.roseBalance} + ${roses}` },
+    });
+}
+
+/**
+ * Adds boosts to the balance (creating the row on first grant).
+ * @param {string} userId
+ * @param {number} boosts
+ * @param {any} [tx] drizzle db or transaction
+ */
+export async function grantBoosts(userId, boosts, tx = db) {
+  if (!(boosts > 0)) return;
+  await tx
+    .insert(userBoostUsage)
+    .values({ userId, boostBalance: boosts })
+    .onDuplicateKeyUpdate({
+      set: { boostBalance: sql`${userBoostUsage.boostBalance} + ${boosts}` },
+    });
+}
+
+/**
  * Purchased boosts the user hasn't used yet.
  * @param {string} userId
  */

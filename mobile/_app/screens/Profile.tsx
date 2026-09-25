@@ -49,6 +49,9 @@ const PLAN_UI: Record<
   },
 };
 
+// Day-7 reward circle once reached -- deliberately off-palette so it pops.
+const STREAK_REWARD_COLORS = ['#FF3D77', '#FF9F1C'];
+
 const getPlanUi = (plan?: string | null) =>
   PLAN_UI[
     String(plan ?? '')
@@ -116,12 +119,63 @@ export function Screen_profile({ navigation }: { navigation: any }) {
   ];
   const buyItem = consumableItems.find(item => item.category === buyCategory);
 
+  // 7-day streak (Redis-backed, see api/global/streaks.js): any action on the
+  // Peoples screen counts the day; the reward amounts come from the server.
+  const streak = profile?.stats?.streak;
+  const streakDays = Number(streak?.days ?? 7);
+  const streakCount = Number(streak?.count ?? 0);
+  const streakRewardsPending = Number(streak?.rewardsPending ?? 0);
+  // Once complete, amounts cover every unclaimed reward.
+  const streakRewardMultiplier = Math.max(1, streakRewardsPending);
+  const streakRewards = [
+    {
+      key: 'roses',
+      icon: 'rose',
+      singular: 'Rose',
+      plural: 'Roses',
+      amount: Number(streak?.reward?.roses ?? 0) * streakRewardMultiplier,
+    },
+    {
+      key: 'boosts',
+      icon: 'flash',
+      singular: 'Boost',
+      plural: 'Boosts',
+      amount: Number(streak?.reward?.boosts ?? 0) * streakRewardMultiplier,
+    },
+  ].filter(item => item.amount > 0);
+
   const refreshProfile = async () => {
     try {
       const freshProfile = await cacheStorage.getCurrentUserProfile(true);
       setProfile(freshProfile);
     } catch {
       // keep showing the last known profile if the refresh itself fails
+    }
+  };
+
+  const claimStreakReward = async () => {
+    Loaderx.show();
+    const response: any = await _http_request({
+      customApiUrl:
+        __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/pushClaimStreakReward',
+      reqType: 'POST',
+    });
+    await refreshProfile();
+    Loaderx.hide();
+    if (response?.code === 200) {
+      const gotRoses = Number(response?.granted?.roses ?? 0);
+      const gotBoosts = Number(response?.granted?.boosts ?? 0);
+      Alert.alert(
+        'Reward claimed!',
+        [
+          gotRoses > 0 && `+${gotRoses} roses`,
+          gotBoosts > 0 && `+${gotBoosts} boosts`,
+        ]
+          .filter(Boolean)
+          .join('\n') || 'Enjoy your reward.',
+      );
+    } else {
+      Alert.alert('Oops', response?.message ?? 'Please try again.');
     }
   };
 
@@ -365,12 +419,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
         </View>
 
         <View style={stylesx.card}>
-          <SectionHeader
-            title="Power-ups"
-            hint="Tap to buy more roses or boosts."
-            colors={colors}
-            stylesx={stylesx}
-          />
+          <SectionHeader title="Power-ups" colors={colors} stylesx={stylesx} />
           <View style={stylesx.powerGrid}>
             {consumableItems.map(item => (
               <Pressable
@@ -538,38 +587,92 @@ export function Screen_profile({ navigation }: { navigation: any }) {
           </View>
         )}
 
-        {!activeSubscription && (
-          <View style={stylesx.card}>
-            <SectionHeader
-              title="7 day streak"
-              hint="Come back tomorrow to keep it going."
-              icon="fire"
-              colors={colors}
-              stylesx={stylesx}
-            />
-            <View style={stylesx.streakRow}>
-              {Array.from({ length: 7 }).map((_, index) => {
-                const isActive =
-                  index < (profile?.user_effect?.streakcount ?? 1);
+        <View style={stylesx.card}>
+          <SectionHeader
+            title={`${streakDays} day streak`}
+            icon="fire"
+            colors={colors}
+            stylesx={stylesx}
+          />
+          <View style={stylesx.streakRow}>
+            {Array.from({ length: streakDays }).map((_, index) => {
+              const isActive = index < streakCount;
+              const isRewardDay = index === streakDays - 1;
+              if (isRewardDay && isActive) {
                 return (
-                  <View
+                  <LinearGradient
                     key={index}
-                    style={[
-                      stylesx.streakDot,
-                      isActive && stylesx.streakDotActive,
-                    ]}
+                    colors={STREAK_REWARD_COLORS}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={[stylesx.streakDot, stylesx.streakRewardDotActive]}
                   >
-                    <MIcon
-                      name={index === 6 ? 'gift-outline' : 'fire'}
-                      size={index === 6 ? 21 : 23}
-                      color={isActive ? colors.premium : colors.textTertiary}
-                    />
-                  </View>
+                    <MIcon name="gift" size={26} color="#fff" />
+                  </LinearGradient>
                 );
-              })}
-            </View>
+              }
+              return (
+                <View
+                  key={index}
+                  style={[
+                    stylesx.streakDot,
+                    isActive && stylesx.streakDotActive,
+                    isRewardDay && stylesx.streakRewardDot,
+                  ]}
+                >
+                  <MIcon
+                    name={isRewardDay ? 'gift-outline' : 'fire'}
+                    size={isRewardDay ? 21 : 23}
+                    color={
+                      isActive || isRewardDay
+                        ? colors.premium
+                        : colors.textTertiary
+                    }
+                  />
+                </View>
+              );
+            })}
           </View>
-        )}
+          {streakRewards.length > 0 && (
+            <View
+              style={[
+                stylesx.streakRewards,
+                streakRewardsPending > 0 && stylesx.streakRewardsEarned,
+              ]}
+            >
+              <Text style={stylesx.streakRewardsTitle}>
+                {streakRewardsPending > 0
+                  ? 'Streak complete! You earned'
+                  : `Day ${streakDays} rewards`}
+              </Text>
+              <View style={stylesx.streakRewardsList}>
+                {streakRewards.map(item => (
+                  <View key={item.key} style={stylesx.streakRewardItem}>
+                    <IIcon name={item.icon} size={18} color={colors.premium} />
+                    <Text style={stylesx.streakRewardAmount}>
+                      +{item.amount}
+                    </Text>
+                    <Text style={stylesx.streakRewardLabel}>
+                      {item.amount === 1 ? item.singular : item.plural}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+          {streakRewardsPending > 0 && (
+            <TouchableOpacity
+              style={stylesx.streakClaimButton}
+              onPress={claimStreakReward}
+            >
+              <MIcon name="gift" size={18} color={colors.onPrimary} />
+              <Text style={stylesx.streakClaimText}>
+                Claim reward
+                {streakRewardsPending > 1 ? ` x${streakRewardsPending}` : ''}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </ScrollView>
 
       <ConsumableSheet
@@ -999,6 +1102,83 @@ function createStylesx(colors: ThemeColors) {
     streakDotActive: {
       backgroundColor: colors.backgroundSecondary,
       borderColor: colors.premium,
+    },
+    streakRewardDot: {
+      borderStyle: 'dashed',
+      borderWidth: 1.5,
+      borderColor: colors.premium,
+    },
+    streakRewardDotActive: {
+      borderWidth: 2,
+      borderStyle: 'solid',
+      borderColor: '#FFD166',
+      transform: [{ scale: 1.12 }],
+      shadowColor: '#FF3D77',
+      shadowOpacity: 0.6,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 8,
+    },
+    streakRewards: {
+      marginTop: 12,
+      padding: 12,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.backgroundSecondary,
+      gap: 10,
+    },
+    streakRewardsEarned: {
+      borderColor: colors.premium,
+      backgroundColor: colors.premiumSoft,
+    },
+    streakRewardsTitle: {
+      color: colors.text,
+      fontSize: 13,
+      fontWeight: '900',
+      textAlign: 'center',
+    },
+    streakRewardsList: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      gap: 10,
+    },
+    streakRewardItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 999,
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    streakRewardAmount: {
+      color: colors.text,
+      fontSize: 14,
+      fontWeight: '900',
+    },
+    streakRewardLabel: {
+      color: colors.textSecondary,
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    streakClaimButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: colors.premium,
+      borderRadius: 14,
+      paddingVertical: 12,
+      marginTop: 12,
+    },
+    streakClaimText: {
+      color: colors.onPrimary,
+      fontSize: 15,
+      fontWeight: '900',
     },
     manageSubRow: {
       flexDirection: 'row',

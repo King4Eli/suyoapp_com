@@ -607,6 +607,19 @@ export default function Peoples_Screen({
               // liking back / passing on someone who liked me takes them off the Likes tab badge
               likesBadge.refresh();
 
+              // first action of the day extends the 7-day streak
+              const streak = response?.streak;
+              if (streak?.newDay) {
+                cacheStorage.getCurrentUserProfile(true).catch(() => {});
+                Toastx.show({
+                  type: 'success',
+                  message: streak.rewardEarned
+                    ? `${streak.count}th-day streak conplete! Claim your reward in Profile.`
+                    : `Day ${streak.count} streak! Continue tomorrow.`,
+                  duration: 8000,
+                });
+              }
+
               if (typeof response?.rosesRemainingToday === 'number') {
                 setEntitlements(prev => ({
                   ...prev,

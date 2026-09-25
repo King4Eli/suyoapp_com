@@ -10,6 +10,7 @@ import {
   FREE_LIKE_DAILY_LIMIT,
   FREE_LIKE_WINDOW_SECONDS,
 } from "../../global/entitlements.js";
+import { recordStreakActivity } from "../../global/streaks.js";
 
 /**
  * Tells the recipient's socket room about a new like/match so their app can toast it
@@ -161,6 +162,10 @@ export default async function pushPeopleToMatch(data, io) {
       if (ifUsersMatched) {
         notifyUser(io, secondUserId, "new-match", { matchId });
       }
+    }
+    // Any successful Peoples action counts today toward the 7-day streak.
+    if (response.code === 200) {
+      response.streak = await recordStreakActivity(sessions.currentUserID);
     }
   } catch (err) {
     tools.serverLog(

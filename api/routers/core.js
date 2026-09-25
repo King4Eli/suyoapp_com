@@ -31,6 +31,7 @@ import getFeedComments from "./core/getFeedComments.js";
 import pushFeedComment from "./core/pushFeedComment.js";
 import pushDeleteFeedComment from "./core/pushDeleteFeedComment.js";
 import pushDeleteAccount from "./core/pushDeleteAccount.js";
+import pushClaimStreakReward from "./core/pushClaimStreakReward.js";
 
 const core_router = express.Router();
 core_router.post("/:action", async (req, res) => {
@@ -194,6 +195,10 @@ core_router.post("/:action", async (req, res) => {
         reason: reportReason,
       });
       return res.json(reportUserResult);
+    }
+    case "pushClaimStreakReward": {
+      const claimResult = await pushClaimStreakReward();
+      return res.json(claimResult);
     }
     case "pushDeleteAccount": {
       const deleteAccountResult = await pushDeleteAccount({
