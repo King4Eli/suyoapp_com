@@ -329,6 +329,9 @@ export const __init__app = async (): Promise<void> => {
               },
             });
           }
+        } else if (data.event === 'message-deleted') {
+          // Emitted by pushDeleteMessage.js -- a deleted unread last message no longer counts as unread.
+          chatsBadge.refresh();
         } else if (data.event === 'new-match') {
           // Emitted by pushPeopleToMatch.js to the party who liked first, once the other
           // side matches back -- they don't otherwise learn about it until they reopen the app.

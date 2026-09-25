@@ -849,6 +849,8 @@ export function Screen_conversation({
                     matchId: funt.matchId,
                   },
                 }).then(() => {
+                  // a blocked chat drops out of the unread count
+                  chatsBadge.refresh();
                   bottomSheet_convotools?.ref?.current?.close();
                   navigation.goBack();
                 });

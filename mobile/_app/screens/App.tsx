@@ -150,8 +150,8 @@ const MainApp: React.FC = () => {
             tabBarLabel: 'Likes',
             tabBarBadge:
               likesCount > 0
-                ? likesCount > 99
-                  ? '99+'
+                ? likesCount > 9
+                  ? '9+'
                   : likesCount
                 : undefined,
             tabBarIcon: () => (
@@ -166,8 +166,8 @@ const MainApp: React.FC = () => {
             tabBarLabel: 'Chat',
             tabBarBadge:
               chatsCount > 0
-                ? chatsCount > 99
-                  ? '99+'
+                ? chatsCount > 9
+                  ? '9+'
                   : chatsCount
                 : undefined,
             tabBarIcon: () => (

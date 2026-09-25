@@ -45,6 +45,7 @@ import {
   logReport,
   reportUser,
 } from '../funcs/functions';
+import { likesBadge } from '../funcs/tabBadges';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TextInput } from 'react-native-gesture-handler';
 import { LinearGradient } from 'react-native-linear-gradient';
@@ -602,6 +603,9 @@ export default function Peoples_Screen({
                 }
                 return;
               }
+
+              // liking back / passing on someone who liked me takes them off the Likes tab badge
+              likesBadge.refresh();
 
               if (typeof response?.rosesRemainingToday === 'number') {
                 setEntitlements(prev => ({
