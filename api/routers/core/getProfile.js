@@ -11,6 +11,7 @@ import { namer, tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
 import {
   getActiveSubscription,
+  getBoostStatus,
   getRoseStatus,
   FREE_LIKE_DAILY_LIMIT,
 } from "../../global/entitlements.js";
@@ -205,7 +206,10 @@ export default async function getProfile() {
 
     const streakCount = Number(userProfile?.user_last_accessed ?? 0);
 
-    const roses = await getRoseStatus(sessions.currentUserID);
+    const [roses, boosts] = await Promise.all([
+      getRoseStatus(sessions.currentUserID),
+      getBoostStatus(sessions.currentUserID),
+    ]);
     let likesRemainingToday = null;
     if (roses.tier === "free") {
       const likesPeek = await peekRateLimit(
@@ -311,6 +315,7 @@ export default async function getProfile() {
 
       // entitlements
       roses,
+      boosts,
       likesRemainingToday,
       rewind,
 

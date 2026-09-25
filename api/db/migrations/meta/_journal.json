@@ -15,6 +15,13 @@
       "when": 1790309655116,
       "tag": "0001_soft_delete_users_free_phonenumber",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1790313722289,
+      "tag": "0002_add_user_boost_usage_for_boost_purchases",
+      "breakpoints": true
     }
   ]
 }

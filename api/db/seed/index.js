@@ -279,8 +279,8 @@ async function main() {
       }),
     );
 
-    // Clear the cached mapper payload. Own client: redisClient.js pulls in
-    // Stripe.
+    // Clear the cached mapper and products payloads (getProducts caches
+    // prices). Own client: redisClient.js pulls in Stripe.
     const redis = createClient({
       socket: {
         host: process.env.REDIS_HOST || "localhost",
@@ -291,8 +291,8 @@ async function main() {
     redis.on("error", () => {});
     try {
       await redis.connect();
-      await redis.del(namer.redis.mapper);
-      console.log("Flushed mapper cache in Redis.");
+      await redis.del([namer.redis.mapper, namer.redis.products]);
+      console.log("Flushed mapper and products cache in Redis.");
     } catch (err) {
       console.error(
         "Redis flush failed (seed data still applied):",

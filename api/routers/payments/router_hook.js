@@ -7,6 +7,7 @@ import {
   productLists,
   stripeEvents,
   subscriptions,
+  userBoostUsage,
   userRoseUsage,
 } from "../../db/schema.js";
 import { stripe_gateway, tools } from "../../global/functions.js";
@@ -556,6 +557,26 @@ export async function fulfillOnetimePurchase(
     tools.serverLog(
       `Granted ${roses} roses to user ${userId} for payment ${paymentId}`,
       "hook_9001",
+    );
+    return;
+  }
+
+  if (variant.category === "boost") {
+    const boosts = Number(description?.boosts ?? 0);
+    if (!Number.isFinite(boosts) || boosts <= 0) return;
+
+    // Upsert: first boost purchase creates the user's row.
+    await db
+      .insert(userBoostUsage)
+      .values({ userId, boostBalance: boosts })
+      .onDuplicateKeyUpdate({
+        set: {
+          boostBalance: sql`${userBoostUsage.boostBalance} + ${boosts}`,
+        },
+      });
+    tools.serverLog(
+      `Granted ${boosts} boosts to user ${userId} for payment ${paymentId}`,
+      "hook_9006",
     );
     return;
   }

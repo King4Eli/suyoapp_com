@@ -5,6 +5,7 @@ import {
   productListVariant,
   productLists,
   subscriptions,
+  userBoostUsage,
   userRoseUsage,
 } from "../db/schema.js";
 import { envInt } from "./functions.js";
@@ -143,6 +144,18 @@ export async function getRoseStatus(userId) {
     remainingToday: Math.max(0, dailyAllowance - usedToday),
     balance,
   };
+}
+
+/**
+ * Purchased boosts the user hasn't used yet.
+ * @param {string} userId
+ */
+export async function getBoostStatus(userId) {
+  const [row] = await db
+    .select({ boostBalance: userBoostUsage.boostBalance })
+    .from(userBoostUsage)
+    .where(eq(userBoostUsage.userId, userId));
+  return { balance: Number(row?.boostBalance ?? 0) };
 }
 
 /**

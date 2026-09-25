@@ -24,6 +24,7 @@ import {
   screenWidth,
 } from '../funcs/functions';
 import { Loaderx } from '../funcs/functions_stateful';
+import { ConsumableSheet } from '../funcs/customConsumableSheet';
 import { namer, resourceMap, styles, __CONFIG__ } from '../funcs/static';
 import { useTheme, ThemeColors } from '../funcs/theme';
 
@@ -63,7 +64,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
   const mapper = cacheStorage.CONFIG.get()?.mapper;
   const imageDomain = mapper?.img_domain ?? '';
-  const consumableProducts: any[] = [];
+  const [buyCategory, setBuyCategory] = useState<string | null>(null);
 
   const profileCore = profile?.profile ?? {};
   const images = Array.isArray(profileCore?.images) ? profileCore.images : [];
@@ -93,6 +94,27 @@ export function Screen_profile({ navigation }: { navigation: any }) {
         year: 'numeric',
       })
     : null;
+
+  // Counts come from getProfile; pack prices are loaded from getProducts by
+  // ConsumableSheet when one is tapped.
+  const roses = profile?.roses;
+  const consumableItems = [
+    {
+      category: namer.productCategoryName.superlike,
+      label: 'Roses',
+      icon: 'rose',
+      subtitle: 'Roses are spent on Super Likes',
+      count: Number(roses?.remainingToday ?? 0) + Number(roses?.balance ?? 0),
+    },
+    {
+      category: namer.productCategoryName.boost,
+      label: 'Boost',
+      icon: 'flash',
+      subtitle: 'Be one of the top profiles in your area',
+      count: Number(profile?.boosts?.balance ?? 0),
+    },
+  ];
+  const buyItem = consumableItems.find(item => item.category === buyCategory);
 
   const refreshProfile = async () => {
     try {
@@ -345,65 +367,28 @@ export function Screen_profile({ navigation }: { navigation: any }) {
         <View style={stylesx.card}>
           <SectionHeader
             title="Power-ups"
-            hint="Boost, spotlight, or message first."
+            hint="Tap to buy more roses or boosts."
             colors={colors}
             stylesx={stylesx}
           />
-          {consumableProducts.length > 0 ? (
-            <View style={stylesx.powerGrid}>
-              {consumableProducts.map((product: any, index: number) => (
-                <Pressable
-                  key={product?.sku ?? product?.name ?? index}
-                  style={stylesx.productPill}
-                  onPress={() =>
-                    navigation.navigate(namer.navigation.consumables, {
-                      productcategory: namer.productCategoryName.superlike,
-                    })
-                  }
-                >
-                  <MIcon
-                    name={index % 2 === 0 ? 'heart' : 'chatbubble-ellipses'}
-                    size={22}
-                    color={colors.primary}
-                  />
-                  <View>
-                    <Text style={stylesx.productLabel}>{product?.name}</Text>
-                    <Text style={stylesx.productCount}>
-                      {product?.count ?? 0} available
-                    </Text>
-                  </View>
-                </Pressable>
-              ))}
-            </View>
-          ) : (
-            <Pressable
-              style={stylesx.powerEmpty}
-              onPress={() =>
-                navigation.navigate(namer.navigation.consumables, {
-                  productcategory: namer.productCategoryName.superlike,
-                })
-              }
-            >
-              <View style={stylesx.powerEmptyIcon}>
-                <MIcon
-                  name="star-four-points-outline"
-                  size={24}
-                  color={colors.primary}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={stylesx.powerEmptyTitle}>No power-ups active</Text>
-                <Text style={stylesx.powerEmptyText}>
-                  Open the shop to add one when you need a lift.
-                </Text>
-              </View>
-              <MIcon
-                name="chevron-right"
-                size={24}
-                color={colors.textTertiary}
-              />
-            </Pressable>
-          )}
+          <View style={stylesx.powerGrid}>
+            {consumableItems.map(item => (
+              <Pressable
+                key={item.category}
+                style={stylesx.productPill}
+                onPress={() => setBuyCategory(item.category)}
+              >
+                <IIcon name={item.icon} size={22} color={colors.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={stylesx.productLabel}>{item.label}</Text>
+                  <Text style={stylesx.productCount}>
+                    {item.count} available
+                  </Text>
+                </View>
+                <IIcon name="add-circle" size={22} color={colors.primary} />
+              </Pressable>
+            ))}
+          </View>
         </View>
 
         {activeSubscription && (
@@ -586,6 +571,16 @@ export function Screen_profile({ navigation }: { navigation: any }) {
           </View>
         )}
       </ScrollView>
+
+      <ConsumableSheet
+        visible={!!buyItem}
+        category={buyItem?.category ?? ''}
+        title={buyItem?.label ?? ''}
+        subtitle={buyItem?.subtitle}
+        icon={buyItem?.icon ?? 'flash'}
+        onClose={() => setBuyCategory(null)}
+        onPurchased={refreshProfile}
+      />
     </View>
   );
 }

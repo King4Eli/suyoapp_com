@@ -296,6 +296,7 @@ export const namer = {
     superlike: 'superlike',
     instantmessage: 'instantmessage',
     rewind: 'rewind',
+    boost: 'boost',
   },
 };
 

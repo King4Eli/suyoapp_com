@@ -3,6 +3,18 @@ const seededAt = new Date();
 
 export const productLists = [
   {
+    plSku: "boost_7xk2mqp9vd4rfw8ntj3hc",
+    plName: "Boost",
+    plDescription: {
+      features: [
+        { d: "Be one of the top profiles in your area for 30 minutes", e: true },
+      ],
+    },
+    category: "boost",
+    plIsActive: "1",
+    plCreated: seededAt,
+  },
+  {
     plSku: "instantmessage_wu8yyur5mmmtua",
     plName: "Instant Message",
     plDescription: { features: [{ d: "", e: true }] },

@@ -6,20 +6,16 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
-  Linking,
   Animated,
   Dimensions,
   Platform,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
-import {
-  _http_request,
-  cacheStorage,
-  parseCategoryProducts,
-} from '../funcs/functions';
+import { cacheStorage, parseCategoryProducts } from '../funcs/functions';
 import { Loaderx } from '../funcs/functions_stateful';
 import { purchaseNative } from '../funcs/iap';
+import { startWebOnetimeCheckout } from '../funcs/customConsumableSheet';
 import { namer, __CONFIG__ } from '../funcs/static';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -139,27 +135,13 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
       null;
     const variantId = selectedVariant?.id || null;
 
-    Loaderx.show();
-    _http_request({
-      customApiUrl: `${__CONFIG__.HTTPS_API_DOMAIN}/api/secure/gateway/onetime`,
-      reqType: 'POST',
-      bodyArray: {
-        sku: selectedProduct.sku,
-        ot_duration: variantId,
-        quantity: 1,
-        ...(requestedMatchId ? { matchId: requestedMatchId } : {}),
-      },
-    }).then((res: any) => {
-      Loaderx.hide();
-      if (res?.code === 301 && res?.type === 'external' && res?.url) {
-        Linking.openURL(res.url);
-        setShowConfirm(false);
-      } else {
-        Alert.alert(
-          'Error',
-          res?.message || 'Purchase failed. Please try again.',
-        );
-      }
+    if (!variantId) return;
+    startWebOnetimeCheckout({
+      sku: selectedProduct.sku,
+      variantId,
+      matchId: requestedMatchId,
+    }).then(ok => {
+      if (ok) setShowConfirm(false);
     });
   };
 

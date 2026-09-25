@@ -335,6 +335,12 @@ export const subscriptions = mysqlTable("subscriptions", {
   dateModified: timestamp("date_modified").notNull().defaultNow().onUpdateNow(),
 });
 
+export const userBoostUsage = mysqlTable("user_boost_usage", {
+  userId: varchar("user_id", { length: 50 }).primaryKey().notNull(),
+  // purchased boosts not yet used
+  boostBalance: int("boost_balance").notNull().default(0),
+});
+
 export const userRoseUsage = mysqlTable("user_rose_usage", {
   userId: varchar("user_id", { length: 50 }).primaryKey().notNull(),
   // purchased roses
