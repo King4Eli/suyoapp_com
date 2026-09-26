@@ -81,8 +81,6 @@ export function Zz_devv({ navigation }: { route: any; navigation: any }) {
           <Text>Image url: {__MAPPER?.img_domain ?? '(unset)'}</Text>
         </Pressable>
 
-
-
         <Pressable
           style={modernStyles.dangerSection}
           onPress={() => {

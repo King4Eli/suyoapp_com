@@ -200,8 +200,9 @@ export default async function pushConversation(
           "pushConversation-200",
         );
       }
-      // The recipient's Chats badge (unless they read it live, above).
-      pushBadgeCounts(io, recipientID);
+      // The recipient's Chats badge (unless they read it live, above), and both
+      // sides' chat lists (new last-message preview).
+      pushBadgeCounts(io, recipientID, sessions.currentUserID);
     }
   } catch (err) {
     tools.serverLog(

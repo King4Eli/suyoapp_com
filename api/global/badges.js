@@ -52,8 +52,10 @@ export async function countBadges(userId) {
 }
 
 /**
- * Recounts and sends "badge-counts" to each user whose (capped) counts changed
- * since the last push. Best-effort: never fails the action that triggered it.
+ * Tells each user their Likes/Chats data changed: always a "lists-changed" ping
+ * (open Likes/Chats screens refetch on it instead of on every visit), plus
+ * "badge-counts" when the capped counts the tab shows actually changed.
+ * Best-effort: never fails the action that triggered it.
  * @param {import("socket.io").Server | undefined} io
  * @param {...(string | null | undefined)} userIds
  */
@@ -63,6 +65,7 @@ export async function pushBadgeCounts(io, ...userIds) {
   await Promise.all(
     unique.map(async (userId) => {
       try {
+        io.to(`user-${userId}`).emit("lists-changed", {});
         const counts = await countBadges(/** @type {string} */ (userId));
         const value = `${counts.likes},${counts.chats}`;
         const key = `${namer.redis.badgesLast}${userId}`;

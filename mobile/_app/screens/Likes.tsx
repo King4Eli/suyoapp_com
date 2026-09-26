@@ -25,7 +25,7 @@ import {
   logReport,
 } from '../funcs/functions';
 import { likesBadge } from '../funcs/tabBadges';
-import { useFocusEffect } from '@react-navigation/native';
+import { useLiveRefresh } from '../funcs/useLiveRefresh';
 import { styles, namer, __CONFIG__ } from '../funcs/static';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import { BlurView } from '@react-native-community/blur';
@@ -259,34 +259,34 @@ export function Screen_likes({ navigation }: { navigation: any }) {
     }, 1000);
   }, [canSeeLikes, filteredLikesCount, navigation, visibleLikes]);
 
-  // Fetch new likes when screen is focused
-  useFocusEffect(
-    React.useCallback(() => {
-      _http_request({
-        reqType: 'POST',
-        customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getLikes',
-      })
-        .then((response: any) => {
-          setTimeout(
-            () => {
-              setNewLikes((prev: any) => {
-                const incoming = response?.likedlist;
-                if (
-                  incoming === null ||
-                  incoming === undefined ||
-                  !Array.isArray(incoming)
-                ) {
-                  return prev ?? [];
-                }
-                return incoming;
-              });
-            },
-            getNewLikes ? 0 : 1000,
-          );
-        })
-        .finally(() => {});
-    }, []),
-  );
+  // Likes stay current through the socket (lists-changed / new-like) rather
+  // than refetching on every visit -- see funcs/useLiveRefresh.ts.
+  const hasLoadedLikes = useRef(false);
+  const loadLikes = useCallback(() => {
+    _http_request({
+      reqType: 'POST',
+      customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getLikes',
+    }).then((response: any) => {
+      setTimeout(
+        () => {
+          setNewLikes((prev: any) => {
+            const incoming = response?.likedlist;
+            if (
+              incoming === null ||
+              incoming === undefined ||
+              !Array.isArray(incoming)
+            ) {
+              return prev ?? [];
+            }
+            return incoming;
+          });
+        },
+        hasLoadedLikes.current ? 0 : 1000,
+      );
+      hasLoadedLikes.current = true;
+    });
+  }, []);
+  useLiveRefresh('likes-screen', loadLikes);
 
   if (getNewLikes === null) {
     const skeletonWidth = Dimensions.get('window').width;

@@ -338,12 +338,10 @@ pay_router.post("/:division", async (req, res) => {
         }
 
         if (!onetimeProduct) {
-          return res
-            .status(404)
-            .json({
-              code: 404,
-              message: "This item isn't available right now.",
-            });
+          return res.status(404).json({
+            code: 404,
+            message: "This item isn't available right now.",
+          });
         }
 
         const onetimePrice = onetimeProduct.price;
@@ -632,12 +630,10 @@ pay_router.post("/:division", async (req, res) => {
         }
 
         if (!variant) {
-          return res
-            .status(404)
-            .json({
-              code: 404,
-              message: "This item isn't available right now.",
-            });
+          return res.status(404).json({
+            code: 404,
+            message: "This item isn't available right now.",
+          });
         }
         if (variant.external_3rdparty_store_product_id !== productId) {
           tools.serverLog(

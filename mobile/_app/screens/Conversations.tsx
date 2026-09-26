@@ -2534,77 +2534,6 @@ export function Screen_conversation({
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1 }}
         >
-          <View style={{ paddingVertical: 5 }}>
-            <Pressable
-              onPress={() => {
-                navigation.push(namer.navigation.peoplesOnePerson, {
-                  alreadyLiked: true,
-                  likedMatchedId: funt.matchId,
-                  getOnePersonId: getUser2Deets?.uid,
-                });
-              }}
-              style={{
-                backgroundColor: colors.surface,
-                borderWidth: 1,
-                borderColor: colors.hairline,
-                borderRadius: 16,
-                padding: 10,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 12,
-              }}
-            >
-              <SafeImage
-                source={{
-                  uri: getUser2Deets?.image?.p
-                    ? imageDomain + getUser2Deets.image.p
-                    : undefined,
-                  cache: FastImage.cacheControl.immutable,
-                }}
-                style={{ width: 64, height: 64, borderRadius: 32 }}
-              />
-              <View style={{ flex: 1, gap: 4 }}>
-                <View
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: '800',
-                      letterSpacing: -0.2,
-                      textTransform: 'capitalize',
-                      color: colors.text,
-                    }}
-                  >
-                    {getUser2Deets?.fullname || 'Your match'}
-                  </Text>
-                </View>
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 10,
-                  }}
-                >
-                  {getUser2Deets?.city && (
-                    <Text style={{ color: colors.textSecondary }}>
-                      <IonIcon
-                        name="location-outline"
-                        size={14}
-                        color={colors.accent}
-                      />{' '}
-                      {getUser2Deets?.city}
-                    </Text>
-                  )}
-                </View>
-                <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
-                  Read bio for conversation idea.
-                </Text>
-              </View>
-              <IonIcon name="chevron-forward" size={20} color={colors.accent} />
-            </Pressable>
-          </View>
-
           <FlatList
             ref={flatListRef}
             data={getConversations}
@@ -2622,6 +2551,86 @@ export function Screen_conversation({
             // (right above the composer), which is where a live typing bubble belongs.
             ListHeaderComponent={
               peerTyping ? <TypingBubble bg={colors.primary} /> : null
+            }
+            ListFooterComponent={
+              <View style={{ paddingVertical: 5 }}>
+                <Pressable
+                  onPress={() => {
+                    navigation.push(namer.navigation.peoplesOnePerson, {
+                      alreadyLiked: true,
+                      likedMatchedId: funt.matchId,
+                      getOnePersonId: getUser2Deets?.uid,
+                    });
+                  }}
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderWidth: 1,
+                    borderColor: colors.hairline,
+                    borderRadius: 16,
+                    padding: 10,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                  }}
+                >
+                  <SafeImage
+                    source={{
+                      uri: getUser2Deets?.image?.p
+                        ? imageDomain + getUser2Deets.image.p
+                        : undefined,
+                      cache: FastImage.cacheControl.immutable,
+                    }}
+                    style={{ width: 64, height: 64, borderRadius: 32 }}
+                  />
+                  <View style={{ flex: 1, gap: 4 }}>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 6,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          fontWeight: '800',
+                          letterSpacing: -0.2,
+                          textTransform: 'capitalize',
+                          color: colors.text,
+                        }}
+                      >
+                        {getUser2Deets?.fullname || 'Your match'}
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 10,
+                      }}
+                    >
+                      {getUser2Deets?.city && (
+                        <Text style={{ color: colors.textSecondary }}>
+                          <IonIcon
+                            name="location-outline"
+                            size={14}
+                            color={colors.accent}
+                          />{' '}
+                          {getUser2Deets?.city}
+                        </Text>
+                      )}
+                    </View>
+                    <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+                      Read bio for conversation idea.
+                    </Text>
+                  </View>
+                  <IonIcon
+                    name="chevron-forward"
+                    size={20}
+                    color={colors.accent}
+                  />
+                </Pressable>
+              </View>
             }
             ListEmptyComponent={
               <View

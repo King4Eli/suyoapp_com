@@ -150,11 +150,7 @@ const MainApp: React.FC = () => {
           options={{
             tabBarLabel: 'Likes',
             tabBarBadge:
-              likesCount > 0
-                ? likesCount > 9
-                  ? '9+'
-                  : likesCount
-                : undefined,
+              likesCount > 0 ? (likesCount > 9 ? '9+' : likesCount) : undefined,
             tabBarIcon: () => (
               <IIcon name="heart-half-outline" size={32} color="#4F8EF7" />
             ),
@@ -166,11 +162,7 @@ const MainApp: React.FC = () => {
           options={{
             tabBarLabel: 'Chat',
             tabBarBadge:
-              chatsCount > 0
-                ? chatsCount > 9
-                  ? '9+'
-                  : chatsCount
-                : undefined,
+              chatsCount > 0 ? (chatsCount > 9 ? '9+' : chatsCount) : undefined,
             tabBarIcon: () => (
               <IIcon
                 name="chatbubble-ellipses-outline"

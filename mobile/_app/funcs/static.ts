@@ -304,8 +304,8 @@ export const namer = {
 export const resourceMap = {
   lottie: {
     pulsingLoading: require('../assets/lottie/pulsing.json'),
-    infinityLoading: require('../assets/lottie/infinity.json'), 
-  }
+    infinityLoading: require('../assets/lottie/infinity.json'),
+  },
 };
 
 //
