@@ -403,7 +403,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
       </View>
       <TouchableOpacity
         onPress={() => {
-          if (premiumLock && !subscriptionState.isVip) {
+          if (premiumLock && !subscriptionState.features.readReceipts) {
             Toastx.show({
               type: 'warning',
               message: 'Upgrade to VIP to unlock this feature',
@@ -420,7 +420,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
             modernStyles.switchTrack,
             value && modernStyles.switchTrackActive,
             premiumLock &&
-              !subscriptionState.isVip &&
+              !subscriptionState.features.readReceipts &&
               modernStyles.switchTrackDisabled,
           ]}
         >
@@ -1282,22 +1282,41 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                   onPress={() => {
                     Alert.alert(
                       'Delete Account?',
-                      "This action cannot be undone. We'll email you to confirm and finish deleting your data.",
+                      'This action cannot be undone. Your profile will be deleted immediately.',
                       [
                         { text: 'Cancel', style: 'cancel' },
                         {
-                          text: 'Continue',
+                          text: 'Delete',
                           style: 'destructive',
-                          onPress: () => {
-                            Linking.openURL(
-                              `mailto:${
-                                __CONFIG__.SAFETY_EMAIL
-                              }?subject=${encodeURIComponent(
-                                'Account deletion request',
-                              )}&body=${encodeURIComponent(
-                                `Please delete my account.\nPhone: ${profilePhone}\nEmail: ${profileEmail}`,
-                              )}`,
-                            );
+                          onPress: async () => {
+                            try {
+                              const response = await _http_request({
+                                customApiUrl:
+                                  __CONFIG__.HTTPS_API_DOMAIN +
+                                  '/api/core/v1/pushDeleteAccount',
+                                reqType: 'POST',
+                                bodyArray: { reason: 'user_requested' },
+                              });
+                              if (response?.code !== 200) {
+                                throw new Error(
+                                  response?.message ??
+                                    'Unable to delete account.',
+                                );
+                              }
+                              await AsyncStorage.removeItem(
+                                namer.storage.sessionId,
+                              );
+                              sessionManager.updateSession({
+                                x_omi_payload: null,
+                              });
+                              if (navigation.canGoBack()) navigation.goBack();
+                            } catch (err: any) {
+                              Toastx.show({
+                                type: 'error',
+                                message:
+                                  err?.message ?? 'Unable to delete account.',
+                              });
+                            }
                           },
                         },
                       ],

@@ -3,7 +3,7 @@ import { db } from "../../db/client.js";
 import { conversations, matches, users } from "../../db/schema.js";
 import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
-import { getSubscriptionTier } from "../../global/entitlements.js";
+import { hasFeature } from "../../global/entitlements.js";
 
 /**
  * @param {string} matchId
@@ -123,8 +123,10 @@ export default async function getConversation(matchId, io) {
       .from(users)
       .where(eq(users.userId, sessions.currentUserID));
     if (viewerRow?.user_privacy_read_receipts === "1") {
-      canSeeReadReceipts =
-        (await getSubscriptionTier(sessions.currentUserID)) === "vip";
+      canSeeReadReceipts = await hasFeature(
+        sessions.currentUserID,
+        "readReceipts",
+      );
     }
   }
 
@@ -158,6 +160,8 @@ export default async function getConversation(matchId, io) {
           type: convo.t,
           message: isDeleted ? null : (convo.str ?? null),
           src: isDeleted ? null : (convo.src ?? null),
+          // What a direct message commented on: { k: "photo", p } | { k: "about", str }
+          replyTo: isDeleted ? null : (convo.ref ?? null),
           dateAdded: row.convo_date_added ?? null,
           // Only meaningful (and only sent) for messages the viewer sent -- whether
           // the viewer read something they received is never ambiguous to them.

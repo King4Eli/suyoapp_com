@@ -24,6 +24,7 @@ import {
   screenWidth,
 } from '../funcs/functions';
 import { Loaderx } from '../funcs/functions_stateful';
+import { ConsumableSheet } from '../funcs/customConsumableSheet';
 import { namer, resourceMap, styles, __CONFIG__ } from '../funcs/static';
 import { useTheme, ThemeColors } from '../funcs/theme';
 
@@ -48,6 +49,9 @@ const PLAN_UI: Record<
   },
 };
 
+// Day-7 reward circle once reached -- deliberately off-palette so it pops.
+const STREAK_REWARD_COLORS = ['#FF3D77', '#FF9F1C'];
+
 const getPlanUi = (plan?: string | null) =>
   PLAN_UI[
     String(plan ?? '')
@@ -63,7 +67,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
   const mapper = cacheStorage.CONFIG.get()?.mapper;
   const imageDomain = mapper?.img_domain ?? '';
-  const consumableProducts: any[] = [];
+  const [buyCategory, setBuyCategory] = useState<string | null>(null);
 
   const profileCore = profile?.profile ?? {};
   const images = Array.isArray(profileCore?.images) ? profileCore.images : [];
@@ -94,12 +98,97 @@ export function Screen_profile({ navigation }: { navigation: any }) {
       })
     : null;
 
+  // Counts come from getProfile; pack prices are loaded from getProducts by
+  // ConsumableSheet when one is tapped.
+  const roses = profile?.roses;
+  const consumableItems = [
+    {
+      category: namer.productCategoryName.superlike,
+      label: 'Roses',
+      icon: 'rose',
+      subtitle: 'Roses are spent on Super Likes',
+      count: Number(roses?.remainingToday ?? 0) + Number(roses?.balance ?? 0),
+    },
+    {
+      category: namer.productCategoryName.boost,
+      label: 'Boost',
+      icon: 'flash',
+      subtitle: 'Be one of the top profiles in your area',
+      count: Number(profile?.boosts?.balance ?? 0),
+    },
+    {
+      category: namer.productCategoryName.directmessage,
+      label: 'Direct Messages',
+      icon: 'chatbubble-ellipses',
+      subtitle: 'Message someone before you match',
+      count:
+        Number(profile?.directMessages?.remainingToday ?? 0) +
+        Number(profile?.directMessages?.balance ?? 0),
+    },
+  ];
+  const buyItem = consumableItems.find(item => item.category === buyCategory);
+
+  // 7-day streak (Redis-backed, see api/global/streaks.js): any action on the
+  // Peoples screen counts the day; the reward amounts come from the server.
+  const streak = profile?.stats?.streak;
+  const streakDays = Number(streak?.days ?? 7);
+  const streakCount = Number(streak?.count ?? 0);
+  const streakRewardsPending = Number(streak?.rewardsPending ?? 0);
+  // Once complete, amounts cover every unclaimed reward.
+  const streakRewardMultiplier = Math.max(1, streakRewardsPending);
+  const streakRewards = [
+    {
+      key: 'roses',
+      icon: 'rose',
+      singular: 'Rose',
+      plural: 'Roses',
+      amount: Number(streak?.reward?.roses ?? 0) * streakRewardMultiplier,
+    },
+    {
+      key: 'directMessages',
+      icon: 'chatbubble-ellipses',
+      singular: 'Direct Message',
+      plural: 'Direct Messages',
+      amount:
+        Number(streak?.reward?.directMessages ?? 0) * streakRewardMultiplier,
+    },
+  ].filter(item => item.amount > 0);
+
   const refreshProfile = async () => {
     try {
       const freshProfile = await cacheStorage.getCurrentUserProfile(true);
       setProfile(freshProfile);
     } catch {
       // keep showing the last known profile if the refresh itself fails
+    }
+  };
+
+  const claimStreakReward = async () => {
+    Loaderx.show();
+    const response: any = await _http_request({
+      customApiUrl:
+        __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/pushClaimStreakReward',
+      reqType: 'POST',
+    });
+    await refreshProfile();
+    Loaderx.hide();
+    if (response?.code === 200) {
+      const gotRoses = Number(response?.granted?.roses ?? 0);
+      const gotDirectMessages = Number(response?.granted?.directMessages ?? 0);
+      Alert.alert(
+        'Reward claimed!',
+        [
+          gotRoses > 0 && `+${gotRoses} roses`,
+          gotDirectMessages > 0 &&
+            `+${gotDirectMessages} direct message${
+              gotDirectMessages === 1 ? '' : 's'
+            }`,
+        ]
+          .filter(Boolean)
+          .join('\n') || 'Enjoy your reward.',
+      );
+    } else {
+      Alert.alert('Oops', response?.message ?? 'Please try again.');
     }
   };
 
@@ -343,67 +432,25 @@ export function Screen_profile({ navigation }: { navigation: any }) {
         </View>
 
         <View style={stylesx.card}>
-          <SectionHeader
-            title="Power-ups"
-            hint="Boost, spotlight, or message first."
-            colors={colors}
-            stylesx={stylesx}
-          />
-          {consumableProducts.length > 0 ? (
-            <View style={stylesx.powerGrid}>
-              {consumableProducts.map((product: any, index: number) => (
-                <Pressable
-                  key={product?.sku ?? product?.name ?? index}
-                  style={stylesx.productPill}
-                  onPress={() =>
-                    navigation.navigate(namer.navigation.consumables, {
-                      productcategory: namer.productCategoryName.superlike,
-                    })
-                  }
-                >
-                  <MIcon
-                    name={index % 2 === 0 ? 'heart' : 'chatbubble-ellipses'}
-                    size={22}
-                    color={colors.primary}
-                  />
-                  <View>
-                    <Text style={stylesx.productLabel}>{product?.name}</Text>
-                    <Text style={stylesx.productCount}>
-                      {product?.count ?? 0} available
-                    </Text>
-                  </View>
-                </Pressable>
-              ))}
-            </View>
-          ) : (
-            <Pressable
-              style={stylesx.powerEmpty}
-              onPress={() =>
-                navigation.navigate(namer.navigation.consumables, {
-                  productcategory: namer.productCategoryName.superlike,
-                })
-              }
-            >
-              <View style={stylesx.powerEmptyIcon}>
-                <MIcon
-                  name="star-four-points-outline"
-                  size={24}
-                  color={colors.primary}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={stylesx.powerEmptyTitle}>No power-ups active</Text>
-                <Text style={stylesx.powerEmptyText}>
-                  Open the shop to add one when you need a lift.
-                </Text>
-              </View>
-              <MIcon
-                name="chevron-right"
-                size={24}
-                color={colors.textTertiary}
-              />
-            </Pressable>
-          )}
+          <SectionHeader title="Power-ups" colors={colors} stylesx={stylesx} />
+          <View style={stylesx.powerGrid}>
+            {consumableItems.map(item => (
+              <Pressable
+                key={item.category}
+                style={stylesx.productPill}
+                onPress={() => setBuyCategory(item.category)}
+              >
+                <IIcon name={item.icon} size={22} color={colors.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={stylesx.productLabel}>{item.label}</Text>
+                  <Text style={stylesx.productCount}>
+                    {item.count} available
+                  </Text>
+                </View>
+                <IIcon name="add-circle" size={22} color={colors.primary} />
+              </Pressable>
+            ))}
+          </View>
         </View>
 
         {activeSubscription && (
@@ -553,39 +600,103 @@ export function Screen_profile({ navigation }: { navigation: any }) {
           </View>
         )}
 
-        {!activeSubscription && (
-          <View style={stylesx.card}>
-            <SectionHeader
-              title="7 day streak"
-              hint="Come back tomorrow to keep it going."
-              icon="fire"
-              colors={colors}
-              stylesx={stylesx}
-            />
-            <View style={stylesx.streakRow}>
-              {Array.from({ length: 7 }).map((_, index) => {
-                const isActive =
-                  index < (profile?.user_effect?.streakcount ?? 1);
+        <View style={stylesx.card}>
+          <SectionHeader
+            title={`${streakDays} day streak`}
+            icon="fire"
+            colors={colors}
+            stylesx={stylesx}
+          />
+          <View style={stylesx.streakRow}>
+            {Array.from({ length: streakDays }).map((_, index) => {
+              const isActive = index < streakCount;
+              const isRewardDay = index === streakDays - 1;
+              if (isRewardDay && isActive) {
                 return (
-                  <View
+                  <LinearGradient
                     key={index}
-                    style={[
-                      stylesx.streakDot,
-                      isActive && stylesx.streakDotActive,
-                    ]}
+                    colors={STREAK_REWARD_COLORS}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={[stylesx.streakDot, stylesx.streakRewardDotActive]}
                   >
-                    <MIcon
-                      name={index === 6 ? 'gift-outline' : 'fire'}
-                      size={index === 6 ? 21 : 23}
-                      color={isActive ? colors.premium : colors.textTertiary}
-                    />
-                  </View>
+                    <MIcon name="gift" size={26} color="#fff" />
+                  </LinearGradient>
                 );
-              })}
-            </View>
+              }
+              return (
+                <View
+                  key={index}
+                  style={[
+                    stylesx.streakDot,
+                    isActive && stylesx.streakDotActive,
+                    isRewardDay && stylesx.streakRewardDot,
+                  ]}
+                >
+                  <MIcon
+                    name={isRewardDay ? 'gift-outline' : 'fire'}
+                    size={isRewardDay ? 21 : 23}
+                    color={
+                      isActive || isRewardDay
+                        ? colors.premium
+                        : colors.textTertiary
+                    }
+                  />
+                </View>
+              );
+            })}
           </View>
-        )}
+          {streakRewards.length > 0 && (
+            <View
+              style={[
+                stylesx.streakRewards,
+                streakRewardsPending > 0 && stylesx.streakRewardsEarned,
+              ]}
+            >
+              <Text style={stylesx.streakRewardsTitle}>
+                {streakRewardsPending > 0
+                  ? 'Streak complete! You earned'
+                  : `Day ${streakDays} rewards`}
+              </Text>
+              <View style={stylesx.streakRewardsList}>
+                {streakRewards.map(item => (
+                  <View key={item.key} style={stylesx.streakRewardItem}>
+                    <IIcon name={item.icon} size={18} color={colors.premium} />
+                    <Text style={stylesx.streakRewardAmount}>
+                      +{item.amount}
+                    </Text>
+                    <Text style={stylesx.streakRewardLabel}>
+                      {item.amount === 1 ? item.singular : item.plural}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+          {streakRewardsPending > 0 && (
+            <TouchableOpacity
+              style={stylesx.streakClaimButton}
+              onPress={claimStreakReward}
+            >
+              <MIcon name="gift" size={18} color={colors.onPrimary} />
+              <Text style={stylesx.streakClaimText}>
+                Claim reward
+                {streakRewardsPending > 1 ? ` x${streakRewardsPending}` : ''}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </ScrollView>
+
+      <ConsumableSheet
+        visible={!!buyItem}
+        category={buyItem?.category ?? ''}
+        title={buyItem?.label ?? ''}
+        subtitle={buyItem?.subtitle}
+        icon={buyItem?.icon ?? 'flash'}
+        onClose={() => setBuyCategory(null)}
+        onPurchased={refreshProfile}
+      />
     </View>
   );
 }
@@ -1004,6 +1115,83 @@ function createStylesx(colors: ThemeColors) {
     streakDotActive: {
       backgroundColor: colors.backgroundSecondary,
       borderColor: colors.premium,
+    },
+    streakRewardDot: {
+      borderStyle: 'dashed',
+      borderWidth: 1.5,
+      borderColor: colors.premium,
+    },
+    streakRewardDotActive: {
+      borderWidth: 2,
+      borderStyle: 'solid',
+      borderColor: '#FFD166',
+      transform: [{ scale: 1.12 }],
+      shadowColor: '#FF3D77',
+      shadowOpacity: 0.6,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 8,
+    },
+    streakRewards: {
+      marginTop: 12,
+      padding: 12,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.backgroundSecondary,
+      gap: 10,
+    },
+    streakRewardsEarned: {
+      borderColor: colors.premium,
+      backgroundColor: colors.premiumSoft,
+    },
+    streakRewardsTitle: {
+      color: colors.text,
+      fontSize: 13,
+      fontWeight: '900',
+      textAlign: 'center',
+    },
+    streakRewardsList: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      gap: 10,
+    },
+    streakRewardItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 999,
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    streakRewardAmount: {
+      color: colors.text,
+      fontSize: 14,
+      fontWeight: '900',
+    },
+    streakRewardLabel: {
+      color: colors.textSecondary,
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    streakClaimButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: colors.premium,
+      borderRadius: 14,
+      paddingVertical: 12,
+      marginTop: 12,
+    },
+    streakClaimText: {
+      color: colors.onPrimary,
+      fontSize: 15,
+      fontWeight: '900',
     },
     manageSubRow: {
       flexDirection: 'row',

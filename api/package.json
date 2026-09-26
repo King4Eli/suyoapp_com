@@ -12,7 +12,7 @@
     "http-prod": "node ./index.js",
     "migrate:apply": "node --env-file=../.env/db.env node_modules/drizzle-kit/bin.cjs migrate --config=drizzle.config.js",
     "migrate:create": "node --env-file=../.env/db.env node_modules/drizzle-kit/bin.cjs generate --config=drizzle.config.js",
-    "db:seed": "node --env-file=../.env/db.env db/seed/index.js"
+    "db:seed": "node --env-file=../.env/db.env --env-file=../.env/redis.env db/seed/index.js"
   },
   "dependencies": {
     "drizzle-kit": "^0.31.11",

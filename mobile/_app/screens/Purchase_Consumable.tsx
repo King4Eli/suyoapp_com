@@ -6,20 +6,16 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
-  Linking,
   Animated,
   Dimensions,
   Platform,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
-import {
-  _http_request,
-  cacheStorage,
-  parseCategoryProducts,
-} from '../funcs/functions';
+import { cacheStorage, parseCategoryProducts } from '../funcs/functions';
 import { Loaderx } from '../funcs/functions_stateful';
 import { purchaseNative } from '../funcs/iap';
+import { startWebOnetimeCheckout } from '../funcs/customConsumableSheet';
 import { namer, __CONFIG__ } from '../funcs/static';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -69,6 +65,8 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
     productCategory === namer.productCategoryName.superlike;
   const requestedMatchId = route?.params?.matchId;
   const isRewindCategory = productCategory === namer.productCategoryName.rewind;
+  const isDirectMessageCategory =
+    productCategory === namer.productCategoryName.directmessage;
 
   // Load products with animation
   useEffect(() => {
@@ -139,27 +137,13 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
       null;
     const variantId = selectedVariant?.id || null;
 
-    Loaderx.show();
-    _http_request({
-      customApiUrl: `${__CONFIG__.HTTPS_API_DOMAIN}/api/secure/gateway/onetime`,
-      reqType: 'POST',
-      bodyArray: {
-        sku: selectedProduct.sku,
-        ot_duration: variantId,
-        quantity: 1,
-        ...(requestedMatchId ? { matchId: requestedMatchId } : {}),
-      },
-    }).then((res: any) => {
-      Loaderx.hide();
-      if (res?.code === 301 && res?.type === 'external' && res?.url) {
-        Linking.openURL(res.url);
-        setShowConfirm(false);
-      } else {
-        Alert.alert(
-          'Error',
-          res?.message || 'Purchase failed. Please try again.',
-        );
-      }
+    if (!variantId) return;
+    startWebOnetimeCheckout({
+      sku: selectedProduct.sku,
+      variantId,
+      matchId: requestedMatchId,
+    }).then(ok => {
+      if (ok) setShowConfirm(false);
     });
   };
 
@@ -319,6 +303,8 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
                   ? 'rose'
                   : isRewindCategory
                   ? 'arrow-undo'
+                  : isDirectMessageCategory
+                  ? 'chatbubble-ellipses'
                   : 'flash'
               }
               size={24}
@@ -333,6 +319,8 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
                   ? 'Spend roses on Super Likes'
                   : isRewindCategory
                   ? 'Recover a match you passed on'
+                  : isDirectMessageCategory
+                  ? 'Message someone before you match'
                   : 'Boost your profile visibility')}
             </Text>
           </View>
@@ -440,6 +428,8 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
                   ? 'rose'
                   : isRewindCategory
                   ? 'arrow-undo'
+                  : isDirectMessageCategory
+                  ? 'chatbubble-ellipses'
                   : 'flash'
               }
               size={48}
@@ -451,6 +441,8 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
               ? 'Roses'
               : isRewindCategory
               ? 'Rewind'
+              : isDirectMessageCategory
+              ? 'Direct Messages'
               : 'Super Likes'}
           </Text>
           <Text style={styles.subtitle}>
@@ -458,6 +450,8 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
               ? 'Roses are spent on Super Likes to get noticed instantly'
               : isRewindCategory
               ? 'Recover a match you accidentally passed on'
+              : isDirectMessageCategory
+              ? 'Message someone before you match — it lands in their Likes with your like'
               : 'Get noticed instantly by more people'}
           </Text>
 

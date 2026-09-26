@@ -1,15 +1,8 @@
-import React, {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useCallback,
-} from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
-  ScrollView,
   StyleSheet,
   Alert,
   Linking,
@@ -37,17 +30,6 @@ import { namer, styles, __CONFIG__ } from '../funcs/static';
 // reads as the same product as the rest of the app.
 const TIER_COLORS = ['#F0577A', '#B23FA0', '#C99A3E', '#6E4B8E'];
 
-// Helper functions remain the same
-const normalizePayload = (payload: any) => {
-  if (!payload || typeof payload !== 'object') return null;
-  if (typeof payload === 'object') return payload;
-  try {
-    return JSON.parse(payload);
-  } catch {
-    return null;
-  }
-};
-
 const extractFeatureText = (feature: any): string | null => {
   if (typeof feature === 'string') return feature.trim() || null;
   if (!feature || typeof feature !== 'object') return null;
@@ -56,52 +38,19 @@ const extractFeatureText = (feature: any): string | null => {
   return isEnabled && typeof text === 'string' ? text.trim() || null : null;
 };
 
-const extractFeaturesFromTierItem = (tierItem: any): string[] => {
-  if (
-    tierItem?.description?.features &&
-    Array.isArray(tierItem.description.features)
-  ) {
-    const features = tierItem.description.features
-      .map(extractFeatureText)
-      .filter(Boolean) as string[];
-    if (features.length) return features;
-  }
+const getFeatures = (tier: any): string[] =>
+  Array.isArray(tier?.description?.features)
+    ? (tier.description.features
+        .map(extractFeatureText)
+        .filter(Boolean) as string[])
+    : [];
 
-  const metaData = normalizePayload(tierItem?.meta_data);
-  if (metaData?.features && Array.isArray(metaData.features)) {
-    const features = metaData.features
-      .map(extractFeatureText)
-      .filter(Boolean) as string[];
-    if (features.length) return features;
-  }
-
-  return [];
-};
-
-const getCycleLabel = (variant: any): string => {
-  if (variant?.metadata?.cycle) {
-    const cycle = variant.metadata.cycle.trim();
-    if (cycle) return cycle;
-  }
-
-  if (variant?.name) {
-    const name = variant.name.trim();
-    if (name) return name;
-  }
-
-  return 'Billing cycle';
-};
+const getCycleLabel = (variant: any): string =>
+  String(variant?.metadata?.cycle || variant?.name || 'Plan').trim();
 
 const formatPrice = (price: any): string => {
   const amount = Number(price);
   return Number.isFinite(amount) ? amount.toFixed(2) : '0.00';
-};
-
-const calculateMonthlyEquivalent = (price: number, cycle: string): number => {
-  if (cycle.toLowerCase().includes('year')) return price / 12;
-  if (cycle.toLowerCase().includes('quarter')) return price / 3;
-  if (cycle.toLowerCase().includes('month')) return price;
-  return price;
 };
 
 export const Screen_PurchaseSubscribe = ({
@@ -111,28 +60,22 @@ export const Screen_PurchaseSubscribe = ({
   navigation: any;
 }) => {
   const [profile, setProfile] = useState<any>(null);
-  const [products, setProducts] = useState<any>(null);
+  const [products, setProducts] = useState<any[] | null>(null);
   const [selectedTier, setSelectedTier] = useState<string>(
     () => route?.params?.tab || '',
   );
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(
     null,
   );
-  const [productDetails, setProductDetails] = useState<{
-    sku: string;
-    variantId?: number;
-  } | null>(null);
-  const [expandedBenefits, setExpandedBenefits] = useState(false);
 
   const paymentSheetRef = useRef<BottomSheet>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Load data
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        const [rawProducts, userProfile] = await Promise.all([
+        const [tiers, userProfile] = await Promise.all([
           cacheStorage
             .getProducts()
             .then(raw =>
@@ -141,19 +84,16 @@ export const Screen_PurchaseSubscribe = ({
           cacheStorage.getCurrentUserProfile(),
         ]);
         if (mounted) {
-          setProducts(rawProducts);
+          setProducts(Array.isArray(tiers) ? tiers : []);
           setProfile(userProfile);
           Animated.timing(fadeAnim, {
             toValue: 1,
-            duration: 500,
+            duration: 400,
             useNativeDriver: true,
           }).start();
         }
       } catch {
-        if (mounted) {
-          setProducts(null);
-          setProfile(null);
-        }
+        if (mounted) setProducts([]);
       }
     })();
     return () => {
@@ -161,89 +101,68 @@ export const Screen_PurchaseSubscribe = ({
     };
   }, [fadeAnim]);
 
-  const tierKeys = useMemo(
-    () => products?.map((tier: any) => tier.name?.trim()).filter(Boolean) ?? [],
+  const tierKeys: string[] = useMemo(
+    () =>
+      (products ?? [])
+        .map((tier: any) => String(tier?.name ?? '').trim())
+        .filter(Boolean),
     [products],
-  );
-
-  const getTierColor = useCallback(
-    (tierKey: string): string => {
-      const index = tierKeys.indexOf(tierKey);
-      return TIER_COLORS[index >= 0 ? index % TIER_COLORS.length : 0];
-    },
-    [tierKeys],
   );
 
   const subscriptionState = help.getSubscriptionState(profile);
-  const activeSubscription = subscriptionState.hasActive;
-  const userCurrentTier = subscriptionState.plan;
-
-  const getTierKeyByName = useCallback(
-    (planName?: string) => {
-      if (!planName || !products) return '';
-      const normalized = planName.toLowerCase().trim();
-      const match = products.find(
-        (tier: any) => tier.name?.toLowerCase().trim() === normalized,
-      );
-      return match?.name?.trim() ?? '';
-    },
-    [products],
-  );
-
-  const activeTierKey = activeSubscription
-    ? getTierKeyByName(userCurrentTier)
+  const activeTierKey = subscriptionState.hasActive
+    ? tierKeys.find(
+        key =>
+          key.toLowerCase() ===
+          String(subscriptionState.plan ?? '')
+            .trim()
+            .toLowerCase(),
+      ) ?? ''
     : '';
 
-  // Set initial tier
   useEffect(() => {
-    if (!selectedTier) {
-      setSelectedTier(activeTierKey || tierKeys[0] || '');
+    if (!selectedTier && tierKeys.length) {
+      setSelectedTier(
+        tierKeys.find(key => key !== activeTierKey) ?? tierKeys[0],
+      );
     }
   }, [activeTierKey, tierKeys, selectedTier]);
 
   const currentTier =
-    products?.find((tier: any) => tier.name?.trim() === selectedTier) || null;
-  const currentVariants = useMemo(
+    products?.find((tier: any) => tier?.name?.trim() === selectedTier) ?? null;
+  const variants: any[] = useMemo(
     () => currentTier?.variants ?? [],
     [currentTier],
   );
+  const features = getFeatures(currentTier);
+  const tierColor =
+    TIER_COLORS[
+      Math.max(0, tierKeys.indexOf(selectedTier)) % TIER_COLORS.length
+    ];
+  const isCurrentPlan = !!activeTierKey && selectedTier === activeTierKey;
 
-  const currentTierFeatures = extractFeaturesFromTierItem(currentTier || {});
-
-  // Smart variant selection - pick most popular (usually annual)
   useEffect(() => {
-    if (currentVariants.length) {
-      const annualVariant = currentVariants.find((v: any) =>
-        getCycleLabel(v).toLowerCase().includes('year'),
-      );
-      setSelectedVariantId(annualVariant?.id || currentVariants[0]?.id || null);
-    } else {
-      setSelectedVariantId(null);
-    }
-  }, [currentVariants]);
+    setSelectedVariantId(variants[0]?.id ?? null);
+  }, [variants]);
 
   const selectedVariant =
-    currentVariants.find((v: any) => v.id === selectedVariantId) ||
-    currentVariants[0] ||
-    null;
+    variants.find((v: any) => v.id === selectedVariantId) ?? null;
 
   const handleSubscribe = async (paymentMethod: 'iap' | 'card') => {
+    if (!currentTier?.sku || !selectedVariant) {
+      Alert.alert('Error', 'Please select a plan first.');
+      return;
+    }
+
     Loaderx.show();
     if (paymentMethod === 'iap') {
-      if (!productDetails?.sku || !selectedVariant) {
-        Loaderx.hide();
-        Alert.alert('Error', 'Please select a plan first.');
-        return;
-      }
-
       const result = await purchaseNative({
         purchaseType: 'subscribe',
-        sku: productDetails.sku,
+        sku: currentTier.sku,
         variantId: selectedVariant.id,
         storeProductId: selectedVariant.store_product_id,
       });
       Loaderx.hide();
-
       if (result.code === 200) {
         paymentSheetRef.current?.close();
         Alert.alert('Success', 'Your subscription is now active.');
@@ -255,46 +174,34 @@ export const Screen_PurchaseSubscribe = ({
       }
       return;
     }
-    // console.log(productDetails?.sku, productDetails);
-    if (paymentMethod === 'card') {
-      _http_request({
-        customApiUrl: `${__CONFIG__.HTTPS_API_DOMAIN}/api/secure/gateway/subscribe`,
-        reqType: 'POST',
-        bodyArray: {
-          s_sku: productDetails?.sku,
-          s_duration_int: productDetails?.variantId,
-        },
-      }).then((fg: any) => {
-        Loaderx.hide();
-        if (fg?.code === 301 && fg?.type === 'external' && fg?.url) {
-          Linking.openURL(fg.url).catch(() => {
-            Alert.alert(
-              'Payment Error',
-              'Unable to open payment page. Please try again.',
-            );
-          });
-        } else {
-          Alert.alert(
-            'Payment Error',
-            fg?.message ?? 'There has been an error.',
-          );
-        }
+
+    const res: any = await _http_request({
+      customApiUrl: `${__CONFIG__.HTTPS_API_DOMAIN}/api/secure/gateway/subscribe`,
+      reqType: 'POST',
+      bodyArray: { s_sku: currentTier.sku, s_duration_int: selectedVariant.id },
+    });
+    Loaderx.hide();
+    if (res?.code === 301 && res?.type === 'external' && res?.url) {
+      Linking.openURL(res.url).catch(() => {
+        Alert.alert(
+          'Payment Error',
+          'Unable to open payment page. Please try again.',
+        );
       });
+    } else {
+      Alert.alert('Payment Error', res?.message ?? 'There has been an error.');
     }
   };
 
-  const openPaymentSheet = () => {
-    if (!selectedVariantId || !selectedVariant) return;
-    paymentSheetRef.current?.snapToIndex(0);
-  };
-
-  const visibleFeatures = expandedBenefits
-    ? currentTierFeatures
-    : currentTierFeatures.slice(0, 4);
+  const priceLabel = selectedVariant
+    ? `$${formatPrice(selectedVariant.price)} / ${getCycleLabel(
+        selectedVariant,
+      ).toLowerCase()}`
+    : '';
 
   return (
-    <LinearGradient colors={['#1A1420', '#221A2C', '#141018']}>
-      <SafeAreaView edges={['bottom']}>
+    <LinearGradient colors={['#1A1420', '#141018']} style={{ flex: 1 }}>
+      <SafeAreaView edges={['bottom']} style={{ flex: 1 }}>
         <Animated.ScrollView
           contentContainerStyle={[
             styles.conainerScrollView,
@@ -303,337 +210,114 @@ export const Screen_PurchaseSubscribe = ({
           showsVerticalScrollIndicator={false}
           style={{ opacity: fadeAnim }}
         >
-          {/* Hero Section */}
-          <View style={styles2.heroSection}>
-            <Text style={styles2.heroTitle}>Choose your plan</Text>
-            <Text style={styles2.heroSubtitle}>
-              Get access to premium features and priority support
-            </Text>
-          </View>
+          <Text style={s.title}>Choose your plan</Text>
 
-          {/* Tier Selection - Horizontal Scroll for better mobile UX */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={[styles2.tierScrollContainer, { flex: 1 }]}
-          >
-            {tierKeys.map((tierKey: any) => {
-              const tierData = products?.find(
-                (tier: any) => tier.name?.trim() === tierKey,
-              );
-              const tierIndex = tierKeys.indexOf(tierKey);
-              const tierColor =
-                TIER_COLORS[
-                  tierIndex >= 0 ? tierIndex % TIER_COLORS.length : 0
-                ];
-              const isSelected = selectedTier === tierKey;
-              const isActive = activeSubscription && activeTierKey === tierKey;
-
+          {/* Tier toggle */}
+          <View style={s.segment}>
+            {tierKeys.map(tierKey => {
+              const isSelected = tierKey === selectedTier;
               return (
                 <TouchableOpacity
                   key={tierKey}
-                  activeOpacity={0.5}
-                  disabled={isActive}
-                  onPress={() => setSelectedTier(tierKey)}
                   style={[
-                    styles2.tierCard,
-                    { borderColor: tierColor },
-                    isSelected && {
-                      backgroundColor: `${tierColor}aa`,
-                      borderWidth: 2,
-                      shadowColor: tierColor,
-                      shadowOpacity: 0.3,
-                      shadowRadius: 12,
-                    },
-                    { flex: 1 },
-                    isActive && styles2.tierCardDisabled,
+                    s.segmentItem,
+                    isSelected && { backgroundColor: tierColor },
                   ]}
+                  onPress={() => setSelectedTier(tierKey)}
+                  activeOpacity={0.8}
                 >
-                  <View style={styles2.tierHeader}>
+                  <Text
+                    style={[s.segmentText, isSelected && s.segmentTextActive]}
+                  >
+                    {tierKey}
+                  </Text>
+                  {tierKey === activeTierKey && (
                     <Text
                       style={[
-                        styles2.tierName,
-                        { color: tierColor, textTransform: 'uppercase' },
+                        s.segmentCurrent,
+                        isSelected && s.segmentTextActive,
                       ]}
                     >
-                      {tierKey}
+                      Current
                     </Text>
-                    {isActive && (
-                      <View
-                        style={[styles2.badge, { backgroundColor: tierColor }]}
-                      >
-                        <IIcon name="checkmark-circle" size={12} color="#fff" />
-                        <Text style={styles2.badgeText}>Active</Text>
-                      </View>
-                    )}
-                    {!isActive && isSelected && (
-                      <View
-                        style={[styles2.badge, { backgroundColor: tierColor }]}
-                      >
-                        <Text style={styles2.badgeText}>Selected</Text>
-                      </View>
-                    )}
-                  </View>
-
-                  <View style={styles2.tierFooter}>
-                    <Text style={styles2.tierPrice}>
-                      From ${formatPrice(tierData?.variants?.[0]?.price || 0)}
-                    </Text>
-                    <IIcon name="chevron-forward" size={16} color={tierColor} />
-                  </View>
+                  )}
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
-
-          {/* Benefits Section - Collapsible */}
-          <View style={styles2.section}>
-            <TouchableOpacity
-              style={styles2.sectionHeader}
-              onPress={() => setExpandedBenefits(!expandedBenefits)}
-              activeOpacity={0.7}
-            >
-              <View style={styles2.sectionHeaderLeft}>
-                <IIcon
-                  name="gift-outline"
-                  size={22}
-                  color={getTierColor(selectedTier)}
-                />
-                <Text style={styles2.sectionTitle}>What's included</Text>
-              </View>
-              <IIcon
-                name={expandedBenefits ? 'chevron-up' : 'chevron-down'}
-                size={20}
-                color="#9ca3af"
-              />
-            </TouchableOpacity>
-
-            <View style={styles2.benefitList}>
-              {visibleFeatures.length === 0 ? (
-                <Text style={styles2.emptyBenefit}>Benefits coming soon.</Text>
-              ) : (
-                visibleFeatures.map((benefit, index) => (
-                  <Animated.View key={index} style={styles2.benefitItem}>
-                    <View
-                      style={[
-                        styles2.benefitIcon,
-                        { backgroundColor: getTierColor(selectedTier) },
-                      ]}
-                    >
-                      <IIcon name="checkmark" size={14} color="#fff" />
-                    </View>
-                    <Text style={styles2.benefitText}>{benefit}</Text>
-                  </Animated.View>
-                ))
-              )}
-
-              {currentTierFeatures.length > 4 && !expandedBenefits && (
-                <TouchableOpacity
-                  style={styles2.showMoreButton}
-                  onPress={() => setExpandedBenefits(true)}
-                >
-                  <Text
-                    style={[
-                      styles2.showMoreText,
-                      { color: getTierColor(selectedTier) },
-                    ]}
-                  >
-                    +{currentTierFeatures.length - 4} more benefits
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
           </View>
 
-          {/* Billing Cycles - Grid Layout with better visual hierarchy */}
-          <View style={styles2.section}>
-            <View style={styles2.sectionHeader}>
-              <View style={styles2.sectionHeaderLeft}>
-                <IIcon
-                  name="calendar-outline"
-                  size={22}
-                  color={getTierColor(selectedTier)}
-                />
-                <Text style={styles2.sectionTitle}>Billing cycle</Text>
-              </View>
-              <Text style={styles2.sectionSubtitle}>Cancel anytime</Text>
-            </View>
+          {/* Features */}
+          <View style={s.features}>
+            {features.length === 0 ? (
+              <Text style={s.muted}>Benefits coming soon.</Text>
+            ) : (
+              features.map((feature, index) => (
+                <View key={index} style={s.featureRow}>
+                  <IIcon name="checkmark" size={18} color={tierColor} />
+                  <Text style={s.featureText}>{feature}</Text>
+                </View>
+              ))
+            )}
+          </View>
 
-            <View style={styles2.cycleGrid}>
-              {currentVariants.map((variant: any) => {
-                const isSelected = selectedVariantId === variant.id;
-                const tierColor = getTierColor(selectedTier);
-                const cycleLabel = getCycleLabel(variant);
-                const price = Number(variant.price);
-                const monthlyEquivalent = calculateMonthlyEquivalent(
-                  price,
-                  cycleLabel,
-                );
-                const savings =
-                  monthlyEquivalent > 0 &&
-                  cycleLabel.toLowerCase().includes('year')
-                    ? Math.round(
-                        ((monthlyEquivalent * 12 - price) /
-                          (monthlyEquivalent * 12)) *
-                          100,
-                      )
-                    : 0;
-                const isBestValue = savings >= 20;
-
+          {/* Billing options */}
+          {!isCurrentPlan && (
+            <View style={s.options}>
+              {variants.map((variant: any) => {
+                const isSelected = variant.id === selectedVariantId;
+                const discount = String(
+                  variant?.metadata?.discount ?? '',
+                ).trim();
                 return (
                   <TouchableOpacity
                     key={variant.id}
-                    onPress={() => {
-                      // console.log('currentTier', currentTier);
-                      setSelectedVariantId(variant.id);
-                      setProductDetails({
-                        sku: currentTier?.sku,
-                        variantId: variant.id,
-                      });
-                    }}
-                    style={[
-                      styles2.cycleCard,
-                      isSelected && [
-                        styles2.cycleCardSelected,
-                        { borderColor: tierColor },
-                      ],
-                    ]}
-                    activeOpacity={0.7}
+                    style={[s.option, isSelected && { borderColor: tierColor }]}
+                    onPress={() => setSelectedVariantId(variant.id)}
+                    activeOpacity={0.8}
                   >
-                    {isBestValue && (
-                      <View
-                        style={[
-                          styles2.bestValueBadge,
-                          { backgroundColor: tierColor },
-                        ]}
-                      >
-                        <Text style={styles2.bestValueText}>Best Value</Text>
-                      </View>
-                    )}
-
-                    <View style={styles2.cycleCardContent}>
-                      <View style={styles2.cycleCardHeader}>
-                        <Text
-                          style={[
-                            styles2.cycleLabel,
-                            isSelected && { color: tierColor },
-                          ]}
-                        >
-                          {cycleLabel}
-                        </Text>
-                        {isSelected && (
-                          <View
-                            style={[
-                              styles2.selectedIndicator,
-                              { backgroundColor: tierColor },
-                            ]}
-                          >
-                            <IIcon name="checkmark" size={12} color="#fff" />
-                          </View>
-                        )}
-                      </View>
-
-                      <Text style={styles2.cyclePrice}>
-                        ${formatPrice(price)}
-                        <Text style={styles2.cyclePeriod}>
-                          /{cycleLabel.toLowerCase()}
-                        </Text>
+                    <IIcon
+                      name={isSelected ? 'radio-button-on' : 'radio-button-off'}
+                      size={20}
+                      color={isSelected ? tierColor : '#6b7280'}
+                    />
+                    <Text style={s.optionLabel}>{getCycleLabel(variant)}</Text>
+                    {!!discount && (
+                      <Text style={[s.optionDiscount, { color: tierColor }]}>
+                        {discount}
                       </Text>
-
-                      {monthlyEquivalent > 0 &&
-                        !cycleLabel.toLowerCase().includes('month') && (
-                          <Text style={styles2.monthlyEquivalentText}>
-                            ~${monthlyEquivalent.toFixed(2)}/month
-                          </Text>
-                        )}
-
-                      {savings > 0 && (
-                        <View style={styles2.savingsContainer}>
-                          <IIcon
-                            name="trending-down"
-                            size={14}
-                            color="#3DB58A"
-                          />
-                          <Text style={styles2.savingsText}>
-                            Save {savings}%
-                          </Text>
-                        </View>
-                      )}
-                    </View>
+                    )}
+                    <Text style={s.optionPrice}>
+                      ${formatPrice(variant.price)}
+                    </Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
-          </View>
-
-          {/* Price Summary Card */}
-          {selectedVariant && (
-            <View style={styles2.summaryCard}>
-              <View style={styles2.summaryRow}>
-                <Text style={styles2.summaryLabel}>Selected plan</Text>
-                <Text style={styles2.summaryValue}>{selectedTier}</Text>
-              </View>
-              <View style={styles2.summaryRow}>
-                <Text style={styles2.summaryLabel}>Billing cycle</Text>
-                <Text style={styles2.summaryValue}>
-                  {getCycleLabel(selectedVariant)}
-                </Text>
-              </View>
-              <View style={[styles2.summaryRow, styles2.summaryTotal]}>
-                <Text style={styles2.summaryTotalLabel}>Total</Text>
-                <Text
-                  style={[
-                    styles2.summaryTotalValue,
-                    { color: getTierColor(selectedTier) },
-                  ]}
-                >
-                  ${formatPrice(selectedVariant.price)}
-                </Text>
-              </View>
-            </View>
           )}
 
-          {/* Primary CTA Button */}
-          {selectedVariant && (
-            <TouchableOpacity
-              style={[
-                styles2.subscribeButton,
-                { backgroundColor: getTierColor(selectedTier) },
-              ]}
-              onPress={openPaymentSheet}
-              activeOpacity={0.8}
-            >
-              <Text style={styles2.subscribeButtonText}>
-                Continue to payment
-              </Text>
-              <IIcon name="arrow-forward" size={20} color="#fff" />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={[
+              s.cta,
+              { backgroundColor: tierColor },
+              (isCurrentPlan || !selectedVariant) && s.ctaDisabled,
+            ]}
+            disabled={isCurrentPlan || !selectedVariant}
+            onPress={() => paymentSheetRef.current?.snapToIndex(0)}
+            activeOpacity={0.85}
+          >
+            <Text style={s.ctaText}>
+              {isCurrentPlan
+                ? 'Your current plan'
+                : selectedVariant
+                ? `Continue · $${formatPrice(selectedVariant.price)}`
+                : 'Continue'}
+            </Text>
+          </TouchableOpacity>
 
-          {/* Trust Indicators */}
-          <View style={styles2.trustSection}>
-            <View style={styles2.trustItem}>
-              <IIcon name="lock-closed" size={16} color="#6b7280" />
-              <Text style={styles2.trustText}>Secure payment</Text>
-            </View>
-            <View style={styles2.trustItem}>
-              <IIcon name="refresh" size={16} color="#6b7280" />
-              <Text style={styles2.trustText}>Cancel anytime</Text>
-            </View>
-            <View style={styles2.trustItem}>
-              <IIcon name="headset" size={16} color="#6b7280" />
-              <Text style={styles2.trustText}>24/7 support</Text>
-            </View>
-          </View>
-
-          <Text style={styles2.disclaimer}>
-            By continuing, you agree to our Terms of Service and Privacy Policy.
-            Your subscription will automatically renew unless canceled at least
-            24 hours before the renewal date.
-          </Text>
+          <Text style={s.footnote}>Renews automatically. Cancel anytime.</Text>
         </Animated.ScrollView>
       </SafeAreaView>
-      {/* Redesigned Payment Sheet */}
+
       <BottomSheet
         ref={paymentSheetRef}
         index={-1}
@@ -643,59 +327,20 @@ export const Screen_PurchaseSubscribe = ({
       >
         <BottomSheetView style={styles.container}>
           <SafeAreaView edges={['bottom']}>
-            <View style={styles2.sheetHeader}>
-              <Text style={styles2.sheetTitle}>Complete payment</Text>
-              <TouchableOpacity
-                onPress={() => paymentSheetRef.current?.close()}
-              >
-                <IIcon name="close" size={24} color="#6b7280" />
-              </TouchableOpacity>
-            </View>
-
-            <View
-              style={[
-                styles2.orderSummary,
-                { borderColor: getTierColor(selectedTier) },
-              ]}
-            >
-              <Text style={styles2.orderSummaryTitle}>Order summary</Text>
-              <View style={styles2.orderSummaryRow}>
-                <Text style={styles2.orderSummaryLabel}>
-                  {selectedTier} Plan
-                </Text>
-                <Text style={styles2.orderSummaryValue}>
-                  {getCycleLabel(selectedVariant)}
-                </Text>
-              </View>
-              <View
-                style={[styles2.orderSummaryRow, styles2.orderSummaryTotal]}
-              >
-                <Text style={styles2.orderSummaryTotalLabel}>
-                  Total due today
-                </Text>
-                <Text
-                  style={[
-                    styles2.orderSummaryTotalValue,
-                    { color: getTierColor(selectedTier) },
-                  ]}
-                >
-                  ${formatPrice(selectedVariant?.price)}
-                </Text>
-              </View>
-            </View>
+            <Text style={s.sheetTitle}>
+              {selectedTier} · {priceLabel}
+            </Text>
 
             <TouchableOpacity
-              style={[styles2.sheetButton, styles2.sheetButtonPrimary]}
+              style={[s.sheetButton, s.sheetButtonPrimary]}
               onPress={() => handleSubscribe('card')}
             >
               <IIcon name="card-outline" size={20} color="#fff" />
-              <Text style={styles2.sheetButtonTextPrimary}>
-                Credit / Debit card
-              </Text>
+              <Text style={s.sheetButtonTextPrimary}>Pay with card</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles2.sheetButton, styles2.sheetButtonSecondary]}
+              style={[s.sheetButton, s.sheetButtonSecondary]}
               onPress={() => handleSubscribe('iap')}
             >
               <IIcon
@@ -705,14 +350,10 @@ export const Screen_PurchaseSubscribe = ({
                 size={20}
                 color="#111827"
               />
-              <Text style={styles2.sheetButtonTextSecondary}>
+              <Text style={s.sheetButtonTextSecondary}>
                 {Platform.OS === 'ios' ? 'Apple Pay' : 'Google Play'}
               </Text>
             </TouchableOpacity>
-
-            <Text style={styles2.sheetDisclaimer}>
-              You will not be charged until you confirm the payment
-            </Text>
           </SafeAreaView>
         </BottomSheetView>
       </BottomSheet>
@@ -720,259 +361,85 @@ export const Screen_PurchaseSubscribe = ({
   );
 };
 
-const styles2 = StyleSheet.create({
-  scrollContainer: { padding: 20, paddingBottom: 40 },
-
-  // Hero section
-  heroSection: { marginBottom: 28, alignItems: 'center' },
-  heroTitle: {
+const s = StyleSheet.create({
+  title: {
     color: '#fff',
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '800',
-    letterSpacing: -0.5,
-    marginBottom: 8,
-  },
-  heroSubtitle: {
-    color: '#9ca3af',
-    fontSize: 14,
     textAlign: 'center',
-    lineHeight: 20,
+    marginBottom: 20,
   },
 
-  // Tier selection styles
-  tierScrollContainer: { paddingHorizontal: 4, gap: 12, marginBottom: 28 },
-  tierCard: {
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-  },
-  tierCardDisabled: { opacity: 0.45 },
-  tierHeader: {
+  segment: {
     flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 14,
+    padding: 4,
+    marginBottom: 24,
+  },
+  segmentItem: {
+    flex: 1,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
+    paddingVertical: 10,
+    borderRadius: 11,
   },
-  tierName: { fontSize: 18, fontWeight: '800' },
-  tierHighlight: {
-    color: '#e5e7eb',
-    fontSize: 13,
-    marginBottom: 12,
-    lineHeight: 18,
+  segmentText: {
+    color: '#9ca3af',
+    fontSize: 15,
+    fontWeight: '800',
+    textTransform: 'uppercase',
   },
-  tierFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 'auto',
+  segmentTextActive: { color: '#fff' },
+  segmentCurrent: {
+    color: '#9ca3af',
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 2,
   },
-  tierPrice: { color: '#9ca3af', fontSize: 13, fontWeight: '600' },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 20,
-  },
-  badgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
 
-  // Section styles
-  section: { marginBottom: 28 },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  sectionTitle: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  sectionSubtitle: { color: '#6b7280', fontSize: 12 },
+  features: { gap: 12, marginBottom: 24, paddingHorizontal: 4 },
+  featureRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  featureText: { color: '#e5e7eb', fontSize: 15, flex: 1 },
+  muted: { color: '#9ca3af', fontSize: 14, textAlign: 'center' },
 
-  // Benefits styles
-  benefitList: {
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    padding: 16,
-  },
-  benefitItem: {
+  options: { gap: 10, marginBottom: 20 },
+  option: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 10,
-  },
-  benefitIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  benefitText: { color: '#e5e7eb', fontSize: 14, flex: 1, lineHeight: 20 },
-  emptyBenefit: {
-    color: '#9ca3af',
-    fontSize: 14,
-    textAlign: 'center',
-    padding: 20,
-  },
-  showMoreButton: {
-    alignItems: 'center',
-    paddingTop: 12,
-    marginTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
-  },
-  showMoreText: { fontSize: 13, fontWeight: '600' },
-
-  // Billing cycle styles
-  cycleGrid: { gap: 12 },
-  cycleCard: {
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#2f3040',
-    backgroundColor: 'rgba(255,255,255,0.02)',
-    position: 'relative',
-  },
-  cycleCardSelected: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-  },
-  bestValueBadge: {
-    position: 'absolute',
-    top: -1,
-    right: -1,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderBottomLeftRadius: 12,
-    zIndex: 1,
-  },
-  bestValueText: { color: '#fff', fontSize: 11, fontWeight: '800' },
-  cycleCardContent: { gap: 8 },
-  cycleCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cycleLabel: { fontSize: 16, fontWeight: '700', color: '#e5e7eb' },
-  selectedIndicator: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cyclePrice: { fontSize: 24, fontWeight: '800', color: '#fff' },
-  cyclePeriod: { fontSize: 14, fontWeight: '400', color: '#9ca3af' },
-  monthlyEquivalentText: { fontSize: 12, color: '#6b7280' },
-  savingsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
-  },
-  savingsText: { fontSize: 12, fontWeight: '700', color: '#3DB58A' },
-
-  // Summary card
-  summaryCard: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 24,
-    borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
   },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+  optionLabel: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    textTransform: 'capitalize',
   },
-  summaryLabel: { color: '#9ca3af', fontSize: 14 },
-  summaryValue: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  summaryTotal: {
-    marginTop: 8,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
-  },
-  summaryTotalLabel: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  summaryTotalValue: { fontSize: 20, fontWeight: '800' },
+  optionDiscount: { fontSize: 12, fontWeight: '800' },
+  optionPrice: { color: '#fff', fontSize: 16, fontWeight: '800' },
 
-  // CTA Button
-  subscribeButton: {
-    flexDirection: 'row',
+  cta: {
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
     paddingVertical: 16,
     borderRadius: 16,
-    marginBottom: 24,
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
-  },
-  subscribeButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-
-  // Trust indicators
-  trustSection: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 24,
-    marginBottom: 20,
-  },
-  trustItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  trustText: { color: '#6b7280', fontSize: 12 },
-
-  disclaimer: {
-    color: '#6b7280',
-    fontSize: 11,
-    lineHeight: 16,
-    textAlign: 'center',
-  },
-
-  // Bottom sheet styles
-  sheetHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  sheetTitle: { fontSize: 20, fontWeight: '800', color: '#111827' },
-  orderSummary: {
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 24,
-    backgroundColor: '#f9fafb',
-  },
-  orderSummaryTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
     marginBottom: 12,
   },
-  orderSummaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
+  ctaDisabled: { opacity: 0.5 },
+  ctaText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  footnote: { color: '#6b7280', fontSize: 12, textAlign: 'center' },
+
+  sheetTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111827',
+    textAlign: 'center',
+    textTransform: 'capitalize',
+    marginBottom: 20,
   },
-  orderSummaryLabel: { color: '#6b7280', fontSize: 13 },
-  orderSummaryValue: { color: '#111827', fontSize: 13, fontWeight: '500' },
-  orderSummaryTotal: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-  },
-  orderSummaryTotalLabel: { fontSize: 14, fontWeight: '700', color: '#111827' },
-  orderSummaryTotalValue: { fontSize: 18, fontWeight: '800' },
   sheetButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -993,11 +460,5 @@ const styles2 = StyleSheet.create({
     color: '#111827',
     fontSize: 15,
     fontWeight: '700',
-  },
-  sheetDisclaimer: {
-    textAlign: 'center',
-    color: '#9ca3af',
-    fontSize: 12,
-    marginTop: 16,
   },
 });

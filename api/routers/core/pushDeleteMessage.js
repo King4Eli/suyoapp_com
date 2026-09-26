@@ -25,6 +25,7 @@ export default async function pushDeleteMessage(convoId, io) {
         convo_match_id: conversations.convoMatchId,
         convo_by_initiator: conversations.convoByInitiator,
         match_user_id_from: matches.matchUserIdFrom,
+        match_user_id_to: matches.matchUserIdTo,
       })
       .from(conversations)
       .innerJoin(matches, eq(matches.matchId, conversations.convoMatchId))
@@ -57,7 +58,17 @@ export default async function pushDeleteMessage(convoId, io) {
 
     if (result.affectedRows > 0) {
       if (io) {
-        io.to(`match-${row.convo_match_id}`).emit("message-deleted", {
+        // Also the recipient's user room, so their Chat tab badge updates even
+        // when they aren't inside this conversation. One emit to both rooms
+        // reaches each socket once.
+        const otherUserId =
+          row.match_user_id_from === sessions.currentUserID
+            ? row.match_user_id_to
+            : row.match_user_id_from;
+        io.to([
+          `match-${row.convo_match_id}`,
+          `user-${otherUserId}`,
+        ]).emit("message-deleted", {
           matchId: row.convo_match_id,
           convoId,
         });

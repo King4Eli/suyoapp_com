@@ -9,6 +9,8 @@ import pushNewPhoneNumber from "./core/pushNewPhonenumber.js";
 import pushProfile from "./core/pushProfile.js";
 import getPeopleToMatch from "./core/getPeopleToMatch.js";
 import pushPeopleToMatch from "./core/pushPeopleToMatch.js";
+import pushRewindMatch from "./core/pushRewindMatch.js";
+import pushDirectMessage from "./core/pushDirectMessage.js";
 import pushConversation from "./core/pushConversation.js";
 import pushDeleteMessage from "./core/pushDeleteMessage.js";
 import pushNewEmail from "./core/pushNewEmail.js";
@@ -30,6 +32,8 @@ import pushReportUser from "./core/pushReportUser.js";
 import getFeedComments from "./core/getFeedComments.js";
 import pushFeedComment from "./core/pushFeedComment.js";
 import pushDeleteFeedComment from "./core/pushDeleteFeedComment.js";
+import pushDeleteAccount from "./core/pushDeleteAccount.js";
+import pushClaimStreakReward from "./core/pushClaimStreakReward.js";
 
 const core_router = express.Router();
 core_router.post("/:action", async (req, res) => {
@@ -158,6 +162,22 @@ core_router.post("/:action", async (req, res) => {
       );
       return res.json(upeople);
     }
+    case "pushDirectMessage": {
+      const direct = await pushDirectMessage(
+        {
+          user_id2: req.body?.user_id2,
+          matchId: req.body?.matchId,
+          message: req.body?.message,
+          context: req.body?.context,
+        },
+        req.app.get("io"),
+      );
+      return res.json(direct);
+    }
+    case "pushRewindMatch": {
+      const rewound = await pushRewindMatch({ matchId: req.body?.matchId });
+      return res.json(rewound);
+    }
     case "pushFeedPost": {
       const feedCaption = req.body?.caption;
       const feedMedia = req.body?.media;
@@ -193,6 +213,16 @@ core_router.post("/:action", async (req, res) => {
         reason: reportReason,
       });
       return res.json(reportUserResult);
+    }
+    case "pushClaimStreakReward": {
+      const claimResult = await pushClaimStreakReward();
+      return res.json(claimResult);
+    }
+    case "pushDeleteAccount": {
+      const deleteAccountResult = await pushDeleteAccount({
+        reason: req.body?.reason,
+      });
+      return res.json(deleteAccountResult);
     }
     case "getFeedComments": {
       const commentsPostId = req.body?.post_id;

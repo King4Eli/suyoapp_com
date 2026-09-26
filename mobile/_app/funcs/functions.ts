@@ -18,6 +18,7 @@ import {
 } from 'react-native-image-picker';
 import { Toastx } from './customNotification';
 import { SocketClient } from './socket_realtimeData';
+import { chatsBadge, likesBadge } from './tabBadges';
 import { createNavigationContainerRef } from '@react-navigation/native';
 import { xxa_logggingReport, flushLogQueue } from './functions/logging';
 import {
@@ -178,21 +179,34 @@ export const help = {
 
     return 'just now';
   },
+  // UI gating only -- the server enforces every feature itself (api
+  // global/entitlements.js). `features` comes straight from the server's
+  // entitlements so the app never works out access from the product name.
   getSubscriptionState: (profile: any) => {
     const rawPlan = profile?.subscription?.product_name ?? null;
     const rawVariant = profile?.subscription?.plan_name ?? null;
     const hasActive = Boolean(profile?.subscription?.status === 'active');
-    const tier = String(rawPlan ?? '')
-      .trim()
-      .toLowerCase();
+    const tier: 'free' | 'plus' | 'vip' = profile?.entitlements?.tier ?? 'free';
+    const f = profile?.entitlements?.features ?? {};
+    const features = {
+      unlimitedLikes: f.unlimitedLikes === true,
+      seeWhoLikedYou: f.seeWhoLikedYou === true,
+      advancedFilters: f.advancedFilters === true,
+      freeRewind: f.freeRewind === true,
+      readReceipts: f.readReceipts === true,
+      viewSocialLinks: f.viewSocialLinks === true,
+      dailyRoses: Number(f.dailyRoses ?? 0),
+      dailyDirectMessages: Number(f.dailyDirectMessages ?? 0),
+    };
 
     return {
       hasActive,
       plan: rawPlan,
       variant: rawVariant,
       tier,
-      isPlus: hasActive && tier === 'plus',
-      isVip: hasActive && tier === 'vip',
+      isPlus: tier === 'plus',
+      isVip: tier === 'vip',
+      features,
     };
   },
 };
@@ -220,6 +234,10 @@ export const __init__app = async (): Promise<void> => {
 
   // ship any logs that couldn't be delivered while offline last session
   flushLogQueue();
+
+  // pending likes / unread chats counts for the bottom tab badges
+  likesBadge.refresh();
+  chatsBadge.refresh();
 
   // 111111
   // update location -- gated so a re-launch in the same neighborhood doesn't
@@ -277,8 +295,10 @@ export const __init__app = async (): Promise<void> => {
                   realtimedata: retrivedData?.payload,
                 });
             } else {
+              chatsBadge.refresh();
             }
           } else {
+            chatsBadge.refresh();
             const nmessage =
               (retrivedData?.payload?.firstName ?? 'Someone') +
               ' has messaged you';
@@ -304,6 +324,8 @@ export const __init__app = async (): Promise<void> => {
           }
         } else if (data.event === 'new-like') {
           // Emitted by pushPeopleToMatch.js when someone likes/superlikes the current user.
+          // Re-counted rather than incremented -- a like upgraded to a superlike is still one person.
+          likesBadge.refresh();
           if (navigationRef.getCurrentRoute()?.name === namer.navigation.likes)
             return;
           if (AppState.currentState === 'active') {
@@ -320,6 +342,9 @@ export const __init__app = async (): Promise<void> => {
               },
             });
           }
+        } else if (data.event === 'message-deleted') {
+          // Emitted by pushDeleteMessage.js -- a deleted unread last message no longer counts as unread.
+          chatsBadge.refresh();
         } else if (data.event === 'new-match') {
           // Emitted by pushPeopleToMatch.js to the party who liked first, once the other
           // side matches back -- they don't otherwise learn about it until they reopen the app.

@@ -4,6 +4,8 @@ export const namer = {
     verifyCode: "verify:code:",
     products: "products:list",
     mapper: "mapper:lookup",
+    streak: "streak:",
+    streakReward: "streak:reward:",
   },
   ratelimit: {
     login_ip: "ratelimit:login:ip:",

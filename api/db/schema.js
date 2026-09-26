@@ -306,6 +306,9 @@ export const productLists = mysqlTable("product_lists", {
   plName: varchar("pl_name", { length: 200 }).notNull(),
   plDescription: json("pl_description").notNull(),
   category: varchar("category", { length: 15 }).notNull(),
+  // Subscription tier this product grants (category 'mainsub' only). This, not
+  // pl_name, is what server-side entitlement checks read -- see entitlements.js.
+  tier: mysqlEnum("tier", ["plus", "vip"]),
   plIsActive: mysqlEnum("pl_is_active", ["0", "1"]).notNull(),
   plCreated: timestamp("pl_created").notNull(),
   plUpdated: timestamp("pl_updated").notNull().defaultNow().onUpdateNow(),
@@ -335,6 +338,24 @@ export const subscriptions = mysqlTable("subscriptions", {
   dateModified: timestamp("date_modified").notNull().defaultNow().onUpdateNow(),
 });
 
+export const userBoostUsage = mysqlTable("user_boost_usage", {
+  userId: varchar("user_id", { length: 50 }).primaryKey().notNull(),
+  // purchased boosts not yet used
+  boostBalance: int("boost_balance").notNull().default(0),
+});
+
+export const userDirectMessageUsage = mysqlTable("user_direct_message_usage", {
+  userId: varchar("user_id", { length: 50 }).primaryKey().notNull(),
+  // purchased direct messages (and streak rewards) not yet used
+  directMessageBalance: int("direct_message_balance").notNull().default(0),
+  // plan-allowance direct messages used on daily_reset_date
+  dailyUsed: int("daily_used").notNull().default(0),
+  // the date daily_used applies to
+  dailyResetDate: date("daily_reset_date", { mode: "string" })
+    .notNull()
+    .default(sql`(curdate())`),
+});
+
 export const userRoseUsage = mysqlTable("user_rose_usage", {
   userId: varchar("user_id", { length: 50 }).primaryKey().notNull(),
   // purchased roses
@@ -362,6 +383,11 @@ export const users = mysqlTable("users", {
   userActive: mysqlEnum("user_active", ["0", "1", "2", "3", "-99"])
     .notNull()
     .default("1"),
+  // unix seconds, set when user_active becomes -99 (deleted)
+  userDeletedDate: int("user_deleted_date", { unsigned: true }),
+  // { phonenumber, reason } -- user_phonenumber is cleared on delete so the
+  // number can sign up again; the original is kept here
+  userDeleteData: json("user_delete_data"),
   geoMeta: json("geo_meta").notNull(),
   geoHash: varchar("geo_hash", { length: 12 }).notNull(),
   geoLong: double("geo_long").notNull(),

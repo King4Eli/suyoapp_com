@@ -20,6 +20,9 @@ import {
   Modal,
   Linking,
   useWindowDimensions,
+  KeyboardAvoidingView,
+  Platform,
+  TextInput as RNTextInput,
 } from 'react-native';
 import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs';
 import { useHeaderHeight } from '@react-navigation/elements';
@@ -45,6 +48,7 @@ import {
   logReport,
   reportUser,
 } from '../funcs/functions';
+import { likesBadge } from '../funcs/tabBadges';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TextInput } from 'react-native-gesture-handler';
 import { LinearGradient } from 'react-native-linear-gradient';
@@ -96,6 +100,10 @@ export default function Peoples_Screen({
   const [gptmd, sptmd] = useState<boolean>(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const isActionLockedRef = useRef(false);
+  // Direct message composer; `context` is the profile text being replied to, if any.
+  const [dmComposer, setDmComposer] = useState<{
+    context?: DirectMessageContext;
+  } | null>(null);
   const [getSkippedLastPerson, setSkippedLastPerson] = useState<any | null>(
     null,
   );
@@ -112,7 +120,8 @@ export default function Peoples_Screen({
   } | null>(null);
   const [entitlements, setEntitlements] = useState<{
     roses: { remainingToday: number; balance: number } | null;
-  }>({ roses: null });
+    directMessages: { remainingToday: number; balance: number } | null;
+  }>({ roses: null, directMessages: null });
 
   const carouselRef = useRef<CarouselRef>(null);
   const { height: displayHeight } = useWindowDimensions();
@@ -178,6 +187,11 @@ export default function Peoples_Screen({
   const nextPerson = getPeopleToMatch?.[1] ?? [];
   const currentUserImages = currentPerson?.user_image ?? [];
   const currentPhotos = currentUserImages.filter((img: any) => img?.p);
+  // Direct messages go out with a like, so they're offered wherever liking is.
+  const canDirectMessage =
+    !route?.params?.alreadyLiked &&
+    !route?.params?.previewProfile &&
+    !!currentPerson?.user_id;
   const prompts = [
     currentPerson?.user_bio_prompt?.[0],
     currentPerson?.user_bio_prompt?.[1],
@@ -199,6 +213,12 @@ export default function Peoples_Screen({
                 ? {
                     remainingToday: profile.roses.remainingToday,
                     balance: profile.roses.balance,
+                  }
+                : null,
+              directMessages: profile?.directMessages
+                ? {
+                    remainingToday: profile.directMessages.remainingToday,
+                    balance: profile.directMessages.balance,
                   }
                 : null,
             });
@@ -243,18 +263,42 @@ export default function Peoples_Screen({
   // same upsell modal recovering a real missed match uses. Recovering a real missed
   // match (match_id present, meaning they'd already liked or superliked/rose'd you)
   // always goes through that modal, which offers the one-time paid rewind / subscribe upsell.
-  const attemptRestore = useCallback(() => {
+  // Plans with freeRewind recover a real missed match through pushRewindMatch, which
+  // re-checks the plan server-side; everyone else gets the paid rewind / upsell modal.
+  const attemptRestore = useCallback(async () => {
     setPeopleToMatch(prev => [getSkippedLastPerson, ...(prev ?? [])]);
     if (!getSkippedLastPerson) return;
+    const canRewind = help.getSubscriptionState(getProfile).features.freeRewind;
+    if (!canRewind) {
+      setShowDislikedMatchModal(true);
+      return;
+    }
     if (!getSkippedLastPerson?.match_id) {
-      if (!help.getSubscriptionState(getProfile).hasActive) {
-        setShowDislikedMatchModal(true);
-        return;
-      }
       setSkippedLastPerson(null);
       return;
     }
-    setShowDislikedMatchModal(true);
+    Loaderx.show();
+    const response = await _http_request({
+      reqType: 'POST',
+      customApiUrl:
+        __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/pushRewindMatch',
+      bodyArray: { matchId: getSkippedLastPerson.match_id },
+    }).finally(() => Loaderx.hide());
+    if (response?.code === 200) {
+      setSkippedLastPerson(null);
+      return;
+    }
+    // Plan lapsed since the profile loaded: fall back to the paid rewind / upsell.
+    if (response?.upgradeRequired) {
+      setShowDislikedMatchModal(true);
+      return;
+    }
+    // Match changed meanwhile (e.g. they blocked): take the card back out.
+    setPeopleToMatch(prev => (prev ?? []).slice(1));
+    Toastx.show({
+      type: 'info',
+      message: response?.message ?? "Couldn't rewind this match.",
+    });
   }, [getSkippedLastPerson, getProfile]);
 
   // header options
@@ -556,6 +600,8 @@ export default function Peoples_Screen({
     what: 'like' | 'superlike' | 'dislike' | 'block' | 'report',
     matchStatus: number = 0,
     showloader: boolean = true,
+    // A like with a message attached (pushDirectMessage) -- same limits as a like.
+    directMessage?: { text: string; context?: DirectMessageContext },
   ) {
     if (isActionLockedRef.current) return;
     isActionLockedRef.current = true;
@@ -569,15 +615,27 @@ export default function Peoples_Screen({
         case 'block':
           const matchId =
             getPeopleToMatch?.[0]?.match_id || functs.likedMatchId;
+          const isDirectMessage = what === 'like' && !!directMessage;
           await _http_request({
             reqType: 'POST',
             customApiUrl:
-              __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/pushPeopleToMatch',
-            bodyArray: {
-              user_id2: getPeopleToMatch?.[0]?.user_id,
-              match_status: matchStatus,
-              matchId: matchId,
-            },
+              __CONFIG__.HTTPS_API_DOMAIN +
+              (isDirectMessage
+                ? '/api/core/v1/pushDirectMessage'
+                : '/api/core/v1/pushPeopleToMatch'),
+            bodyArray: isDirectMessage
+              ? {
+                  user_id2: getPeopleToMatch?.[0]?.user_id,
+                  matchId: matchId,
+                  message: directMessage?.text,
+                  // The server re-checks this against their real profile.
+                  context: directMessage?.context,
+                }
+              : {
+                  user_id2: getPeopleToMatch?.[0]?.user_id,
+                  match_status: matchStatus,
+                  matchId: matchId,
+                },
           })
             .then(response => {
               if (response?.code === 429 || response?.code === 402) {
@@ -589,6 +647,14 @@ export default function Peoples_Screen({
                 });
                 if (response?.code === 429) {
                   navigation.navigate(namer.navigation.subscription);
+                } else if (response?.outOf === 'directMessages') {
+                  setEntitlements(prev => ({
+                    ...prev,
+                    directMessages: { remainingToday: 0, balance: 0 },
+                  }));
+                  navigation.navigate(namer.navigation.consumables, {
+                    productcategory: namer.productCategoryName.directmessage,
+                  });
                 } else {
                   setEntitlements(prev => ({
                     ...prev,
@@ -601,6 +667,47 @@ export default function Peoples_Screen({
                   });
                 }
                 return;
+              }
+
+              if (isDirectMessage) {
+                if (response?.code !== 200) {
+                  Toastx.show({
+                    type: 'info',
+                    message: response?.message ?? "Couldn't send your message.",
+                  });
+                  return;
+                }
+                Toastx.show({
+                  type: response?.messageSent ? 'success' : 'info',
+                  message: response?.message ?? 'Message sent with your like.',
+                });
+                if (
+                  typeof response?.directMessagesRemainingToday === 'number'
+                ) {
+                  setEntitlements(prev => ({
+                    ...prev,
+                    directMessages: {
+                      remainingToday: response.directMessagesRemainingToday,
+                      balance: Number(response?.directMessageBalance ?? 0),
+                    },
+                  }));
+                }
+              }
+
+              // liking back / passing on someone who liked me takes them off the Likes tab badge
+              likesBadge.refresh();
+
+              // first action of the day extends the 7-day streak
+              const streak = response?.streak;
+              if (streak?.newDay) {
+                cacheStorage.getCurrentUserProfile(true).catch(() => {});
+                Toastx.show({
+                  type: 'success',
+                  message: streak.rewardEarned
+                    ? `${streak.count}th-day streak conplete! Claim your reward in Profile.`
+                    : `Day ${streak.count} streak! Continue tomorrow.`,
+                  duration: 8000,
+                });
               }
 
               if (typeof response?.rosesRemainingToday === 'number') {
@@ -1044,9 +1151,24 @@ export default function Peoples_Screen({
                   ))}
                 />
 
+                {currentPhotos.length > 0 && (
+                  <Pressable
+                    hitSlop={8}
+                    accessibilityLabel="View photo full screen"
+                    onPress={() => setFullscreenClickImageIndex(photoIndex)}
+                    style={({ pressed }) => [
+                      deckStyles.zoomButton,
+                      currentPhotos.length > 1 && { top: 28 },
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    <IIcon name="expand-outline" size={18} color="#fff" />
+                  </Pressable>
+                )}
+
                 <View style={deckStyles.cardFooter}>
                   <View style={deckStyles.nameRow}>
-                    <Text style={deckStyles.name}>
+                    <Text style={[deckStyles.name, { flexShrink: 1 }]}>
                       {currentPerson?.user_fullname}
                       {currentPerson?.user_bio_dob
                         ? ', ' + help.getageFromDOB(currentPerson?.user_bio_dob)
@@ -1058,6 +1180,38 @@ export default function Peoples_Screen({
                         size={22}
                         color="#fff"
                       />
+                    )}
+                    {canDirectMessage && (
+                      <Pressable
+                        hitSlop={8}
+                        accessibilityLabel="Send a direct message"
+                        onPress={() => {
+                          const viewed = currentPhotos?.[photoIndex]?.p;
+                          setDmComposer({
+                            context: viewed
+                              ? { type: 'photo', p: viewed }
+                              : undefined,
+                          });
+                        }}
+                        style={({ pressed }) => [
+                          deckStyles.dmFab,
+                          pressed && { transform: [{ scale: 0.94 }] },
+                        ]}
+                      >
+                        <LinearGradient
+                          colors={[colors.gradientStart, colors.gradientEnd]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={deckStyles.dmFabFill}
+                        >
+                          <IIcon
+                            name="paper-plane"
+                            size={20}
+                            color="#fff"
+                            style={{ marginLeft: -2, marginTop: 1 }}
+                          />
+                        </LinearGradient>
+                      </Pressable>
                     )}
                   </View>
                   <View style={deckStyles.chipRow}>
@@ -1072,10 +1226,38 @@ export default function Peoples_Screen({
               </View>
 
               <View style={[deckStyles.detailCard, deckStyles.cardShadow]}>
-                <Text style={deckStyles.sectionTitle}>
-                  About{' '}
-                  {currentPerson?.user_fullname?.split(' ')?.[0] || 'them'}
-                </Text>
+                <View style={deckStyles.sectionHeaderRow}>
+                  <Text style={[deckStyles.sectionTitle, { flex: 1 }]}>
+                    About{' '}
+                    {currentPerson?.user_fullname?.split(' ')?.[0] || 'them'}
+                  </Text>
+                  {canDirectMessage && (
+                    <Pressable
+                      hitSlop={8}
+                      accessibilityLabel="Reply to their about with a direct message"
+                      onPress={() =>
+                        setDmComposer({
+                          context: currentPerson?.user_bio_about
+                            ? {
+                                type: 'about',
+                                text: currentPerson.user_bio_about,
+                              }
+                            : undefined,
+                        })
+                      }
+                      style={({ pressed }) => [
+                        deckStyles.sectionMsgBtn,
+                        pressed && { opacity: 0.7 },
+                      ]}
+                    >
+                      <IIcon
+                        name="paper-plane"
+                        size={18}
+                        color={colors.primary}
+                      />
+                    </Pressable>
+                  )}
+                </View>
                 {currentPerson?.user_bio_about && (
                   <Text
                     style={{
@@ -1197,38 +1379,6 @@ export default function Peoples_Screen({
                       </View>
                     ))}
                   </View>
-                </View>
-              )}
-
-              {currentUserImages.length > 0 && (
-                <View style={[deckStyles.detailCard, deckStyles.cardShadow]}>
-                  <Text style={deckStyles.sectionTitle}>Photos</Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 12 }}
-                  >
-                    {currentUserImages.map((img: any, idx: number) => (
-                      <Pressable
-                        key={idx}
-                        onPress={() => setFullscreenClickImageIndex(idx)}
-                      >
-                        <SafeImage
-                          source={{ uri: imageDomain + img.p }}
-                          style={deckStyles.galleryImage}
-                          resizeMode="cover"
-                          onError={() => {
-                            return logReport({
-                              type: 'http -image',
-                              logMessage: 'Image load',
-                              url: imageDomain + (img?.p ?? ''),
-                              useraction: 'Image Load',
-                            });
-                          }}
-                        />
-                      </Pressable>
-                    ))}
-                  </ScrollView>
                 </View>
               )}
 
@@ -1440,6 +1590,36 @@ export default function Peoples_Screen({
             )}
           </SafeAreaView>
         )}
+
+        {/* DIRECT MESSAGE */}
+        <DirectMessageComposer
+          visible={!!dmComposer}
+          firstName={currentPerson?.user_fullname?.split(' ')?.[0] || 'them'}
+          photoUri={
+            currentPhotos?.[0]?.p ? imageDomain + currentPhotos[0].p : undefined
+          }
+          imageDomain={imageDomain}
+          remaining={
+            entitlements.directMessages
+              ? entitlements.directMessages.remainingToday +
+                entitlements.directMessages.balance
+              : null
+          }
+          onGetMore={() => {
+            setDmComposer(null);
+            navigation.navigate(namer.navigation.consumables, {
+              productcategory: namer.productCategoryName.directmessage,
+            });
+          }}
+          context={dmComposer?.context}
+          onClose={() => setDmComposer(null)}
+          onSend={text => {
+            const context = dmComposer?.context;
+            setDmComposer(null);
+            setActionBurst({ kind: 'like', key: Date.now() });
+            peoples_action('like', 0, true, { text, context });
+          }}
+        />
 
         {/* ITS a matCH */}
         <Modal
@@ -1707,11 +1887,11 @@ export default function Peoples_Screen({
 
         {/* FULLSCREEN */}
         <ImageViewing
-          images={currentUserImages.map((img: any) => ({
+          images={currentPhotos.map((img: any) => ({
             uri: imageDomain + img.p,
           }))}
           imageIndex={getFullscreenClickImageIndex ?? 0}
-          visible={!!getFullscreenClickImageIndex}
+          visible={getFullscreenClickImageIndex != null}
           onRequestClose={() => {
             setFullscreenClickImageIndex(null);
           }}
@@ -1740,6 +1920,276 @@ export default function Peoples_Screen({
         </BottomSheetView>
       </BottomSheet>
     </>
+  );
+}
+
+const DIRECT_MESSAGE_MAX = 500;
+
+// What a direct message comments on -- shown to the recipient in the conversation.
+type DirectMessageContext =
+  | { type: 'photo'; p: string }
+  | { type: 'about'; text: string };
+
+// Bottom composer for a direct message: a like with a message attached, sent before
+// matching. `context` quotes the profile text being replied to (e.g. their About).
+function DirectMessageComposer({
+  visible,
+  firstName,
+  photoUri,
+  imageDomain,
+  remaining,
+  onGetMore,
+  context,
+  onClose,
+  onSend,
+}: {
+  visible: boolean;
+  firstName: string;
+  photoUri?: string;
+  imageDomain?: string;
+  // Direct messages left (today's allowance + purchased); null while unknown.
+  remaining: number | null;
+  onGetMore: () => void;
+  context?: DirectMessageContext;
+  onClose: () => void;
+  onSend: (text: string) => void;
+}) {
+  const { colors } = useTheme();
+  const [text, setText] = useState('');
+  const trimmed = text.trim();
+
+  useEffect(() => {
+    if (visible) setText('');
+  }, [visible]);
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: colors.overlay }}
+          onPress={onClose}
+        />
+        <SafeAreaView
+          edges={['bottom']}
+          style={{
+            backgroundColor: colors.background,
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            paddingHorizontal: spacing.xl,
+            paddingTop: spacing.md,
+            paddingBottom: spacing.lg,
+          }}
+        >
+          <View
+            style={{
+              alignSelf: 'center',
+              width: 40,
+              height: 4,
+              borderRadius: 2,
+              backgroundColor: colors.border,
+              marginBottom: spacing.lg,
+            }}
+          />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <SafeImage
+              source={{ uri: photoUri }}
+              style={{ width: 44, height: 44, borderRadius: 22 }}
+            />
+            <View style={{ flex: 1 }}>
+              <Text
+                numberOfLines={1}
+                style={{
+                  ...typo.subtitle,
+                  color: colors.text,
+                  textTransform: 'capitalize',
+                }}
+              >
+                Message {firstName}
+              </Text>
+              <Text style={{ ...typo.caption, color: colors.textTertiary }}>
+                {remaining == null
+                  ? 'Sent with a like — stand out before you match'
+                  : `Sent with a like · ${remaining} direct message${
+                      remaining === 1 ? '' : 's'
+                    } left`}
+              </Text>
+            </View>
+            <Pressable hitSlop={10} onPress={onClose}>
+              <IIcon name="close" size={24} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+
+          {context?.type === 'about' && (
+            <View
+              style={{
+                marginTop: spacing.lg,
+                borderLeftWidth: 3,
+                borderLeftColor: colors.primary,
+                backgroundColor: colors.backgroundSecondary,
+                borderRadius: radius.sm,
+                paddingVertical: spacing.sm,
+                paddingHorizontal: spacing.md,
+              }}
+            >
+              <Text
+                style={{
+                  ...typo.caption,
+                  color: colors.primary,
+                  marginBottom: 2,
+                }}
+              >
+                Replying to their About
+              </Text>
+              <Text
+                numberOfLines={3}
+                style={{ ...typo.callout, color: colors.textSecondary }}
+              >
+                {context.text}
+              </Text>
+            </View>
+          )}
+          {context?.type === 'photo' && (
+            <View
+              style={{
+                marginTop: spacing.lg,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.md,
+                backgroundColor: colors.backgroundSecondary,
+                borderRadius: radius.md,
+                padding: spacing.sm,
+              }}
+            >
+              <SafeImage
+                source={{ uri: (imageDomain ?? '') + context.p }}
+                style={{ width: 52, height: 68, borderRadius: radius.sm }}
+              />
+              <Text style={{ ...typo.callout, color: colors.textSecondary }}>
+                Commenting on this photo
+              </Text>
+            </View>
+          )}
+
+          {remaining === 0 ? (
+            <View
+              style={{
+                marginTop: spacing.lg,
+                borderRadius: radius.lg,
+                padding: spacing.lg,
+                gap: spacing.md,
+                alignItems: 'center',
+                backgroundColor: colors.primarySoft,
+              }}
+            >
+              <IIcon
+                name="chatbubble-ellipses"
+                size={26}
+                color={colors.primary}
+              />
+              <Text
+                style={{
+                  ...typo.callout,
+                  color: colors.text,
+                  textAlign: 'center',
+                }}
+              >
+                You're out of direct messages for today.
+              </Text>
+              <Pressable
+                onPress={onGetMore}
+                style={({ pressed }) => ({
+                  height: 44,
+                  paddingHorizontal: spacing.xl,
+                  borderRadius: 22,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: colors.primary,
+                  opacity: pressed ? 0.85 : 1,
+                })}
+              >
+                <Text style={{ ...typo.bodyStrong, color: colors.onPrimary }}>
+                  Get more direct messages
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'flex-end',
+                gap: spacing.sm,
+                marginTop: spacing.lg,
+              }}
+            >
+              <RNTextInput
+                autoFocus
+                value={text}
+                onChangeText={setText}
+                placeholder={`Say something to ${firstName}…`}
+                placeholderTextColor={colors.placeholder}
+                multiline
+                maxLength={DIRECT_MESSAGE_MAX}
+                style={{
+                  flex: 1,
+                  minHeight: 48,
+                  maxHeight: 140,
+                  borderRadius: 24,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: colors.inputBackground,
+                  color: colors.text,
+                  paddingHorizontal: spacing.lg,
+                  paddingTop: 13,
+                  paddingBottom: 13,
+                  fontSize: 15,
+                }}
+              />
+              <Pressable
+                disabled={!trimmed}
+                accessibilityLabel="Send direct message"
+                onPress={() => onSend(trimmed)}
+                style={({ pressed }) => ({
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: trimmed ? colors.primary : colors.disabled,
+                  opacity: pressed ? 0.85 : 1,
+                })}
+              >
+                <IIcon
+                  name="paper-plane"
+                  size={20}
+                  color={colors.onPrimary}
+                  style={{ marginLeft: -2 }}
+                />
+              </Pressable>
+            </View>
+          )}
+          {text.length > DIRECT_MESSAGE_MAX * 0.8 && (
+            <Text
+              style={{
+                ...typo.caption,
+                color: colors.textTertiary,
+                textAlign: 'right',
+                marginTop: 4,
+              }}
+            >
+              {text.length} / {DIRECT_MESSAGE_MAX}
+            </Text>
+          )}
+        </SafeAreaView>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
@@ -1837,6 +2287,33 @@ function createDeckStyles(colors: ThemeColors) {
       color: colors.text,
       marginBottom: 2,
     },
+    sectionHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    sectionMsgBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primarySoft,
+    },
+    dmFab: {
+      marginLeft: 'auto',
+      borderRadius: 26,
+      ...elevation('#000', 3),
+    },
+    dmFabFill: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1.5,
+      borderColor: 'rgba(255,255,255,0.35)',
+    },
     detailGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -1872,11 +2349,19 @@ function createDeckStyles(colors: ThemeColors) {
       borderColor: colors.primary,
     },
     interestChipTextShared: { color: colors.primary },
-    galleryImage: {
-      width: 160,
-      height: 200,
-      borderRadius: radius.md,
-      backgroundColor: colors.skeleton,
+    zoomButton: {
+      position: 'absolute',
+      top: 14,
+      right: spacing.md,
+      zIndex: 30,
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(10,6,14,0.45)',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.25)',
     },
     actionDockWrap: {
       position: 'absolute',

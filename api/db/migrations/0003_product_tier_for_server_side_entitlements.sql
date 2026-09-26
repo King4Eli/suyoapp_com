@@ -1,0 +1,1 @@
+ALTER TABLE `product_lists` ADD `tier` enum('plus','vip');

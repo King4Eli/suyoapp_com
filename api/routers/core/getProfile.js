@@ -11,10 +11,14 @@ import { namer, tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
 import {
   getActiveSubscription,
+  getBoostStatus,
+  getDirectMessageStatus,
+  getEntitlements,
   getRoseStatus,
   FREE_LIKE_DAILY_LIMIT,
 } from "../../global/entitlements.js";
 import { peekRateLimit } from "../../global/rateLimit.js";
+import { getStreakStatus } from "../../global/streaks.js";
 
 export default async function getProfile() {
   /** @type { any } */
@@ -203,11 +207,16 @@ export default async function getProfile() {
     }
     userLocation = userProfile.geo_meta ?? {};
 
-    const streakCount = Number(userProfile?.user_last_accessed ?? 0);
-
-    const roses = await getRoseStatus(sessions.currentUserID);
+    const [entitlements, roses, directMessages, boosts, streak] =
+      await Promise.all([
+        getEntitlements(sessions.currentUserID),
+        getRoseStatus(sessions.currentUserID),
+        getDirectMessageStatus(sessions.currentUserID),
+        getBoostStatus(sessions.currentUserID),
+        getStreakStatus(sessions.currentUserID),
+      ]);
     let likesRemainingToday = null;
-    if (roses.tier === "free") {
+    if (!entitlements.features.unlimitedLikes) {
       const likesPeek = await peekRateLimit(
         `${namer.ratelimit.likes_daily}${sessions.currentUserID}`,
         FREE_LIKE_DAILY_LIMIT,
@@ -215,8 +224,9 @@ export default async function getProfile() {
       likesRemainingToday = likesPeek.remaining;
     }
 
-    // Plus/VIP rewind for free; free tier must buy a one-time rewind per match instead.
-    const rewind = { freeForTier: roses.tier !== "free" };
+    // Plans with freeRewind rewind at no cost (pushRewindMatch); others buy a
+    // one-time rewind per match instead.
+    const rewind = { freeForTier: entitlements.features.freeRewind };
 
     response.code = 200;
     response.message = "Profile retrieved successfully";
@@ -303,14 +313,20 @@ export default async function getProfile() {
 
       // stats
       stats: {
-        streak_count: streakCount,
+        streak_count: streak.count,
+        // { count, days, activeToday, rewardsPending, reward: { roses, boosts } }
+        streak,
       },
 
       // subscription
       subscription: subscription,
 
-      // entitlements
+      // entitlements -- { tier, features }: what the server will actually allow.
+      // The app should gate UI on these, never on the subscription's product name.
+      entitlements,
       roses,
+      directMessages,
+      boosts,
       likesRemainingToday,
       rewind,
 

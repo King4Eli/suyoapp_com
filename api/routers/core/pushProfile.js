@@ -3,7 +3,7 @@ import { db } from "../../db/client.js";
 import { users, usersInterests, usersPrompt } from "../../db/schema.js";
 import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
-import { getSubscriptionTier } from "../../global/entitlements.js";
+import { hasFeature } from "../../global/entitlements.js";
 // Platforms the client offers a field for. Keep in sync with ProfileEdit.tsx's SOCIAL_PLATFORMS.
 const ALLOWED_SOCIAL_PLATFORMS = ["instagram", "snapchat", "tiktok", "twitter"];
 
@@ -223,7 +223,7 @@ export default async function pushProfile(input = {}) {
       if (typeof readReceiptsVal === "boolean") {
         const canTurnOn =
           readReceiptsVal &&
-          (await getSubscriptionTier(sessions.currentUserID)) === "vip";
+          (await hasFeature(sessions.currentUserID, "readReceipts"));
         profUpdates.push({
           field: "user_privacy_read_receipts",
           value: canTurnOn ? "1" : "0",
