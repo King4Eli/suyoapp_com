@@ -12,6 +12,7 @@ import { sessions } from "../../global/sessions.js";
 import {
   getActiveSubscription,
   getBoostStatus,
+  getDirectMessageStatus,
   getEntitlements,
   getRoseStatus,
   FREE_LIKE_DAILY_LIMIT,
@@ -206,12 +207,14 @@ export default async function getProfile() {
     }
     userLocation = userProfile.geo_meta ?? {};
 
-    const [entitlements, roses, boosts, streak] = await Promise.all([
-      getEntitlements(sessions.currentUserID),
-      getRoseStatus(sessions.currentUserID),
-      getBoostStatus(sessions.currentUserID),
-      getStreakStatus(sessions.currentUserID),
-    ]);
+    const [entitlements, roses, directMessages, boosts, streak] =
+      await Promise.all([
+        getEntitlements(sessions.currentUserID),
+        getRoseStatus(sessions.currentUserID),
+        getDirectMessageStatus(sessions.currentUserID),
+        getBoostStatus(sessions.currentUserID),
+        getStreakStatus(sessions.currentUserID),
+      ]);
     let likesRemainingToday = null;
     if (!entitlements.features.unlimitedLikes) {
       const likesPeek = await peekRateLimit(
@@ -322,6 +325,7 @@ export default async function getProfile() {
       // The app should gate UI on these, never on the subscription's product name.
       entitlements,
       roses,
+      directMessages,
       boosts,
       likesRemainingToday,
       rewind,

@@ -36,12 +36,16 @@ import { SafeImage } from '../funcs/customImage';
 import { Skeleton } from '../funcs/functions_stateful';
 import { useTheme, ThemeColors } from '../funcs/theme';
 
-type LikesFilter = 'all' | 'verifiedOnly';
+type LikesFilter = 'all' | 'messages' | 'verifiedOnly';
 
 const likesFilters: { id: LikesFilter; label: string }[] = [
   { id: 'all', label: 'All' },
+  { id: 'messages', label: 'Messages' },
   { id: 'verifiedOnly', label: 'Verified only' },
 ];
+
+// Likes sent with a direct message (pushDirectMessage).
+const isDirectMessageLike = (item: any) => item?.hasDirectMessage === true;
 
 const isVerifiedLike = (item: any) => {
   return (
@@ -205,6 +209,8 @@ export function Screen_likes({ navigation }: { navigation: any }) {
     let list = Array.isArray(getNewLikes) ? [...getNewLikes] : [];
     if (activeFilter === 'verifiedOnly') {
       list = list.filter(isVerifiedLike);
+    } else if (activeFilter === 'messages') {
+      list = list.filter(isDirectMessageLike);
     } else {
       list = list
         .map((item: any, index: number) => ({ item, index }))
@@ -463,6 +469,26 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                       )}
                     </View>
                     <View style={stylesoy.topChips}>
+                      {isDirectMessageLike(item) && (
+                        <View
+                          style={[
+                            stylesoy.pill,
+                            {
+                              backgroundColor: colors.primary,
+                              opacity: 0.95,
+                            },
+                          ]}
+                        >
+                          <IIcon
+                            name="chatbubble-ellipses"
+                            size={15}
+                            color="#fff"
+                          />
+                          <Text style={[stylesoy.pillText, { color: '#fff' }]}>
+                            Message
+                          </Text>
+                        </View>
+                      )}
                       {isSuperlike(item) && (
                         <View
                           style={[
@@ -518,6 +544,24 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                           : '••••••, '}
                         {help.getageFromDOB(item?.likedUserDob)}
                       </Text>
+                      {item?.hasDirectMessage && (
+                        <View style={stylesoy.dmRow}>
+                          <IIcon
+                            name="chatbubble-ellipses"
+                            size={12}
+                            color="#fff"
+                          />
+                          <Text style={stylesoy.dmText} numberOfLines={2}>
+                            {canSeeLikes && item?.directMessage
+                              ? (item.directMessageOn === 'photo'
+                                  ? 'On your photo: '
+                                  : item.directMessageOn === 'about'
+                                  ? 'On your About: '
+                                  : '') + item.directMessage
+                              : 'Sent you a message'}
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   </View>
                 </Pressable>
@@ -683,6 +727,19 @@ function createStylesoy(colors: ThemeColors) {
       fontWeight: '700',
       color: '#fff',
       marginBottom: 4,
+    },
+    dmRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 5,
+      marginBottom: 2,
+    },
+    dmText: {
+      flex: 1,
+      fontSize: 12,
+      lineHeight: 16,
+      color: '#fff',
+      fontStyle: 'italic',
     },
     emptyState: {
       flex: 1,

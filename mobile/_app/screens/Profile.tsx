@@ -116,6 +116,15 @@ export function Screen_profile({ navigation }: { navigation: any }) {
       subtitle: 'Be one of the top profiles in your area',
       count: Number(profile?.boosts?.balance ?? 0),
     },
+    {
+      category: namer.productCategoryName.directmessage,
+      label: 'Direct Messages',
+      icon: 'chatbubble-ellipses',
+      subtitle: 'Message someone before you match',
+      count:
+        Number(profile?.directMessages?.remainingToday ?? 0) +
+        Number(profile?.directMessages?.balance ?? 0),
+    },
   ];
   const buyItem = consumableItems.find(item => item.category === buyCategory);
 
@@ -136,11 +145,12 @@ export function Screen_profile({ navigation }: { navigation: any }) {
       amount: Number(streak?.reward?.roses ?? 0) * streakRewardMultiplier,
     },
     {
-      key: 'boosts',
-      icon: 'flash',
-      singular: 'Boost',
-      plural: 'Boosts',
-      amount: Number(streak?.reward?.boosts ?? 0) * streakRewardMultiplier,
+      key: 'directMessages',
+      icon: 'chatbubble-ellipses',
+      singular: 'Direct Message',
+      plural: 'Direct Messages',
+      amount:
+        Number(streak?.reward?.directMessages ?? 0) * streakRewardMultiplier,
     },
   ].filter(item => item.amount > 0);
 
@@ -164,12 +174,15 @@ export function Screen_profile({ navigation }: { navigation: any }) {
     Loaderx.hide();
     if (response?.code === 200) {
       const gotRoses = Number(response?.granted?.roses ?? 0);
-      const gotBoosts = Number(response?.granted?.boosts ?? 0);
+      const gotDirectMessages = Number(response?.granted?.directMessages ?? 0);
       Alert.alert(
         'Reward claimed!',
         [
           gotRoses > 0 && `+${gotRoses} roses`,
-          gotBoosts > 0 && `+${gotBoosts} boosts`,
+          gotDirectMessages > 0 &&
+            `+${gotDirectMessages} direct message${
+              gotDirectMessages === 1 ? '' : 's'
+            }`,
         ]
           .filter(Boolean)
           .join('\n') || 'Enjoy your reward.',

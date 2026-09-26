@@ -226,6 +226,8 @@ export default async function pushPeopleToMatch(data, io) {
       });
       if (result.affectedRows > 0) {
         response.code = 200;
+        response.matchId = genChatId;
+        response.otherUserId = secondUserId;
         response.message = "Wait for them to match you back";
         if (LIKE_STATUSES.includes(nextStatus)) {
           notifyUser(io, secondUserId, "new-like", {
@@ -253,6 +255,8 @@ export default async function pushPeopleToMatch(data, io) {
       }
       const ifUsersMatched = nextStatus === "1";
       response.code = 200;
+      response.matchId = existing.matchId;
+      response.otherUserId = secondUserId;
       response.itisamatch = ifUsersMatched;
       response.message = ifUsersMatched
         ? "Hurray! you matched with someone."

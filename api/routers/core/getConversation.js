@@ -160,6 +160,8 @@ export default async function getConversation(matchId, io) {
           type: convo.t,
           message: isDeleted ? null : (convo.str ?? null),
           src: isDeleted ? null : (convo.src ?? null),
+          // What a direct message commented on: { k: "photo", p } | { k: "about", str }
+          replyTo: isDeleted ? null : (convo.ref ?? null),
           dateAdded: row.convo_date_added ?? null,
           // Only meaningful (and only sent) for messages the viewer sent -- whether
           // the viewer read something they received is never ambiguous to them.

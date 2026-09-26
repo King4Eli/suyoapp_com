@@ -188,6 +188,9 @@ interface convoInterface {
   type: 'media' | 'text' | 'audio' | 'image' | 'video' | 'file' | 'deleted';
   message: string | null;
   src: any[] | null;
+  // Set on a direct message: the profile photo or About text it commented on.
+  // The photo/About belongs to whoever received the message.
+  replyTo?: { k: 'photo'; p: string } | { k: 'about'; str: string } | null;
   isUploading?: boolean;
   // 'failed' keeps the bubble on screen (instead of deleting it) with a retry
   // affordance -- `src`/`message` still hold the original local data needed to
@@ -2019,6 +2022,10 @@ export function Screen_conversation({
   };
 
   const flatListRef = useRef<FlatList>(null);
+  const firstNameOf2 = (() => {
+    const first = String(getUser2Deets?.fullname ?? '').split(' ')[0];
+    return first ? first[0].toUpperCase() + first.slice(1) : 'their';
+  })();
   const renderMessage = ({ item }: { item: convoInterface }) => {
     // Handle different message types
     const isImage = item.type === 'image' && item.src && item.src.length > 0;
@@ -2099,6 +2106,84 @@ export function Screen_conversation({
             >
               Message deleted
             </Text>
+          )}
+
+          {!isDeleted && isText && item.replyTo && (
+            <View
+              style={{
+                marginBottom: 6,
+                borderRadius: 12,
+                padding: 6,
+                gap: 6,
+                backgroundColor: item.fromMe
+                  ? 'rgba(255,255,255,0.16)'
+                  : colors.backgroundSecondary,
+              }}
+            >
+              <View
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}
+              >
+                <IonIcon
+                  name="paper-plane"
+                  size={11}
+                  color={
+                    item.fromMe ? 'rgba(255,255,255,0.85)' : colors.primary
+                  }
+                />
+                <Text
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: '700',
+                    color: item.fromMe
+                      ? 'rgba(255,255,255,0.85)'
+                      : colors.primary,
+                  }}
+                >
+                  {item.replyTo.k === 'photo'
+                    ? item.fromMe
+                      ? `You commented on ${firstNameOf2}'s photo`
+                      : 'Commented on your photo'
+                    : item.fromMe
+                    ? `You replied to ${firstNameOf2}'s About`
+                    : 'Replied to your About'}
+                </Text>
+              </View>
+              {item.replyTo.k === 'photo' ? (
+                <Pressable
+                  onPress={() =>
+                    item.replyTo?.k === 'photo' &&
+                    setFullscreenClickImage(imageDomain + item.replyTo.p)
+                  }
+                >
+                  <SafeImage
+                    source={{
+                      uri: imageDomain + item.replyTo.p,
+                      cache: FastImage.cacheControl.immutable,
+                    }}
+                    style={{ width: 150, height: 190, borderRadius: 10 }}
+                  />
+                </Pressable>
+              ) : (
+                <Text
+                  numberOfLines={4}
+                  style={{
+                    fontSize: 13,
+                    lineHeight: 18,
+                    fontStyle: 'italic',
+                    color: item.fromMe
+                      ? 'rgba(255,255,255,0.9)'
+                      : colors.textSecondary,
+                    borderLeftWidth: 2,
+                    borderLeftColor: item.fromMe
+                      ? 'rgba(255,255,255,0.6)'
+                      : colors.primary,
+                    paddingLeft: 8,
+                  }}
+                >
+                  {item.replyTo.str}
+                </Text>
+              )}
+            </View>
           )}
 
           {!isDeleted && isText && (

@@ -8,7 +8,11 @@ import {
   stripeEvents,
   subscriptions,
 } from "../../db/schema.js";
-import { grantBoosts, grantRoses } from "../../global/entitlements.js";
+import {
+  grantBoosts,
+  grantDirectMessages,
+  grantRoses,
+} from "../../global/entitlements.js";
 import { stripe_gateway, tools } from "../../global/functions.js";
 
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_SIGNING_SECRET ?? "";
@@ -501,6 +505,7 @@ async function processWebhookEvent(event) {
 /**
  * Grants whatever a purchased one-time product variant represents:
  * - `superlike`-category variants (rose packs), described as `{"roses": <quantity>}`
+ * - `directmessage`-category packs, described as `{"directMessages": <quantity>}`
  * - `rewind`-category: "buy once, rewind once" — no balance is kept; the purchase
  *   directly performs the rewind on the match named by `matchId` (see pay.js's onetime
  *   handler, which requires matchId for this category and threads it through Stripe
@@ -544,6 +549,18 @@ export async function fulfillOnetimePurchase(
     tools.serverLog(
       `Granted ${roses} roses to user ${userId} for payment ${paymentId}`,
       "hook_9001",
+    );
+    return;
+  }
+
+  if (variant.category === "directmessage") {
+    const directMessages = Number(description?.directMessages ?? 0);
+    if (!Number.isFinite(directMessages) || directMessages <= 0) return;
+
+    await grantDirectMessages(userId, directMessages);
+    tools.serverLog(
+      `Granted ${directMessages} direct messages to user ${userId} for payment ${paymentId}`,
+      "hook_9007",
     );
     return;
   }

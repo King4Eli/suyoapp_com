@@ -29,6 +29,13 @@
       "when": 1790388475330,
       "tag": "0003_product_tier_for_server_side_entitlements",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1790395513361,
+      "tag": "0004_direct_message_allowance_and_balance",
+      "breakpoints": true
     }
   ]
 }

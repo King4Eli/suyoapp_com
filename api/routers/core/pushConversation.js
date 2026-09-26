@@ -5,12 +5,17 @@ import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
 
 /**
- * @param {{ match_id: string, messagee?: string, file_meta?: any[] }} args
+ * `allowPending` is internal-only (pushDirectMessage): the router never passes it,
+ * so clients can only chat on a real match, while a direct message may land on the
+ * pending like it was sent with.
+ * `replyRef` is internal-only too: the profile item a direct message comments on,
+ * stored with the text message as `ref` (see pushDirectMessage.js).
+ * @param {{ match_id: string, messagee?: string, file_meta?: any[], allowPending?: boolean, replyRef?: any }} args
  * @param {import("socket.io").Server} [io]
  */
 // @ts-ignore
 export default async function pushConversation(
-  { match_id, messagee, file_meta },
+  { match_id, messagee, file_meta, allowPending = false, replyRef = null },
   io,
 ) {
   const response = {
@@ -47,8 +52,8 @@ export default async function pushConversation(
     response.message = "Match not found or no access.";
     return response;
   }
-  const blockedStatuses = ["2", "3", "4"];
-  if (blockedStatuses.includes(String(matchRows[0].match_status))) {
+  const allowedStatuses = allowPending ? ["0", "1", "5"] : ["1"];
+  if (!allowedStatuses.includes(String(matchRows[0].match_status))) {
     response.code = 403;
     response.message = "This match can no longer receive messages.";
     return response;
@@ -109,6 +114,7 @@ export default async function pushConversation(
       payload: {
         t: "text",
         str: messageText,
+        ...(replyRef ? { ref: replyRef } : {}),
       },
     });
   }

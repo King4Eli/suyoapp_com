@@ -65,6 +65,8 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
     productCategory === namer.productCategoryName.superlike;
   const requestedMatchId = route?.params?.matchId;
   const isRewindCategory = productCategory === namer.productCategoryName.rewind;
+  const isDirectMessageCategory =
+    productCategory === namer.productCategoryName.directmessage;
 
   // Load products with animation
   useEffect(() => {
@@ -301,6 +303,8 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
                   ? 'rose'
                   : isRewindCategory
                   ? 'arrow-undo'
+                  : isDirectMessageCategory
+                  ? 'chatbubble-ellipses'
                   : 'flash'
               }
               size={24}
@@ -315,6 +319,8 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
                   ? 'Spend roses on Super Likes'
                   : isRewindCategory
                   ? 'Recover a match you passed on'
+                  : isDirectMessageCategory
+                  ? 'Message someone before you match'
                   : 'Boost your profile visibility')}
             </Text>
           </View>
@@ -422,6 +428,8 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
                   ? 'rose'
                   : isRewindCategory
                   ? 'arrow-undo'
+                  : isDirectMessageCategory
+                  ? 'chatbubble-ellipses'
                   : 'flash'
               }
               size={48}
@@ -433,6 +441,8 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
               ? 'Roses'
               : isRewindCategory
               ? 'Rewind'
+              : isDirectMessageCategory
+              ? 'Direct Messages'
               : 'Super Likes'}
           </Text>
           <Text style={styles.subtitle}>
@@ -440,6 +450,8 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
               ? 'Roses are spent on Super Likes to get noticed instantly'
               : isRewindCategory
               ? 'Recover a match you accidentally passed on'
+              : isDirectMessageCategory
+              ? 'Message someone before you match — it lands in their Likes with your like'
               : 'Get noticed instantly by more people'}
           </Text>
 

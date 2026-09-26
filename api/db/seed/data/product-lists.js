@@ -16,9 +16,13 @@ export const productLists = [
   },
   {
     plSku: "instantmessage_wu8yyur5mmmtua",
-    plName: "Instant Message",
-    plDescription: { features: [{ d: "", e: true }] },
-    category: "instantmessage",
+    plName: "Direct Message",
+    plDescription: {
+      features: [
+        { d: "Message someone before you match -- sent with a like", e: true },
+      ],
+    },
+    category: "directmessage",
     plIsActive: "1",
     plCreated: seededAt,
   },
@@ -28,6 +32,7 @@ export const productLists = [
     plDescription: {
       features: [
         { d: "5 roses per day", e: true },
+        { d: "10 direct messages per day", e: true },
         { d: "See who liked you", e: true },
         { d: "Unlimited likes", e: true },
         { d: "Rewind missed matches", e: true },
@@ -56,6 +61,7 @@ export const productLists = [
       features: [
         { d: "Unlimited Phone/Video calls", e: true },
         { d: "10 roses per day", e: true },
+        { d: "20 direct messages per day", e: true },
         { d: "Rewind missed matches", e: true },
         { d: "Travel mode", e: true },
         { d: "Priority customer support", e: true },

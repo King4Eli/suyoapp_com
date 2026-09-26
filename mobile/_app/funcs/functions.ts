@@ -196,6 +196,7 @@ export const help = {
       readReceipts: f.readReceipts === true,
       viewSocialLinks: f.viewSocialLinks === true,
       dailyRoses: Number(f.dailyRoses ?? 0),
+      dailyDirectMessages: Number(f.dailyDirectMessages ?? 0),
     };
 
     return {

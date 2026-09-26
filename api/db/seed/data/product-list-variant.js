@@ -123,4 +123,36 @@ export const productListVariant = [
     active: "1",
     external_3rdpartyStoreProductId: "",
   },
+  // Direct message packs. description.directMessages is how many
+  // fulfillOnetimePurchase credits on top of the plan's daily allowance.
+  {
+    idAi: 13,
+    name: "3 direct messages",
+    description: { directMessages: 3, discount: "" },
+    price: "2.99",
+    billingCycle: 1,
+    productListsIdRef: "instantmessage_wu8yyur5mmmtua",
+    active: "1",
+    external_3rdpartyStoreProductId: "",
+  },
+  {
+    idAi: 14,
+    name: "10 direct messages",
+    description: { directMessages: 10, discount: "15" },
+    price: "8.49",
+    billingCycle: 1,
+    productListsIdRef: "instantmessage_wu8yyur5mmmtua",
+    active: "1",
+    external_3rdpartyStoreProductId: "",
+  },
+  {
+    idAi: 15,
+    name: "25 direct messages",
+    description: { directMessages: 25, discount: "30" },
+    price: "17.49",
+    billingCycle: 1,
+    productListsIdRef: "instantmessage_wu8yyur5mmmtua",
+    active: "1",
+    external_3rdpartyStoreProductId: "",
+  },
 ];

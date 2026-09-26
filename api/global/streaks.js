@@ -13,7 +13,7 @@ import { namer } from "./namer.js";
 export const STREAK_DAYS = 7;
 export const STREAK_REWARD = {
   roses: envInt("STREAK_REWARD_ROSES", 2),
-  boosts: envInt("STREAK_REWARD_BOOSTS", 1),
+  directMessages: envInt("STREAK_REWARD_DIRECT_MESSAGES", 1),
 };
 
 // KEYS[1] streak hash {last: YYYY-MM-DD, count}, KEYS[2] pending reward counter

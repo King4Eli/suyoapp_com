@@ -344,6 +344,18 @@ export const userBoostUsage = mysqlTable("user_boost_usage", {
   boostBalance: int("boost_balance").notNull().default(0),
 });
 
+export const userDirectMessageUsage = mysqlTable("user_direct_message_usage", {
+  userId: varchar("user_id", { length: 50 }).primaryKey().notNull(),
+  // purchased direct messages (and streak rewards) not yet used
+  directMessageBalance: int("direct_message_balance").notNull().default(0),
+  // plan-allowance direct messages used on daily_reset_date
+  dailyUsed: int("daily_used").notNull().default(0),
+  // the date daily_used applies to
+  dailyResetDate: date("daily_reset_date", { mode: "string" })
+    .notNull()
+    .default(sql`(curdate())`),
+});
+
 export const userRoseUsage = mysqlTable("user_rose_usage", {
   userId: varchar("user_id", { length: 50 }).primaryKey().notNull(),
   // purchased roses

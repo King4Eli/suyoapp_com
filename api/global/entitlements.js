@@ -6,6 +6,7 @@ import {
   productLists,
   subscriptions,
   userBoostUsage,
+  userDirectMessageUsage,
   userRoseUsage,
 } from "../db/schema.js";
 import { envInt } from "./functions.js";
@@ -114,8 +115,9 @@ export const TIERS = /** @type {const} */ (["free", "plus", "vip"]);
  *   readReceipts: boolean;
  *   viewSocialLinks: boolean;
  *   dailyRoses: number;
+ *   dailyDirectMessages: number;
  * }} PlanFeatures
- * @typedef {Exclude<keyof PlanFeatures, "dailyRoses">} FeatureFlag
+ * @typedef {Exclude<keyof PlanFeatures, "dailyRoses" | "dailyDirectMessages">} FeatureFlag
  */
 
 /** @type {Record<Tier, PlanFeatures>} */
@@ -128,6 +130,7 @@ export const PLAN_FEATURES = {
     readReceipts: false,
     viewSocialLinks: false,
     dailyRoses: 2,
+    dailyDirectMessages: 3,
   },
   plus: {
     unlimitedLikes: true,
@@ -137,6 +140,7 @@ export const PLAN_FEATURES = {
     readReceipts: false,
     viewSocialLinks: false,
     dailyRoses: 5,
+    dailyDirectMessages: 10,
   },
   vip: {
     unlimitedLikes: true,
@@ -146,6 +150,7 @@ export const PLAN_FEATURES = {
     readReceipts: true,
     viewSocialLinks: true,
     dailyRoses: 10,
+    dailyDirectMessages: 20,
   },
 };
 
@@ -201,60 +206,177 @@ export async function hasFeature(userId, feature) {
   return features[feature] === true;
 }
 
-/**
- * Today's rose usage/allowance/balance snapshot for display purposes (does not spend anything).
- * `user_rose_usage` has one row per user; `daily_used` only counts if `daily_reset_date`
- * is today, since nothing proactively zeroes it out overnight.
- * @param {string} userId
- */
-export async function getRoseStatus(userId) {
-  const { tier, features } = await getEntitlements(userId);
-  // Daily roses reset at UTC midnight; purchased balance never expires.
-  const dailyAllowance = features.dailyRoses;
-
-  const [row] = await db
-    .select({
-      roseBalance: userRoseUsage.roseBalance,
-      effectiveDailyUsed:
-        sql`IF(${userRoseUsage.dailyResetDate} = CURRENT_DATE, ${userRoseUsage.dailyUsed}, 0)`.mapWith(
-          Number,
-        ),
-    })
-    .from(userRoseUsage)
-    .where(eq(userRoseUsage.userId, userId));
-
-  const balance = Number(row?.roseBalance ?? 0);
-  const usedToday = Number(row?.effectiveDailyUsed ?? 0);
-
-  return {
-    tier,
-    dailyAllowance,
-    usedToday,
-    remainingToday: Math.max(0, dailyAllowance - usedToday),
-    balance,
-  };
-}
+// ── Daily allowance + purchased balance ─────────────────────────────────────
+// Roses and direct messages work the same way: the plan grants a daily allowance
+// (UTC days) that's spent first, then a purchased balance that never expires. Each
+// has a one-row-per-user table with <balance>, daily_used and daily_reset_date;
+// daily_used only counts when daily_reset_date is today, since nothing zeroes it
+// out overnight.
 
 /**
- * Adds roses to the purchased balance (creating the row on first grant).
- * @param {string} userId
- * @param {number} roses
- * @param {any} [tx] drizzle db or transaction
+ * @param {any} table user_*_usage table
+ * @param {string} balanceKey drizzle key of the purchased-balance column
+ * @param {"dailyRoses" | "dailyDirectMessages"} allowanceKey PlanFeatures key
  */
-export async function grantRoses(userId, roses, tx = db) {
-  if (!(roses > 0)) return;
-  await tx
-    .insert(userRoseUsage)
-    .values({
-      userId,
-      roseBalance: roses,
-      dailyUsed: 0,
-      dailyResetDate: sql`CURRENT_DATE`,
-    })
-    .onDuplicateKeyUpdate({
-      set: { roseBalance: sql`${userRoseUsage.roseBalance} + ${roses}` },
+function allowanceLedger(table, balanceKey, allowanceKey) {
+  const balanceCol = table[balanceKey];
+  const effectiveDailyUsed = sql`IF(${table.dailyResetDate} = CURRENT_DATE, ${table.dailyUsed}, 0)`;
+
+  /**
+   * Snapshot for display; spends nothing.
+   * @param {string} userId
+   */
+  async function getStatus(userId) {
+    const { tier, features } = await getEntitlements(userId);
+    const dailyAllowance = features[allowanceKey];
+    const [row] = await db
+      .select({
+        balance: balanceCol,
+        usedToday: effectiveDailyUsed.mapWith(Number),
+      })
+      .from(table)
+      .where(eq(table.userId, userId));
+    const balance = Number(row?.balance ?? 0);
+    const usedToday = Number(row?.usedToday ?? 0);
+    return {
+      tier,
+      dailyAllowance,
+      usedToday,
+      remainingToday: Math.max(0, dailyAllowance - usedToday),
+      balance,
+    };
+  }
+
+  /**
+   * Adds to the purchased balance (creating the row on first grant).
+   * @param {string} userId
+   * @param {number} amount
+   * @param {any} [tx] drizzle db or transaction
+   */
+  async function grant(userId, amount, tx = db) {
+    if (!(amount > 0)) return;
+    await tx
+      .insert(table)
+      .values({
+        userId,
+        [balanceKey]: amount,
+        dailyUsed: 0,
+        dailyResetDate: sql`CURRENT_DATE`,
+      })
+      .onDuplicateKeyUpdate({
+        set: { [balanceKey]: sql`${balanceCol} + ${amount}` },
+      });
+  }
+
+  /**
+   * Atomically spends one: today's allowance first, then the purchased balance.
+   * Returns spent:false if both are exhausted.
+   * @param {string} userId
+   * @returns {Promise<{ spent: boolean; source: "daily" | "balance" | null; remainingToday: number; balance: number }>}
+   */
+  async function spend(userId) {
+    const { features } = await getEntitlements(userId);
+    const dailyAllowance = features[allowanceKey];
+
+    return db.transaction(async (tx) => {
+      await tx
+        .insert(table)
+        .values({
+          userId,
+          [balanceKey]: 0,
+          dailyUsed: 0,
+          dailyResetDate: sql`CURRENT_DATE`,
+        })
+        .onDuplicateKeyUpdate({ set: { userId: sql`user_id` } });
+
+      const [row] = await tx
+        .select({
+          balance: balanceCol,
+          usedToday: effectiveDailyUsed.mapWith(Number),
+        })
+        .from(table)
+        .where(eq(table.userId, userId))
+        .for("update");
+
+      const usedToday = Number(row?.usedToday ?? 0);
+      const balance = Number(row?.balance ?? 0);
+
+      if (usedToday < dailyAllowance) {
+        // If daily_reset_date was stale this also resets the counter to 1 instead of incrementing it.
+        await tx
+          .update(table)
+          .set({
+            dailyUsed: sql`IF(${table.dailyResetDate} = CURRENT_DATE, ${table.dailyUsed} + 1, 1)`,
+            dailyResetDate: sql`CURRENT_DATE`,
+          })
+          .where(eq(table.userId, userId));
+        return {
+          spent: true,
+          source: "daily",
+          remainingToday: dailyAllowance - usedToday - 1,
+          balance,
+        };
+      }
+
+      if (balance > 0) {
+        await tx
+          .update(table)
+          .set({ [balanceKey]: sql`${balanceCol} - 1` })
+          .where(eq(table.userId, userId));
+        return {
+          spent: true,
+          source: "balance",
+          remainingToday: 0,
+          balance: balance - 1,
+        };
+      }
+
+      return { spent: false, source: null, remainingToday: 0, balance: 0 };
     });
+  }
+
+  /**
+   * Gives back one spent by spend(), to wherever it came from -- for when the
+   * action it paid for didn't go through.
+   * @param {string} userId
+   * @param {"daily" | "balance" | null} source
+   */
+  async function refund(userId, source) {
+    if (source === "balance") {
+      await grant(userId, 1);
+    } else if (source === "daily") {
+      await db
+        .update(table)
+        .set({ dailyUsed: sql`GREATEST(${table.dailyUsed} - 1, 0)` })
+        .where(
+          and(
+            eq(table.userId, userId),
+            eq(table.dailyResetDate, sql`CURRENT_DATE`),
+          ),
+        );
+    }
+  }
+
+  return { getStatus, grant, spend, refund };
 }
+
+const roseLedger = allowanceLedger(userRoseUsage, "roseBalance", "dailyRoses");
+const directMessageLedger = allowanceLedger(
+  userDirectMessageUsage,
+  "directMessageBalance",
+  "dailyDirectMessages",
+);
+
+// Roses are spent on super likes.
+export const getRoseStatus = roseLedger.getStatus;
+export const grantRoses = roseLedger.grant;
+export const spendRose = roseLedger.spend;
+
+// Direct messages are spent by pushDirectMessage.
+export const getDirectMessageStatus = directMessageLedger.getStatus;
+export const grantDirectMessages = directMessageLedger.grant;
+export const spendDirectMessage = directMessageLedger.spend;
+export const refundDirectMessage = directMessageLedger.refund;
 
 /**
  * Adds boosts to the balance (creating the row on first grant).
@@ -282,74 +404,4 @@ export async function getBoostStatus(userId) {
     .from(userBoostUsage)
     .where(eq(userBoostUsage.userId, userId));
   return { balance: Number(row?.boostBalance ?? 0) };
-}
-
-/**
- * Atomically spends one rose: draws from today's free tier allowance first, then
- * falls back to the purchased balance. Returns spent:false if both are exhausted.
- * @param {string} userId
- */
-export async function spendRose(userId) {
-  const { features } = await getEntitlements(userId);
-  // Daily roses reset at UTC midnight; purchased balance never expires.
-  const dailyAllowance = features.dailyRoses;
-
-  return db.transaction(async (tx) => {
-    await tx
-      .insert(userRoseUsage)
-      .values({
-        userId,
-        roseBalance: 0,
-        dailyUsed: 0,
-        dailyResetDate: sql`CURRENT_DATE`,
-      })
-      .onDuplicateKeyUpdate({ set: { userId: sql`user_id` } });
-
-    const [row] = await tx
-      .select({
-        roseBalance: userRoseUsage.roseBalance,
-        effectiveDailyUsed:
-          sql`IF(${userRoseUsage.dailyResetDate} = CURRENT_DATE, ${userRoseUsage.dailyUsed}, 0)`.mapWith(
-            Number,
-          ),
-      })
-      .from(userRoseUsage)
-      .where(eq(userRoseUsage.userId, userId))
-      .for("update");
-
-    const usedToday = Number(row?.effectiveDailyUsed ?? 0);
-    const balance = Number(row?.roseBalance ?? 0);
-
-    if (usedToday < dailyAllowance) {
-      // If daily_reset_date was stale this also resets the counter to 1 instead of incrementing it.
-      await tx
-        .update(userRoseUsage)
-        .set({
-          dailyUsed: sql`IF(${userRoseUsage.dailyResetDate} = CURRENT_DATE, ${userRoseUsage.dailyUsed} + 1, 1)`,
-          dailyResetDate: sql`CURRENT_DATE`,
-        })
-        .where(eq(userRoseUsage.userId, userId));
-      return {
-        spent: true,
-        source: "daily",
-        remainingToday: dailyAllowance - usedToday - 1,
-        balance,
-      };
-    }
-
-    if (balance > 0) {
-      await tx
-        .update(userRoseUsage)
-        .set({ roseBalance: sql`${userRoseUsage.roseBalance} - 1` })
-        .where(eq(userRoseUsage.userId, userId));
-      return {
-        spent: true,
-        source: "balance",
-        remainingToday: 0,
-        balance: balance - 1,
-      };
-    }
-
-    return { spent: false, source: null, remainingToday: 0, balance: 0 };
-  });
 }

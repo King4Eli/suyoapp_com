@@ -10,6 +10,7 @@ import pushProfile from "./core/pushProfile.js";
 import getPeopleToMatch from "./core/getPeopleToMatch.js";
 import pushPeopleToMatch from "./core/pushPeopleToMatch.js";
 import pushRewindMatch from "./core/pushRewindMatch.js";
+import pushDirectMessage from "./core/pushDirectMessage.js";
 import pushConversation from "./core/pushConversation.js";
 import pushDeleteMessage from "./core/pushDeleteMessage.js";
 import pushNewEmail from "./core/pushNewEmail.js";
@@ -160,6 +161,18 @@ core_router.post("/:action", async (req, res) => {
         req.app.get("io"),
       );
       return res.json(upeople);
+    }
+    case "pushDirectMessage": {
+      const direct = await pushDirectMessage(
+        {
+          user_id2: req.body?.user_id2,
+          matchId: req.body?.matchId,
+          message: req.body?.message,
+          context: req.body?.context,
+        },
+        req.app.get("io"),
+      );
+      return res.json(direct);
     }
     case "pushRewindMatch": {
       const rewound = await pushRewindMatch({ matchId: req.body?.matchId });
