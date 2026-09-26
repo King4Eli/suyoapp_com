@@ -244,18 +244,42 @@ export default function Peoples_Screen({
   // same upsell modal recovering a real missed match uses. Recovering a real missed
   // match (match_id present, meaning they'd already liked or superliked/rose'd you)
   // always goes through that modal, which offers the one-time paid rewind / subscribe upsell.
-  const attemptRestore = useCallback(() => {
+  // Plans with freeRewind recover a real missed match through pushRewindMatch, which
+  // re-checks the plan server-side; everyone else gets the paid rewind / upsell modal.
+  const attemptRestore = useCallback(async () => {
     setPeopleToMatch(prev => [getSkippedLastPerson, ...(prev ?? [])]);
     if (!getSkippedLastPerson) return;
+    const canRewind = help.getSubscriptionState(getProfile).features.freeRewind;
+    if (!canRewind) {
+      setShowDislikedMatchModal(true);
+      return;
+    }
     if (!getSkippedLastPerson?.match_id) {
-      if (!help.getSubscriptionState(getProfile).hasActive) {
-        setShowDislikedMatchModal(true);
-        return;
-      }
       setSkippedLastPerson(null);
       return;
     }
-    setShowDislikedMatchModal(true);
+    Loaderx.show();
+    const response = await _http_request({
+      reqType: 'POST',
+      customApiUrl:
+        __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/pushRewindMatch',
+      bodyArray: { matchId: getSkippedLastPerson.match_id },
+    }).finally(() => Loaderx.hide());
+    if (response?.code === 200) {
+      setSkippedLastPerson(null);
+      return;
+    }
+    // Plan lapsed since the profile loaded: fall back to the paid rewind / upsell.
+    if (response?.upgradeRequired) {
+      setShowDislikedMatchModal(true);
+      return;
+    }
+    // Match changed meanwhile (e.g. they blocked): take the card back out.
+    setPeopleToMatch(prev => (prev ?? []).slice(1));
+    Toastx.show({
+      type: 'info',
+      message: response?.message ?? "Couldn't rewind this match.",
+    });
   }, [getSkippedLastPerson, getProfile]);
 
   // header options

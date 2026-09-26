@@ -60,7 +60,10 @@ export function Screen_chat({ navigation }: { navigation: any }) {
     w: string;
     h: string;
   }>({ p: '', w: '', h: '' });
-  const activeSubscription = help.getSubscriptionState(getProfile).hasActive;
+  const subscriptionState = help.getSubscriptionState(getProfile);
+  const activeSubscription = subscriptionState.hasActive;
+  // The server only sends the latest liker's photo to plans with this feature.
+  const canSeeLikes = subscriptionState.features.seeWhoLikedYou;
   const [activeFilter, setActiveFilter] = useState<
     'all' | 'yourTurn' | 'verified' | 'unread'
   >('all');
@@ -357,7 +360,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
                 <ImageBackground
                   progressiveRenderingEnabled={true}
                   blurRadius={
-                    activeSubscription ? 0 : Platform.OS === 'android' ? 60 : 30
+                    canSeeLikes ? 0 : Platform.OS === 'android' ? 60 : 30
                   }
                   style={{
                     width: '100%',
@@ -367,7 +370,9 @@ export function Screen_chat({ navigation }: { navigation: any }) {
                   }}
                   source={{
                     cache: 'default',
-                    uri: imageDomain + String(getImageLikes?.p),
+                    uri: getImageLikes?.p
+                      ? imageDomain + getImageLikes.p
+                      : undefined,
                   }}
                 >
                   <View
@@ -538,7 +543,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
       </View>
     );
   }, [
-    activeSubscription,
+    canSeeLikes,
     bounceInterpolate,
     getCountLikes,
     getNewMatches,

@@ -243,11 +243,18 @@ async function main() {
       (r) => r.plSku,
       (r) => eq(productLists.plSku, r.plSku),
       (r) =>
-        JSON.stringify([r.plName, r.plDescription, r.category, r.plIsActive]),
+        JSON.stringify([
+          r.plName,
+          r.plDescription,
+          r.category,
+          r.tier ?? null,
+          r.plIsActive,
+        ]),
       (r) => ({
         plName: r.plName,
         plDescription: r.plDescription,
         category: r.category,
+        tier: r.tier ?? null,
         plIsActive: r.plIsActive,
       }),
     );

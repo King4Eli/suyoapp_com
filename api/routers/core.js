@@ -9,6 +9,7 @@ import pushNewPhoneNumber from "./core/pushNewPhonenumber.js";
 import pushProfile from "./core/pushProfile.js";
 import getPeopleToMatch from "./core/getPeopleToMatch.js";
 import pushPeopleToMatch from "./core/pushPeopleToMatch.js";
+import pushRewindMatch from "./core/pushRewindMatch.js";
 import pushConversation from "./core/pushConversation.js";
 import pushDeleteMessage from "./core/pushDeleteMessage.js";
 import pushNewEmail from "./core/pushNewEmail.js";
@@ -159,6 +160,10 @@ core_router.post("/:action", async (req, res) => {
         req.app.get("io"),
       );
       return res.json(upeople);
+    }
+    case "pushRewindMatch": {
+      const rewound = await pushRewindMatch({ matchId: req.body?.matchId });
+      return res.json(rewound);
     }
     case "pushFeedPost": {
       const feedCaption = req.body?.caption;

@@ -306,6 +306,9 @@ export const productLists = mysqlTable("product_lists", {
   plName: varchar("pl_name", { length: 200 }).notNull(),
   plDescription: json("pl_description").notNull(),
   category: varchar("category", { length: 15 }).notNull(),
+  // Subscription tier this product grants (category 'mainsub' only). This, not
+  // pl_name, is what server-side entitlement checks read -- see entitlements.js.
+  tier: mysqlEnum("tier", ["plus", "vip"]),
   plIsActive: mysqlEnum("pl_is_active", ["0", "1"]).notNull(),
   plCreated: timestamp("pl_created").notNull(),
   plUpdated: timestamp("pl_updated").notNull().defaultNow().onUpdateNow(),

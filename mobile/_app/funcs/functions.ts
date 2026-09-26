@@ -179,21 +179,33 @@ export const help = {
 
     return 'just now';
   },
+  // UI gating only -- the server enforces every feature itself (api
+  // global/entitlements.js). `features` comes straight from the server's
+  // entitlements so the app never works out access from the product name.
   getSubscriptionState: (profile: any) => {
     const rawPlan = profile?.subscription?.product_name ?? null;
     const rawVariant = profile?.subscription?.plan_name ?? null;
     const hasActive = Boolean(profile?.subscription?.status === 'active');
-    const tier = String(rawPlan ?? '')
-      .trim()
-      .toLowerCase();
+    const tier: 'free' | 'plus' | 'vip' = profile?.entitlements?.tier ?? 'free';
+    const f = profile?.entitlements?.features ?? {};
+    const features = {
+      unlimitedLikes: f.unlimitedLikes === true,
+      seeWhoLikedYou: f.seeWhoLikedYou === true,
+      advancedFilters: f.advancedFilters === true,
+      freeRewind: f.freeRewind === true,
+      readReceipts: f.readReceipts === true,
+      viewSocialLinks: f.viewSocialLinks === true,
+      dailyRoses: Number(f.dailyRoses ?? 0),
+    };
 
     return {
       hasActive,
       plan: rawPlan,
       variant: rawVariant,
       tier,
-      isPlus: hasActive && tier === 'plus',
-      isVip: hasActive && tier === 'vip',
+      isPlus: tier === 'plus',
+      isVip: tier === 'vip',
+      features,
     };
   },
 };

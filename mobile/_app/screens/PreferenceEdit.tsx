@@ -65,7 +65,8 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
 
   const [preferences, setPreferences] = useState(defaultPreferences);
 
-  const hasPremium = help.getSubscriptionState(getProfile).hasActive;
+  const hasPremium =
+    help.getSubscriptionState(getProfile).features.advancedFilters;
 
   const [getDistance, setDistance] = useState<{ miles: number; km: string }>({
     miles: defaultPreferences.distance.miles,
@@ -338,73 +339,80 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
       >
         <View style={{ gap: 12 }}>
           <Text style={localStyles.sectionHeaderText}>Basic filters</Text>
-          <View style={[styles.editprofile_inputborder, localStyles.card,{paddingHorizontal: 10}]}>
-            
-            <View style={{ borderBottomWidth: 1,borderBottomColor: '#e5e7eb',}}>
-            <Text style={localStyles.inputTitle}>Age range</Text>
-            <Text style={localStyles.inputSubTitle}>
-              Between {preferences.minAge} - {preferences.maxAge}
-            </Text>
-            <RangeSlider
-              style={{ width: '100%', height: 30 }}
-              low={parseInt(preferences.minAge, 10) ?? 18}
-              high={parseInt(preferences.maxAge, 10) ?? 19}
-              min={18}
-              max={100}
-              step={1}
-              floatingLabel={true}
-              minRange={2}
-              onValueChanged={(low: number, high: number) => {
-                if (low.toString() !== preferences.minAge)
-                  setPreferences(prev => ({
-                    ...prev,
-                    minAge: low.toString(),
-                  }));
-                if (high.toString() !== preferences.maxAge)
-                  setPreferences(prev => ({
-                    ...prev,
-                    maxAge: high.toString(),
-                  }));
-              }}
-              renderThumb={() => <View style={styles.slider_thumb} />}
-              renderRail={() => <View style={styles.slider_rail} />}
-              renderRailSelected={() => (
-                <View style={styles.slider_railSelected} />
-              )}
-            />
+          <View
+            style={[
+              styles.editprofile_inputborder,
+              localStyles.card,
+              { paddingHorizontal: 10 },
+            ]}
+          >
+            <View
+              style={{ borderBottomWidth: 1, borderBottomColor: '#e5e7eb' }}
+            >
+              <Text style={localStyles.inputTitle}>Age range</Text>
+              <Text style={localStyles.inputSubTitle}>
+                Between {preferences.minAge} - {preferences.maxAge}
+              </Text>
+              <RangeSlider
+                style={{ width: '100%', height: 30 }}
+                low={parseInt(preferences.minAge, 10) ?? 18}
+                high={parseInt(preferences.maxAge, 10) ?? 19}
+                min={18}
+                max={100}
+                step={1}
+                floatingLabel={true}
+                minRange={2}
+                onValueChanged={(low: number, high: number) => {
+                  if (low.toString() !== preferences.minAge)
+                    setPreferences(prev => ({
+                      ...prev,
+                      minAge: low.toString(),
+                    }));
+                  if (high.toString() !== preferences.maxAge)
+                    setPreferences(prev => ({
+                      ...prev,
+                      maxAge: high.toString(),
+                    }));
+                }}
+                renderThumb={() => <View style={styles.slider_thumb} />}
+                renderRail={() => <View style={styles.slider_rail} />}
+                renderRailSelected={() => (
+                  <View style={styles.slider_railSelected} />
+                )}
+              />
             </View>
 
-
-            <View><Text style={localStyles.inputTitle}>{`Distance from you (${
-              getProfile?.profile?.location?.city || 'your area'
-            })`}</Text>
-            <Text style={localStyles.inputSubTitle}>
-              {getDistance.miles > 100
-                ? 'No limit on distance.'
-                : `${getDistance.miles} miles from you`}
-            </Text>
-            <RangeSlider
-              disableRange={true}
-              style={{ width: '100%', height: 30 }}
-              low={getDistance.miles ?? 55}
-              high={getDistance.miles ?? 60}
-              min={5}
-              max={105}
-              step={5}
-              onValueChanged={(va: number) => {
-                if (va !== getDistance.miles) {
-                  setDistance({
-                    miles: va,
-                    km: help.milesToKM(va)?.toString() ?? 'n/a',
-                  });
-                }
-              }}
-              renderThumb={() => <View style={styles.slider_thumb} />}
-              renderRail={() => <View style={styles.slider_rail} />}
-              renderRailSelected={() => (
-                <View style={styles.slider_railSelected} />
-              )}
-            />
+            <View>
+              <Text style={localStyles.inputTitle}>{`Distance from you (${
+                getProfile?.profile?.location?.city || 'your area'
+              })`}</Text>
+              <Text style={localStyles.inputSubTitle}>
+                {getDistance.miles > 100
+                  ? 'No limit on distance.'
+                  : `${getDistance.miles} miles from you`}
+              </Text>
+              <RangeSlider
+                disableRange={true}
+                style={{ width: '100%', height: 30 }}
+                low={getDistance.miles ?? 55}
+                high={getDistance.miles ?? 60}
+                min={5}
+                max={105}
+                step={5}
+                onValueChanged={(va: number) => {
+                  if (va !== getDistance.miles) {
+                    setDistance({
+                      miles: va,
+                      km: help.milesToKM(va)?.toString() ?? 'n/a',
+                    });
+                  }
+                }}
+                renderThumb={() => <View style={styles.slider_thumb} />}
+                renderRail={() => <View style={styles.slider_rail} />}
+                renderRailSelected={() => (
+                  <View style={styles.slider_railSelected} />
+                )}
+              />
             </View>
           </View>
 

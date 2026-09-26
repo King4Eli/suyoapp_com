@@ -12,6 +12,7 @@ import { sessions } from "../../global/sessions.js";
 import {
   getActiveSubscription,
   getBoostStatus,
+  getEntitlements,
   getRoseStatus,
   FREE_LIKE_DAILY_LIMIT,
 } from "../../global/entitlements.js";
@@ -205,13 +206,14 @@ export default async function getProfile() {
     }
     userLocation = userProfile.geo_meta ?? {};
 
-    const [roses, boosts, streak] = await Promise.all([
+    const [entitlements, roses, boosts, streak] = await Promise.all([
+      getEntitlements(sessions.currentUserID),
       getRoseStatus(sessions.currentUserID),
       getBoostStatus(sessions.currentUserID),
       getStreakStatus(sessions.currentUserID),
     ]);
     let likesRemainingToday = null;
-    if (roses.tier === "free") {
+    if (!entitlements.features.unlimitedLikes) {
       const likesPeek = await peekRateLimit(
         `${namer.ratelimit.likes_daily}${sessions.currentUserID}`,
         FREE_LIKE_DAILY_LIMIT,
@@ -219,8 +221,9 @@ export default async function getProfile() {
       likesRemainingToday = likesPeek.remaining;
     }
 
-    // Plus/VIP rewind for free; free tier must buy a one-time rewind per match instead.
-    const rewind = { freeForTier: roses.tier !== "free" };
+    // Plans with freeRewind rewind at no cost (pushRewindMatch); others buy a
+    // one-time rewind per match instead.
+    const rewind = { freeForTier: entitlements.features.freeRewind };
 
     response.code = 200;
     response.message = "Profile retrieved successfully";
@@ -315,7 +318,9 @@ export default async function getProfile() {
       // subscription
       subscription: subscription,
 
-      // entitlements
+      // entitlements -- { tier, features }: what the server will actually allow.
+      // The app should gate UI on these, never on the subscription's product name.
+      entitlements,
       roses,
       boosts,
       likesRemainingToday,

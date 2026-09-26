@@ -4,6 +4,7 @@ import { db } from "../../db/client.js";
 import { conversations, matches, users } from "../../db/schema.js";
 import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
+import { hasFeature } from "../../global/entitlements.js";
 
 export default async function getChatsListings() {
   const response = {
@@ -33,7 +34,10 @@ export default async function getChatsListings() {
       );
 
     response.chatsListings.countLikes = likesResult?.length || 0;
-    if (likesResult?.[0]?.user_image) {
+    // The latest liker's photo is a "who liked you" reveal -- only sent to plans
+    // that include it; others just get the count.
+    const canSeeLikes = await hasFeature(currentUserId, "seeWhoLikedYou");
+    if (canSeeLikes && likesResult?.[0]?.user_image) {
       try {
         const images = JSON.parse(likesResult[0].user_image);
         response.chatsListings.imageLikes = images?.[0] || null;

@@ -72,7 +72,8 @@ export function Screen_likes({ navigation }: { navigation: any }) {
 
   const [getProfile, setProfile] = useState<any>(null);
   const subscriptionState = help.getSubscriptionState(getProfile);
-  const activeSubscription = subscriptionState.hasActive;
+  // Server sends anonymous teaser cards (no id/name/photo) to plans without this.
+  const canSeeLikes = subscriptionState.features.seeWhoLikedYou;
 
   const [getNewLikes, setNewLikes] = useState<any>(null);
   const [activeFilter, setActiveFilter] = useState<LikesFilter>('all');
@@ -134,7 +135,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
         </View>
       ),
     });
-  }, [activeSubscription, navigation, colors.background]);
+  }, [canSeeLikes, navigation, colors.background]);
 
   // Calculate responsive layout based on orientation and device width
   const calculateLayout = useCallback((width: number, height: number) => {
@@ -218,9 +219,9 @@ export function Screen_likes({ navigation }: { navigation: any }) {
   }, [activeFilter, getNewLikes]);
 
   const processedLikes = useMemo(() => {
-    const maxItems = activeSubscription ? visibleLikes : 8;
+    const maxItems = canSeeLikes ? visibleLikes : 8;
     return filteredLikes.slice(0, maxItems);
-  }, [activeSubscription, filteredLikes, visibleLikes]);
+  }, [canSeeLikes, filteredLikes, visibleLikes]);
 
   const filteredLikesCount = filteredLikes.length;
 
@@ -230,7 +231,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
   }, [activeFilter, filteredLikesCount]);
 
   const handleEndReached = useCallback(() => {
-    if (!activeSubscription) {
+    if (!canSeeLikes) {
       setIsLoadingMore(false);
       navigation.navigate(namer.navigation.subscription);
       return;
@@ -249,7 +250,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
         );
       });
     }, 1000);
-  }, [activeSubscription, filteredLikesCount, navigation, visibleLikes]);
+  }, [canSeeLikes, filteredLikesCount, navigation, visibleLikes]);
 
   // Fetch new likes when screen is focused
   useFocusEffect(
@@ -362,9 +363,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                         color="#fff"
                       />
                       <Text style={{ color: '#fff', fontWeight: '700' }}>
-                        {activeSubscription
-                          ? 'Boost visibility'
-                          : 'Unlock all likes'}
+                        {canSeeLikes ? 'Boost visibility' : 'Unlock all likes'}
                       </Text>
                     </Pressable>
                   </View>
@@ -422,7 +421,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                   ]}
                   onPress={() => {
                     navigation.navigate(
-                      activeSubscription
+                      canSeeLikes
                         ? namer.navigation.peoplesOnePerson
                         : namer.navigation.subscription,
                       {
@@ -438,7 +437,9 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                         style={stylesoy.image}
                         source={{
                           cache: FastImage.cacheControl.immutable,
-                          uri: __MAPPER?.img_domain + item?.likedUserImages?.p,
+                          uri: item?.likedUserImages?.p
+                            ? __MAPPER?.img_domain + item.likedUserImages.p
+                            : undefined,
                         }}
                         onError={() => {
                           return logReport({
@@ -451,7 +452,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                           });
                         }}
                       />
-                      {!activeSubscription && (
+                      {!canSeeLikes && (
                         <BlurView
                           pointerEvents="none"
                           style={StyleSheet.absoluteFill}
@@ -512,13 +513,10 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                     </View>
                     <View style={stylesoy.infoContainer}>
                       <Text style={stylesoy.name}>
-                        {activeSubscription
-                          ? item?.likedUserFullname
-                          : item?.likedUserFullname[0] +
-                            '*'.repeat(
-                              Math.max(0, item?.likedUserFullname?.length - 1),
-                            )}
-                        , {help.getageFromDOB(item?.likedUserDob)}
+                        {canSeeLikes && item?.likedUserFullname
+                          ? item.likedUserFullname + ', '
+                          : '••••••, '}
+                        {help.getageFromDOB(item?.likedUserDob)}
                       </Text>
                     </View>
                   </View>
@@ -561,7 +559,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
             removeClippedSubviews={false}
           />
 
-          {!activeSubscription && (
+          {!canSeeLikes && (
             <View
               style={{
                 position: 'absolute',

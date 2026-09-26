@@ -97,20 +97,109 @@ export async function getActiveSubscription(userId) {
   };
 }
 
+// ── Plan policy ─────────────────────────────────────────────────────────────
+// The one place that says what each subscription tier may do. Every server-side
+// gate reads from here (via getEntitlements / hasFeature) -- never compare tier
+// names inline in a router, and never trust the client's idea of the plan.
+// VIP is a superset of Plus, which is a superset of Free.
+export const TIERS = /** @type {const} */ (["free", "plus", "vip"]);
+
 /**
- * 'free' | 'plus' | 'vip', derived from the caller's active subscription product name.
+ * @typedef {typeof TIERS[number]} Tier
+ * @typedef {{
+ *   unlimitedLikes: boolean;
+ *   seeWhoLikedYou: boolean;
+ *   advancedFilters: boolean;
+ *   freeRewind: boolean;
+ *   readReceipts: boolean;
+ *   viewSocialLinks: boolean;
+ *   dailyRoses: number;
+ * }} PlanFeatures
+ * @typedef {Exclude<keyof PlanFeatures, "dailyRoses">} FeatureFlag
+ */
+
+/** @type {Record<Tier, PlanFeatures>} */
+export const PLAN_FEATURES = {
+  free: {
+    unlimitedLikes: false,
+    seeWhoLikedYou: false,
+    advancedFilters: false,
+    freeRewind: false,
+    readReceipts: false,
+    viewSocialLinks: false,
+    dailyRoses: 2,
+  },
+  plus: {
+    unlimitedLikes: true,
+    seeWhoLikedYou: true,
+    advancedFilters: true,
+    freeRewind: true,
+    readReceipts: false,
+    viewSocialLinks: false,
+    dailyRoses: 5,
+  },
+  vip: {
+    unlimitedLikes: true,
+    seeWhoLikedYou: true,
+    advancedFilters: true,
+    freeRewind: true,
+    readReceipts: true,
+    viewSocialLinks: true,
+    dailyRoses: 10,
+  },
+};
+
+/**
+ * The caller's tier, read from product_lists.tier of their active subscription --
+ * not from the product's display name, which is free to change without
+ * silently revoking (or granting) access.
  * @param {string} userId
+ * @returns {Promise<Tier>}
  */
 export async function getSubscriptionTier(userId) {
-  const subscription = await getActiveSubscription(userId);
-  const tier = String(subscription?.product_name ?? "")
-    .trim()
-    .toLowerCase();
+  if (!userId) return "free";
+  const [row] = await db
+    .select({ tier: productLists.tier })
+    .from(subscriptions)
+    .innerJoin(
+      productListVariant,
+      eq(subscriptions.variantIdRef, productListVariant.idAi),
+    )
+    .innerJoin(
+      productLists,
+      eq(productListVariant.productListsIdRef, productLists.plSku),
+    )
+    .where(
+      and(
+        eq(subscriptions.userId, userId),
+        eq(subscriptions.status, 1),
+        gt(subscriptions.endDate, sql`NOW()`),
+        eq(productLists.category, "mainsub"),
+      ),
+    )
+    .orderBy(desc(subscriptions.dateCreated))
+    .limit(1);
+  const tier = row?.tier;
   return tier === "plus" || tier === "vip" ? tier : "free";
 }
 
-// Free-tier daily allowance of roses (spent on super likes); resets at UTC midnight.
-export const ROSE_DAILY_ALLOWANCE = { free: 2, plus: 5, vip: 10 };
+/**
+ * @param {string} userId
+ * @returns {Promise<{ tier: Tier; features: PlanFeatures }>}
+ */
+export async function getEntitlements(userId) {
+  const tier = await getSubscriptionTier(userId);
+  return { tier, features: PLAN_FEATURES[tier] };
+}
+
+/**
+ * @param {string} userId
+ * @param {FeatureFlag} feature
+ */
+export async function hasFeature(userId, feature) {
+  const { features } = await getEntitlements(userId);
+  return features[feature] === true;
+}
 
 /**
  * Today's rose usage/allowance/balance snapshot for display purposes (does not spend anything).
@@ -119,9 +208,9 @@ export const ROSE_DAILY_ALLOWANCE = { free: 2, plus: 5, vip: 10 };
  * @param {string} userId
  */
 export async function getRoseStatus(userId) {
-  const tier = await getSubscriptionTier(userId);
-  const dailyAllowance =
-    ROSE_DAILY_ALLOWANCE[tier] ?? ROSE_DAILY_ALLOWANCE.free;
+  const { tier, features } = await getEntitlements(userId);
+  // Daily roses reset at UTC midnight; purchased balance never expires.
+  const dailyAllowance = features.dailyRoses;
 
   const [row] = await db
     .select({
@@ -201,9 +290,9 @@ export async function getBoostStatus(userId) {
  * @param {string} userId
  */
 export async function spendRose(userId) {
-  const tier = await getSubscriptionTier(userId);
-  const dailyAllowance =
-    ROSE_DAILY_ALLOWANCE[tier] ?? ROSE_DAILY_ALLOWANCE.free;
+  const { features } = await getEntitlements(userId);
+  // Daily roses reset at UTC midnight; purchased balance never expires.
+  const dailyAllowance = features.dailyRoses;
 
   return db.transaction(async (tx) => {
     await tx

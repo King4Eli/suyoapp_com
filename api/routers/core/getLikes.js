@@ -3,6 +3,10 @@ import { db } from "../../db/client.js";
 import { matches, users } from "../../db/schema.js";
 import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
+import { hasFeature } from "../../global/entitlements.js";
+
+// How many locked teaser cards a plan without seeWhoLikedYou gets.
+const LOCKED_PREVIEW_COUNT = 8;
 
 export default async function getLikes() {
   /** @type { any } */
@@ -35,6 +39,34 @@ export default async function getLikes() {
         desc(matches.matchDateAdded),
       );
 
+    const canSeeLikes = await hasFeature(
+      sessions.currentUserID,
+      "seeWhoLikedYou",
+    );
+    if (!canSeeLikes) {
+      // Without the feature the client gets only anonymous teaser cards: no id,
+      // match id, name or photo ever leaves the server, so a blurred UI can't be
+      // bypassed by reading the response.
+      response.code = 200;
+      response.message = "ok";
+      response.locked = true;
+      response.likesTotal = rows.length;
+      response.likedlist = rows
+        .slice(0, LOCKED_PREVIEW_COUNT)
+        .map((row, idx) => ({
+          likedUserId: null,
+          likedUserDate: row.match_dateAdded,
+          likedUserImages: null,
+          likedUserFullname: "",
+          likedUserDob: row.user_bio_dob,
+          likedMatchedId: `locked-${idx}`,
+          match_status: Number(row.match_status ?? 0),
+          is_superlike: Number(row.match_status ?? 0) === 5,
+          verified: Number(row.user_verified ?? 0) === 1,
+        }));
+      return response;
+    }
+
     const likedList = rows.map((row) => ({
       likedUserId: row.match_user_id_from,
       likedUserDate: row.match_dateAdded,
@@ -50,6 +82,8 @@ export default async function getLikes() {
     }));
     response.code = 200;
     response.message = "ok";
+    response.locked = false;
+    response.likesTotal = likedList.length;
     response.likedlist = likedList;
   } catch (err) {
     tools.serverLog(`Error in getLikes: ${err}`, "getLikes-100");

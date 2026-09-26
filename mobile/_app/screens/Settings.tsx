@@ -403,7 +403,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
       </View>
       <TouchableOpacity
         onPress={() => {
-          if (premiumLock && !subscriptionState.isVip) {
+          if (premiumLock && !subscriptionState.features.readReceipts) {
             Toastx.show({
               type: 'warning',
               message: 'Upgrade to VIP to unlock this feature',
@@ -420,7 +420,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
             modernStyles.switchTrack,
             value && modernStyles.switchTrackActive,
             premiumLock &&
-              !subscriptionState.isVip &&
+              !subscriptionState.features.readReceipts &&
               modernStyles.switchTrackDisabled,
           ]}
         >
