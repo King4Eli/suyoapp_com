@@ -1061,6 +1061,21 @@ export default function Peoples_Screen({
                   ))}
                 />
 
+                {currentPhotos.length > 0 && (
+                  <Pressable
+                    hitSlop={8}
+                    accessibilityLabel="View photo full screen"
+                    onPress={() => setFullscreenClickImageIndex(photoIndex)}
+                    style={({ pressed }) => [
+                      deckStyles.zoomButton,
+                      currentPhotos.length > 1 && { top: 28 },
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    <IIcon name="expand-outline" size={18} color="#fff" />
+                  </Pressable>
+                )}
+
                 <View style={deckStyles.cardFooter}>
                   <View style={deckStyles.nameRow}>
                     <Text style={deckStyles.name}>
@@ -1214,38 +1229,6 @@ export default function Peoples_Screen({
                       </View>
                     ))}
                   </View>
-                </View>
-              )}
-
-              {currentUserImages.length > 0 && (
-                <View style={[deckStyles.detailCard, deckStyles.cardShadow]}>
-                  <Text style={deckStyles.sectionTitle}>Photos</Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 12 }}
-                  >
-                    {currentUserImages.map((img: any, idx: number) => (
-                      <Pressable
-                        key={idx}
-                        onPress={() => setFullscreenClickImageIndex(idx)}
-                      >
-                        <SafeImage
-                          source={{ uri: imageDomain + img.p }}
-                          style={deckStyles.galleryImage}
-                          resizeMode="cover"
-                          onError={() => {
-                            return logReport({
-                              type: 'http -image',
-                              logMessage: 'Image load',
-                              url: imageDomain + (img?.p ?? ''),
-                              useraction: 'Image Load',
-                            });
-                          }}
-                        />
-                      </Pressable>
-                    ))}
-                  </ScrollView>
                 </View>
               )}
 
@@ -1724,11 +1707,11 @@ export default function Peoples_Screen({
 
         {/* FULLSCREEN */}
         <ImageViewing
-          images={currentUserImages.map((img: any) => ({
+          images={currentPhotos.map((img: any) => ({
             uri: imageDomain + img.p,
           }))}
           imageIndex={getFullscreenClickImageIndex ?? 0}
-          visible={!!getFullscreenClickImageIndex}
+          visible={getFullscreenClickImageIndex != null}
           onRequestClose={() => {
             setFullscreenClickImageIndex(null);
           }}
@@ -1889,11 +1872,19 @@ function createDeckStyles(colors: ThemeColors) {
       borderColor: colors.primary,
     },
     interestChipTextShared: { color: colors.primary },
-    galleryImage: {
-      width: 160,
-      height: 200,
-      borderRadius: radius.md,
-      backgroundColor: colors.skeleton,
+    zoomButton: {
+      position: 'absolute',
+      top: 14,
+      right: spacing.md,
+      zIndex: 30,
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(10,6,14,0.45)',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.25)',
     },
     actionDockWrap: {
       position: 'absolute',

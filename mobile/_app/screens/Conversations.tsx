@@ -3,7 +3,6 @@ import React, {
   useEffect,
   useRef,
   useLayoutEffect,
-  useMemo,
   useCallback,
 } from 'react';
 import {
@@ -37,6 +36,7 @@ import {
   uploadHandler,
   navigationRef,
   cacheStorage,
+  reportUser,
 } from '../funcs/functions';
 import { Asset } from 'react-native-image-picker';
 import { ScrollView } from 'react-native';
@@ -49,7 +49,10 @@ import Sound, {
 } from 'react-native-nitro-sound';
 import RNFS from 'react-native-fs';
 import Icon from 'react-native-vector-icons/Ionicons';
-import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
+import BottomSheet, {
+  BottomSheetView,
+  BottomSheetTextInput,
+} from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
 import FastImage from '@d11/react-native-fast-image';
 import { SafeImage } from '../funcs/customImage';
@@ -195,6 +198,416 @@ interface convoInterface {
   read?: boolean;
 }
 
+const REPORT_REASONS = [
+  'Inappropriate messages',
+  'Harassment or Hate Speech',
+  'Fake profile or Impersonation',
+  'Spam or Scam',
+  'Underage User/Content',
+  'Asking for money',
+  'Violence or Harmful Behavior',
+  'Privacy Violation',
+  'Other',
+];
+
+const confirmAlert = (title: string, message: string, confirmText: string) =>
+  new Promise<boolean>(resolve => {
+    Alert.alert(
+      title,
+      message,
+      [
+        { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+        {
+          text: confirmText,
+          style: 'destructive',
+          onPress: () => resolve(true),
+        },
+      ],
+      { cancelable: true, onDismiss: () => resolve(false) },
+    );
+  });
+
+type ConvoToolsSheetProps = {
+  user: any;
+  imageDomain?: string;
+  view: 'menu' | 'report';
+  setView: (view: 'menu' | 'report') => void;
+  onPlanDate: () => void;
+  onViewProfile: () => void;
+  onUnmatch: () => void;
+  onBlock: () => void;
+  onReport: (reason: string) => void;
+};
+
+// Contents of the "..." sheet in a conversation: match header, quick actions, and a
+// safety group (unmatch / block / report). Report swaps the sheet to a reason picker
+// in place instead of stacking a second sheet on top.
+function ConvoToolsSheet({
+  user,
+  imageDomain,
+  view,
+  setView,
+  onPlanDate,
+  onViewProfile,
+  onUnmatch,
+  onBlock,
+  onReport,
+}: ConvoToolsSheetProps) {
+  const { colors } = useTheme();
+  const [selectedReason, setSelectedReason] = useState<string | null>(null);
+  const [otherText, setOtherText] = useState('');
+  const firstName = (user?.fullname ?? '').split(' ')[0] || 'this person';
+
+  useEffect(() => {
+    if (view === 'menu') {
+      setSelectedReason(null);
+      setOtherText('');
+    }
+  }, [view]);
+
+  const Row = ({
+    icon,
+    label,
+    hint,
+    onPress,
+    tone = 'default',
+    chevron = false,
+    last = false,
+  }: {
+    icon: string;
+    label: string;
+    hint?: string;
+    onPress: () => void;
+    tone?: 'default' | 'danger';
+    chevron?: boolean;
+    last?: boolean;
+  }) => {
+    const tint = tone === 'danger' ? colors.danger : colors.accent;
+    return (
+      <Pressable
+        onPress={onPress}
+        android_ripple={{ color: colors.borderLight }}
+        style={({ pressed }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 14,
+          paddingHorizontal: 14,
+          paddingVertical: 12,
+          backgroundColor: pressed ? colors.backgroundSecondary : 'transparent',
+          borderBottomWidth: last ? 0 : 1,
+          borderBottomColor: colors.hairline,
+        })}
+      >
+        <View
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 19,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor:
+              tone === 'danger' ? colors.primarySoft : colors.accentSoft,
+          }}
+        >
+          <IonIcon name={icon} size={19} color={tint} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={{
+              fontSize: 15.5,
+              fontWeight: '600',
+              color: tone === 'danger' ? colors.danger : colors.text,
+            }}
+          >
+            {label}
+          </Text>
+          {hint ? (
+            <Text
+              style={{
+                fontSize: 12.5,
+                color: colors.textTertiary,
+                marginTop: 2,
+              }}
+            >
+              {hint}
+            </Text>
+          ) : null}
+        </View>
+        {chevron && (
+          <IonIcon
+            name="chevron-forward"
+            size={18}
+            color={colors.textTertiary}
+          />
+        )}
+      </Pressable>
+    );
+  };
+
+  const groupStyle = {
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    overflow: 'hidden' as const,
+  };
+
+  const sectionLabel = (text: string) => (
+    <Text
+      style={{
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 0.8,
+        textTransform: 'uppercase',
+        color: colors.textTertiary,
+        marginLeft: 6,
+        marginBottom: 8,
+        marginTop: 18,
+      }}
+    >
+      {text}
+    </Text>
+  );
+
+  if (view === 'report') {
+    const finalReason =
+      selectedReason === 'Other' ? otherText.trim() : selectedReason;
+    return (
+      <View style={{ paddingHorizontal: 18, paddingBottom: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Pressable
+            onPress={() => setView('menu')}
+            hitSlop={10}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: colors.backgroundSecondary,
+            }}
+          >
+            <IonIcon name="chevron-back" size={20} color={colors.text} />
+          </Pressable>
+          <Text
+            style={{
+              fontSize: 19,
+              fontWeight: '800',
+              letterSpacing: -0.2,
+              color: colors.text,
+              textTransform: 'capitalize',
+              flex: 1,
+            }}
+            numberOfLines={1}
+          >
+            Report {firstName}
+          </Text>
+        </View>
+        <Text
+          style={{
+            fontSize: 13.5,
+            lineHeight: 19,
+            color: colors.textSecondary,
+            marginTop: 10,
+            marginBottom: 14,
+          }}
+        >
+          Your report is anonymous — {firstName} won't be told. This match will
+          also be removed from your chats.
+        </Text>
+
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {REPORT_REASONS.map(reason => {
+            const selected = selectedReason === reason;
+            return (
+              <Pressable
+                key={reason}
+                onPress={() => setSelectedReason(reason)}
+                style={{
+                  paddingHorizontal: 14,
+                  paddingVertical: 9,
+                  borderRadius: 999,
+                  borderWidth: 1,
+                  borderColor: selected ? colors.danger : colors.border,
+                  backgroundColor: selected
+                    ? colors.primarySoft
+                    : colors.surface,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13.5,
+                    fontWeight: selected ? '700' : '500',
+                    color: selected ? colors.danger : colors.text,
+                  }}
+                >
+                  {reason}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {selectedReason === 'Other' && (
+          <View style={{ marginTop: 12 }}>
+            <BottomSheetTextInput
+              placeholder="Tell us what happened"
+              placeholderTextColor={colors.placeholder}
+              value={otherText}
+              onChangeText={setOtherText}
+              multiline
+              maxLength={300}
+              style={{
+                minHeight: 90,
+                textAlignVertical: 'top',
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: colors.border,
+                backgroundColor: colors.inputBackground,
+                color: colors.text,
+                padding: 12,
+                fontSize: 14.5,
+              }}
+            />
+            <Text
+              style={{
+                fontSize: 11,
+                color: colors.textTertiary,
+                textAlign: 'right',
+                marginTop: 4,
+              }}
+            >
+              {otherText.length} / 300
+            </Text>
+          </View>
+        )}
+
+        <Pressable
+          disabled={!finalReason}
+          onPress={() => finalReason && onReport(finalReason)}
+          style={({ pressed }) => ({
+            marginTop: 18,
+            height: 50,
+            borderRadius: 999,
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'row',
+            gap: 8,
+            backgroundColor: finalReason ? colors.danger : colors.disabled,
+            opacity: pressed ? 0.85 : 1,
+          })}
+        >
+          <IonIcon name="flag" size={17} color={colors.textInverse} />
+          <Text
+            style={{
+              fontSize: 15.5,
+              fontWeight: '700',
+              color: colors.textInverse,
+            }}
+          >
+            Submit report
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 12,
+          paddingHorizontal: 4,
+          paddingBottom: 2,
+        }}
+      >
+        <SafeImage
+          source={{
+            uri: user?.image?.p ? imageDomain + user.image.p : undefined,
+            cache: FastImage.cacheControl.immutable,
+          }}
+          style={{ width: 48, height: 48, borderRadius: 24 }}
+        />
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <Text
+              numberOfLines={1}
+              style={{
+                fontSize: 17,
+                fontWeight: '800',
+                letterSpacing: -0.2,
+                color: colors.text,
+                textTransform: 'capitalize',
+                flexShrink: 1,
+              }}
+            >
+              {user?.fullname || 'Your match'}
+            </Text>
+            {user?.verified ? (
+              <IonIcon
+                name="checkmark-done-circle-sharp"
+                size={17}
+                color={colors.accent}
+              />
+            ) : null}
+          </View>
+          <Text
+            style={{ fontSize: 13, color: colors.textTertiary, marginTop: 2 }}
+          >
+            {user?.city ? `${user.city} · ` : ''}You matched
+          </Text>
+        </View>
+      </View>
+
+      {sectionLabel('Chat')}
+      <View style={groupStyle}>
+        <Row
+          icon="sparkles-outline"
+          label="Plan a date idea"
+          hint="Drop a coffee invite into your message"
+          onPress={onPlanDate}
+        />
+        <Row
+          icon="person-outline"
+          label="View profile"
+          onPress={onViewProfile}
+          chevron
+          last
+        />
+      </View>
+
+      {sectionLabel('Privacy & safety')}
+      <View style={groupStyle}>
+        <Row
+          icon="heart-dislike-outline"
+          label="Unmatch"
+          hint="Remove this match and conversation"
+          onPress={onUnmatch}
+          tone="danger"
+        />
+        <Row
+          icon="ban-outline"
+          label={`Block ${firstName}`}
+          hint="They won't see your profile or message you"
+          onPress={onBlock}
+          tone="danger"
+        />
+        <Row
+          icon="flag-outline"
+          label="Report"
+          hint="Anonymous — helps keep the community safe"
+          onPress={() => setView('report')}
+          tone="danger"
+          chevron
+          last
+        />
+      </View>
+    </View>
+  );
+}
+
 export function Screen_conversation({
   navigation,
   route,
@@ -241,8 +654,10 @@ export function Screen_conversation({
 
   const bottomSheet_convotools = {
     ref: useRef<BottomSheet>(null),
-    snap: useMemo(() => ['35%'], []),
   };
+  const [convoToolsView, setConvoToolsView] = useState<'menu' | 'report'>(
+    'menu',
+  );
   const [getFullscreenClickImage, setFullscreenClickImage] = useState<
     any | null
   >(null);
@@ -769,111 +1184,68 @@ export function Screen_conversation({
 
   const funt = {
     matchId: route.params?.matchId,
-    convoTools: (
-      <>
-        <View>
-          <Pressable
-            onPress={() => {
-              bottomSheet_convotools?.ref?.current?.close();
-              handleInsertPrompt(
-                "Let's plan a quick coffee this week? What day works for you.",
-              );
-            }}
-            style={{
-              paddingHorizontal: 10,
-              paddingVertical: 15,
-              flexDirection: 'row',
-              alignItems: 'center',
-            }}
-          >
-            <IonIcon name="sparkles-outline" size={20} color={colors.accent} />
-            <Text style={{ fontSize: 16, marginLeft: 10 }}>
-              Plan a date idea
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => {
-              bottomSheet_convotools?.ref?.current?.close();
-              navigation.push(namer.navigation.peoplesOnePerson, {
-                alreadyLiked: true,
-                likedMatchedId: funt.matchId,
-                getOnePersonId: getUser2Deets?.uid,
-              });
-            }}
-            style={{
-              paddingHorizontal: 10,
-              paddingVertical: 15,
-              flexDirection: 'row',
-              alignItems: 'center',
-            }}
-          >
-            <IonIcon name="person-outline" size={20} color={colors.accent} />
-            <Text style={{ fontSize: 16, marginLeft: 10 }}>View Profile</Text>
-          </Pressable>
-          <Pressable
-            onPress={async () => {
-              function showConfirmAlert() {
-                return new Promise(resolve => {
-                  Alert.alert(
-                    'Block this person?',
-                    'Blocking this person prevents them from ever seeing your profile or message you!', // Message
-                    [
-                      {
-                        text: 'No',
-                        onPress: () => {
-                          resolve(false);
-                        },
-                        style: 'cancel',
-                      },
-                      {
-                        text: 'Block',
-                        onPress: () => {
-                          resolve(true);
-                        },
-                      },
-                    ],
-                    { cancelable: false },
-                  );
-                });
-              }
-              if ((await showConfirmAlert()) === true) {
-                Loaderx.show();
-
-                await _http_request({
-                  customApiUrl:
-                    __CONFIG__.HTTPS_API_DOMAIN +
-                    '/api/core/v1/pushPeopleToMatch',
-                  reqType: 'POST',
-                  bodyArray: {
-                    match_status: 3,
-                    matchId: funt.matchId,
-                  },
-                }).then(() => {
-                  // a blocked chat drops out of the unread count
-                  chatsBadge.refresh();
-                  bottomSheet_convotools?.ref?.current?.close();
-                  navigation.goBack();
-                });
-              }
-            }}
-            style={{
-              paddingHorizontal: 10,
-              paddingVertical: 15,
-              flexDirection: 'row',
-              alignItems: 'center',
-            }}
-          >
-            <IonIcon name="ban-outline" size={20} color={colors.accent} />
-            <Text style={{ fontSize: 16, marginLeft: 10 }}>Block User</Text>
-          </Pressable>
-          {/*<Pressable onPress={() => { bottomSheetRef_convotools.current?.close(); navigation.navigate("ReportUser", { userId: getUser2Deets?.u2id }); }}
-                    style={{ paddingHorizontal: 10, paddingVertical: 15, flexDirection: "row", alignItems: "center" }}>
-                    <IonIcon name="warning-outline" size={20} color={colors.accent} />
-                    <Text style={{ fontSize: 16, marginLeft: 10 }}>Report User</Text>
-                </Pressable>*/}
-        </View>
-      </>
-    ),
+    // match_status: 2=notinterested (unmatch), 3=block, 4=reported -- all three drop
+    // the chat from both users' lists and stop further messages (pushConversation.js).
+    endMatch: async (matchStatus: 2 | 3 | 4, doneMessage: string) => {
+      Loaderx.show();
+      try {
+        const response = await _http_request({
+          customApiUrl:
+            __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/pushPeopleToMatch',
+          reqType: 'POST',
+          bodyArray: {
+            user_id2: getUser2Deets?.uid,
+            match_status: matchStatus,
+            matchId: route.params?.matchId,
+          },
+        });
+        if (response?.code !== 200) {
+          Toastx.show({
+            type: 'info',
+            message: response?.message ?? 'Something went wrong, try again.',
+          });
+          return;
+        }
+        chatsBadge.refresh();
+        bottomSheet_convotools?.ref?.current?.close();
+        Toastx.show({ type: 'success', message: doneMessage });
+        navigation.goBack();
+      } finally {
+        Loaderx.hide();
+      }
+    },
+    unmatch: async () => {
+      const ok = await confirmAlert(
+        'Unmatch?',
+        "You'll lose this conversation and won't be able to message each other again.",
+        'Unmatch',
+      );
+      if (ok) await funt.endMatch(2, 'Unmatched');
+    },
+    block: async () => {
+      const ok = await confirmAlert(
+        'Block this person?',
+        "They won't be able to see your profile or message you again.",
+        'Block',
+      );
+      if (ok) await funt.endMatch(3, 'User blocked');
+    },
+    report: async (reason: string) => {
+      Loaderx.show();
+      const reported = await reportUser({
+        reportedUserId: getUser2Deets?.uid,
+        reason,
+      });
+      Loaderx.hide();
+      if (!reported) {
+        Toastx.show({
+          type: 'info',
+          message: "Couldn't send your report, try again.",
+        });
+        return;
+      }
+      await funt.endMatch(4, 'Thanks — your report was sent');
+    },
 
     isLocalFile: (item: any) => {
       if (!item) return false;
@@ -2595,11 +2967,47 @@ export function Screen_conversation({
         ref={bottomSheet_convotools?.ref}
         index={-1}
         enablePanDownToClose
-        snapPoints={bottomSheet_convotools?.snap}
+        enableDynamicSizing
+        keyboardBehavior="interactive"
+        keyboardBlurBehavior="restore"
+        android_keyboardInputMode="adjustResize"
         backdropComponent={ajjj}
+        onChange={index => {
+          if (index === -1) setConvoToolsView('menu');
+        }}
+        backgroundStyle={{
+          backgroundColor: colors.background,
+          borderTopLeftRadius: 28,
+          borderTopRightRadius: 28,
+        }}
+        handleIndicatorStyle={{ backgroundColor: colors.border, width: 40 }}
       >
         <BottomSheetView>
-          <SafeAreaView edges={['bottom']}>{funt.convoTools}</SafeAreaView>
+          <SafeAreaView edges={['bottom']}>
+            <ConvoToolsSheet
+              user={getUser2Deets}
+              imageDomain={imageDomain}
+              view={convoToolsView}
+              setView={setConvoToolsView}
+              onPlanDate={() => {
+                bottomSheet_convotools?.ref?.current?.close();
+                handleInsertPrompt(
+                  "Let's plan a quick coffee this week? What day works for you.",
+                );
+              }}
+              onViewProfile={() => {
+                bottomSheet_convotools?.ref?.current?.close();
+                navigation.push(namer.navigation.peoplesOnePerson, {
+                  alreadyLiked: true,
+                  likedMatchedId: funt.matchId,
+                  getOnePersonId: getUser2Deets?.uid,
+                });
+              }}
+              onUnmatch={funt.unmatch}
+              onBlock={funt.block}
+              onReport={funt.report}
+            />
+          </SafeAreaView>
         </BottomSheetView>
       </BottomSheet>
 
