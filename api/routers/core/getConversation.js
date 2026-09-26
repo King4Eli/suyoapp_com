@@ -3,6 +3,7 @@ import { db } from "../../db/client.js";
 import { conversations, matches, users } from "../../db/schema.js";
 import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
+import { pushBadgeCounts } from "../../global/badges.js";
 import { hasFeature } from "../../global/entitlements.js";
 
 /**
@@ -210,6 +211,8 @@ export default async function getConversation(matchId, io) {
         matchId,
         readByUserId: sessions.currentUserID,
       });
+      // Reading clears this chat from the reader's Chats badge (other devices too).
+      pushBadgeCounts(io, sessions.currentUserID);
     }
   } catch (error) {
     tools.serverLog(

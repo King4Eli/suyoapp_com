@@ -19,6 +19,8 @@ import {
 } from "../../global/entitlements.js";
 import { peekRateLimit } from "../../global/rateLimit.js";
 import { getStreakStatus } from "../../global/streaks.js";
+import { computeProfileCompleteness } from "../../global/profileCompleteness.js";
+import { getVerificationState } from "../../global/verification.js";
 
 export default async function getProfile() {
   /** @type { any } */
@@ -335,6 +337,15 @@ export default async function getProfile() {
       last_accessed: userProfile.user_last_accessed,
       device_stats: userProfile.user_signedup_device_stats,
     };
+    // { percent, items, missing } -- see global/profileCompleteness.js
+    const verification = await getVerificationState(sessions.currentUserID);
+    // { status: verified|pending|rejected|none, rejectReason, submittedAt }
+    response.currentUser.verification = verification;
+    response.currentUser.completeness = computeProfileCompleteness({
+      images: response.currentUser.profile.images,
+      bio: response.currentUser.bio,
+      verification: verification.status,
+    });
   } catch (err) {
     tools.serverLog(`Error in getProfile: ${err}`, "getProfile-101");
     response.message = "Database error retrieving profile.";

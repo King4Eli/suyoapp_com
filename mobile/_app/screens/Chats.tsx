@@ -579,7 +579,8 @@ export function Screen_chat({ navigation }: { navigation: any }) {
             const unreadChats = countUnreadChats(
               response?.chatsListings?.withmessages,
             );
-            if (Number.isFinite(unreadChats)) chatsBadge.set(unreadChats);
+            if (Number.isFinite(unreadChats))
+              chatsBadge.set(Math.min(unreadChats, 10));
             setEngagedMessages((prev: any) => {
               const incoming = response?.chatsListings?.withmessages;
               if (

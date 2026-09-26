@@ -43,6 +43,13 @@
       "when": 1790457204885,
       "tag": "0005_payment_notices_for_user_facing_payment_events",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1790459953728,
+      "tag": "0006_selfie_verification_requests",
+      "breakpoints": true
     }
   ]
 }

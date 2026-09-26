@@ -3,6 +3,7 @@ import { db } from "../../db/client.js";
 import { conversations, matches } from "../../db/schema.js";
 import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
+import { pushBadgeCounts } from "../../global/badges.js";
 
 /**
  * Deletes a message "for everyone" -- only the original sender may do this.
@@ -72,6 +73,7 @@ export default async function pushDeleteMessage(convoId, io) {
           matchId: row.convo_match_id,
           convoId,
         });
+        pushBadgeCounts(io, otherUserId);
       }
       response.code = 200;
       response.message = "Message deleted.";

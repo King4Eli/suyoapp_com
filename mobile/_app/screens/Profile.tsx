@@ -202,16 +202,25 @@ export function Screen_profile({ navigation }: { navigation: any }) {
     return mainSubProducts;
   }, [mainSubProducts, subscriptionState.isPlus, subscriptionState.isVip]);
 
-  const profileCompletion = useMemo(() => {
-    const checkpoints = [
-      String(profile?.user_bio_about ?? profileCore?.about ?? '').trim()
-        .length >= 3,
-      images.length >= 3,
-      (profile?.user_bio_prompt ?? []).length > 0,
-    ];
-    const score = checkpoints.filter(Boolean).length;
-    return Math.round((score / checkpoints.length) * 100);
-  }, [images.length, profile, profileCore?.about]);
+  // Computed by the server from the saved profile (api global/profileCompleteness.js),
+  // with the missing items ordered by how much each would add.
+  const completeness = profile?.completeness;
+  const profileCompletion = Math.max(
+    0,
+    Math.min(100, Number(completeness?.percent ?? 0)),
+  );
+  const missingItems: any[] = Array.isArray(completeness?.missing)
+    ? completeness.missing
+    : [];
+  const openCompletenessItem = (item: any) =>
+    item?.action === 'verify'
+      ? navigation.navigate(namer.navigation.verifyProfile)
+      : navigation.navigate(namer.navigation.editprofile, {
+          focusSection:
+            item?.action === 'editprofile' ? item?.key : item?.action,
+        });
+  // verified | pending | rejected | none (api global/verification.js)
+  const verificationStatus: string = profile?.verification?.status ?? 'none';
 
   useFocusEffect(
     React.useCallback(() => {
@@ -357,8 +366,15 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                     : 'Free plan'}
                 </Text>
               </View>
-              <Text style={stylesx.completionText}>
-                {profileCompletion}% profile complete
+              <Text
+                style={[
+                  stylesx.completionText,
+                  profileCompletion === 100 && { color: colors.success },
+                ]}
+              >
+                {profileCompletion === 100
+                  ? 'Profile complete'
+                  : `${profileCompletion}% profile complete`}
               </Text>
             </View>
           </View>
@@ -373,11 +389,19 @@ export function Screen_profile({ navigation }: { navigation: any }) {
             />
             {!userVerified && (
               <ProfileAction
-                icon="camera-outline"
-                label="Verify Account"
+                icon={
+                  verificationStatus === 'pending'
+                    ? 'clock-outline'
+                    : 'camera-outline'
+                }
+                label={
+                  verificationStatus === 'pending'
+                    ? 'Verification pending'
+                    : 'Verify Account'
+                }
                 secondary
                 onPress={() =>
-                  navigation.navigate(namer.navigation.editprofile)
+                  navigation.navigate(namer.navigation.verifyProfile)
                 }
                 stylesx={stylesx}
                 secondaryColor={colors.accent}
@@ -385,6 +409,57 @@ export function Screen_profile({ navigation }: { navigation: any }) {
             )}
           </View>
         </View>
+
+        {completeness && missingItems.length > 0 && (
+          <View style={stylesx.card}>
+            <SectionHeader
+              title="Complete your profile"
+              hint="Complete profiles get more likes and better matches."
+              icon="account-check-outline"
+              colors={colors}
+              stylesx={stylesx}
+            />
+            <View style={stylesx.completenessBarTrack}>
+              <View
+                style={[
+                  stylesx.completenessBarFill,
+                  { width: `${profileCompletion}%` },
+                ]}
+              />
+            </View>
+            {missingItems.slice(0, 3).map((item: any, idx: number) => (
+              <Pressable
+                key={item.key}
+                onPress={() => openCompletenessItem(item)}
+                style={({ pressed }) => [
+                  stylesx.completenessRow,
+                  idx > 0 && stylesx.completenessRowBorder,
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <View style={stylesx.completenessIcon}>
+                  <MIcon
+                    name={COMPLETENESS_ICONS[item.key] ?? 'plus'}
+                    size={18}
+                    color={colors.primary}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={stylesx.completenessLabel}>{item.label}</Text>
+                  <Text style={stylesx.completenessHint}>{item.hint}</Text>
+                </View>
+                <Text style={stylesx.completenessGain}>
+                  +{Math.round(item.weight * (1 - item.progress))}%
+                </Text>
+                <IIcon
+                  name="chevron-forward"
+                  size={18}
+                  color={colors.textTertiary}
+                />
+              </Pressable>
+            ))}
+          </View>
+        )}
 
         <View style={stylesx.card}>
           <SectionHeader title="Power-ups" colors={colors} stylesx={stylesx} />
@@ -648,6 +723,17 @@ const CircularProgress = ({
   );
 };
 
+// MaterialCommunityIcons per completeness item key
+const COMPLETENESS_ICONS: Record<string, string> = {
+  photos: 'image-multiple-outline',
+  about: 'text-account',
+  prompts: 'comment-quote-outline',
+  interests: 'star-four-points-outline',
+  work: 'briefcase-outline',
+  basics: 'card-account-details-outline',
+  background: 'earth',
+};
+
 const ProfileAction = ({
   icon,
   label,
@@ -791,6 +877,52 @@ function createStylesx(colors: ThemeColors) {
       color: colors.textSecondary,
       fontSize: 13,
       fontWeight: '700',
+    },
+    completenessBarTrack: {
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: colors.border,
+      overflow: 'hidden',
+      marginTop: 4,
+      marginBottom: 6,
+    },
+    completenessBarFill: {
+      height: '100%',
+      borderRadius: 3,
+      backgroundColor: colors.primary,
+    },
+    completenessRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 10,
+    },
+    completenessRowBorder: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.hairline,
+    },
+    completenessIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primarySoft,
+    },
+    completenessLabel: {
+      fontSize: 14.5,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    completenessHint: {
+      fontSize: 12.5,
+      color: colors.textSecondary,
+      marginTop: 1,
+    },
+    completenessGain: {
+      fontSize: 12.5,
+      fontWeight: '800',
+      color: colors.primary,
     },
     subscriptionBadge: {
       alignSelf: 'flex-start',

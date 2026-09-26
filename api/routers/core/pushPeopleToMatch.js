@@ -3,6 +3,7 @@ import { db } from "../../db/client.js";
 import { matches, users } from "../../db/schema.js";
 import { namer, tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
+import { pushBadgeCounts } from "../../global/badges.js";
 import { checkRateLimit } from "../../global/rateLimit.js";
 import {
   getEntitlements,
@@ -268,6 +269,11 @@ export default async function pushPeopleToMatch(data, io) {
           matchId: existing.matchId,
         });
       }
+    }
+    // Likes/Chats badges change for both sides on any match action (a new like,
+    // liking back, passing, unmatching, blocking).
+    if (response.code === 200) {
+      pushBadgeCounts(io, me, secondUserId);
     }
     // Any successful Peoples action counts today toward the 7-day streak.
     if (response.code === 200) {

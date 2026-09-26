@@ -18,7 +18,7 @@ import {
 } from 'react-native-image-picker';
 import { Toastx } from './customNotification';
 import { SocketClient } from './socket_realtimeData';
-import { chatsBadge, likesBadge } from './tabBadges';
+import { applyBadgeCounts, chatsBadge, likesBadge } from './tabBadges';
 import { createNavigationContainerRef } from '@react-navigation/native';
 import { xxa_logggingReport, flushLogQueue } from './functions/logging';
 import {
@@ -250,7 +250,10 @@ export const __init__app = async (): Promise<void> => {
   checkPaymentNotices();
   if (!paymentNoticeWatcher) {
     paymentNoticeWatcher = AppState.addEventListener('change', state => {
-      if (state === 'active') checkPaymentNotices();
+      if (state !== 'active') return;
+      checkPaymentNotices();
+      // Pushes sent while the socket was down are gone -- resync the badges.
+      likesBadge.refresh();
     });
   }
 
@@ -357,6 +360,9 @@ export const __init__app = async (): Promise<void> => {
               },
             });
           }
+        } else if (data.event === 'badge-counts') {
+          // Pushed by the server whenever a tab badge changes (api global/badges.js).
+          applyBadgeCounts(data);
         } else if (data.event === 'payment-event') {
           // Emitted by the Stripe webhook (api global/paymentNotices.js). Fetched
           // rather than shown from the payload so it's marked seen server-side.

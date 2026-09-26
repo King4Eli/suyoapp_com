@@ -20,6 +20,7 @@ import { Auth_Login } from './Auth_Login';
 import { Loaderx } from '../funcs/functions_stateful';
 import { Screen_settings } from './Settings';
 import { Screen_editprofile } from './ProfileEdit';
+import { Screen_profileVerify } from './ProfileVerify';
 import { Screen_editProfilePrompts } from './ProfileEditPrompts';
 import { Screen_editProfileInterests } from './ProfileEditInterests';
 import { sessionManager, SessionTypes } from '../funcs/SessionContext';
@@ -289,6 +290,11 @@ const MainApp: React.FC = () => {
               <Stack.Screen
                 name={namer.navigation.editProfileInterests}
                 component={Screen_editProfileInterests}
+                options={{ headerBackTitle: '' }}
+              />
+              <Stack.Screen
+                name={namer.navigation.verifyProfile}
+                component={Screen_profileVerify}
                 options={{ headerBackTitle: '' }}
               />
               <Stack.Screen

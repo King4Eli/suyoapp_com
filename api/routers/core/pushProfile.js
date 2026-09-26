@@ -41,6 +41,22 @@ function normalizeSocialLinks(rawLinks) {
   return normalized;
 }
 
+// users columns that are ENUMs of digit strings (see db/schema.js)
+const ENUM_FIELDS = new Set([
+  "user_bio_smoking",
+  "user_bio_drinking",
+  "user_bio_children",
+  "user_bio_haspet",
+]);
+// varchar sizes of the free-text profile columns (see db/schema.js)
+const TEXT_FIELD_MAX = {
+  user_bio_about: 400,
+  user_bio_hometown: 50,
+  user_bio_schoolattended: 50,
+  user_bio_company: 30,
+  user_bio_jobrole: 20,
+};
+
 /**
  * @param {string | number} val
  */
@@ -115,10 +131,21 @@ export default async function pushProfile(input = {}) {
       // @ts-ignore
       if (!hasKey(input, inputKey)) continue;
       if (numeric ? onlyNumber(val) : val !== undefined && val !== null) {
-        const formattedVal =
+        let formattedVal =
           dbField === "user_location" && typeof val === "object"
             ? JSON.stringify(val)
             : val;
+        // ENUM('0','1',...) columns: a numeric 1 would select the 1st member
+        // ('0') in MySQL, so always write the string value.
+        // @ts-ignore
+        if (ENUM_FIELDS.has(dbField)) formattedVal = String(formattedVal);
+        // Text columns: trim and cut to the column size so one long field
+        // can't make the whole save fail.
+        // @ts-ignore
+        const maxLen = TEXT_FIELD_MAX[dbField];
+        if (maxLen && typeof formattedVal === "string") {
+          formattedVal = formattedVal.trim().slice(0, maxLen);
+        }
         profUpdates.push({ field: dbField, value: formattedVal });
       }
     }

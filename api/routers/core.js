@@ -21,6 +21,9 @@ import getProducts from "./core/getProducts.js";
 import getPaymentHistory from "./core/getPaymentHistory.js";
 import getPaymentStatus from "./core/getPaymentStatus.js";
 import getPaymentNotices from "./core/getPaymentNotices.js";
+import getBadgeCounts from "./core/getBadgeCounts.js";
+import getVerification from "./core/getVerification.js";
+import pushVerification from "./core/pushVerification.js";
 import getInterests from "./core/getInterests.js";
 import getPrompts from "./core/getPrompts.js";
 import getReligions from "./core/getReligions.js";
@@ -180,12 +183,30 @@ core_router.post("/:action", async (req, res) => {
       const status = await getPaymentStatus({ paymentId: req.body?.paymentId });
       return res.json(status);
     }
+    case "getVerification": {
+      const verification = await getVerification();
+      return res.json(verification);
+    }
+    case "pushVerification": {
+      const submitted = await pushVerification({
+        selfiePath: req.body?.selfiePath,
+        pose: req.body?.pose,
+      });
+      return res.json(submitted);
+    }
+    case "getBadgeCounts": {
+      const badges = await getBadgeCounts();
+      return res.json(badges);
+    }
     case "getPaymentNotices": {
       const notices = await getPaymentNotices();
       return res.json(notices);
     }
     case "pushRewindMatch": {
-      const rewound = await pushRewindMatch({ matchId: req.body?.matchId });
+      const rewound = await pushRewindMatch(
+        { matchId: req.body?.matchId },
+        req.app.get("io"),
+      );
       return res.json(rewound);
     }
     case "pushFeedPost": {

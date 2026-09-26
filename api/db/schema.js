@@ -269,6 +269,30 @@ export const matches = mysqlTable("matches", {
     .default(sql`(unix_timestamp())`),
 });
 
+// Selfie verification requests. The user photographs themselves copying a pose
+// the server picked (so an old photo can't be reused); an admin compares it
+// with their profile photos and approves (users.user_verified = '1') or rejects
+// with a reason. Latest row per user is their current state.
+export const userVerifications = mysqlTable(
+  "user_verifications",
+  {
+    id: varchar("id", { length: 50 }).primaryKey().notNull(),
+    userId: varchar("user_id", { length: 50 }).notNull(),
+    selfiePath: varchar("selfie_path", { length: 255 }).notNull(),
+    // pose code from global/verification.js
+    pose: varchar("pose", { length: 40 }).notNull(),
+    // 0=pending, 1=approved, 2=rejected
+    status: tinyint("status").notNull().default(0),
+    rejectReason: varchar("reject_reason", { length: 255 }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    reviewedAt: timestamp("reviewed_at"),
+  },
+  (t) => [
+    index("user_verifications_user").on(t.userId),
+    index("user_verifications_status").on(t.status),
+  ],
+);
+
 // What happened with a user's payment/subscription, in words written for them --
 // one row per event (activated, renewed, renewal failed, refunded, ...). The app
 // pulls unseen rows (getPaymentNotices) and is also pinged live over the socket.
