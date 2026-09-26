@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   Platform,
   Pressable,
@@ -9,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Dialogx } from './customDialog';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import {
   _http_request,
@@ -151,11 +151,21 @@ export function ConsumableSheet({
     if (result.code === 200) {
       onClose();
       onPurchased?.();
-      Alert.alert('Success', 'Your purchase was completed.');
+      Dialogx.alert(
+        'Purchase complete',
+        'Your purchase was added to your account.',
+        undefined,
+        {
+          tone: 'success',
+          icon: 'gift',
+        },
+      );
     } else if (result.code !== 499) {
-      Alert.alert(
-        'Error',
-        result.message ?? 'Purchase failed. Please try again.',
+      Dialogx.alert(
+        "Purchase didn't go through",
+        result.message ?? 'Please try again. You have not been charged.',
+        undefined,
+        { tone: 'error' },
       );
     }
   };

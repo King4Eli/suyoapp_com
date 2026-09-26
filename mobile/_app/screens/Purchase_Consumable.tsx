@@ -5,11 +5,11 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  Alert,
   Animated,
   Dimensions,
   Platform,
 } from 'react-native';
+import { Dialogx } from '../funcs/customDialog';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { cacheStorage, parseCategoryProducts } from '../funcs/functions';
@@ -168,11 +168,21 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
 
     if (result.code === 200) {
       setShowConfirm(false);
-      Alert.alert('Success', 'Your purchase was completed.');
+      Dialogx.alert(
+        'Purchase complete',
+        'Your purchase was added to your account.',
+        undefined,
+        {
+          tone: 'success',
+          icon: 'gift',
+        },
+      );
     } else if (result.code !== 499) {
-      Alert.alert(
-        'Error',
-        result.message ?? 'Purchase failed. Please try again.',
+      Dialogx.alert(
+        "Purchase didn't go through",
+        result.message ?? 'Please try again. You have not been charged.',
+        undefined,
+        { tone: 'error' },
       );
     }
   };

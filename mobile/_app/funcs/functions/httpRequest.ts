@@ -4,6 +4,7 @@ import axios from 'axios';
 import NetInfo from '@react-native-community/netinfo';
 import { namer } from '../static';
 import { Toastx } from '../customNotification';
+import { Dialogx } from '../customDialog';
 import { logReport } from '../functions';
 
 // HTTP request function (GET/POST)
@@ -85,7 +86,12 @@ export const xxa__http_requests = async ({
         //session expired
         sessionManager?.updateSession({ x_omi_payload: null });
         await AsyncStorage.removeItem(namer.storage.sessionId);
-        Toastx.show({ type: 'info', message: 'Session expired, login again.' });
+        Dialogx.alert(
+          'Please sign in again',
+          'Your session expired, so we signed you out to keep your account safe.',
+          [{ text: 'Sign in' }],
+          { tone: 'info', icon: 'lock-closed' },
+        );
         return;
       } else if (status === 404) {
         Toastx.show({ type: 'error', message: 'Resource not found!' });

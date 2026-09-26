@@ -3,18 +3,21 @@ import {
   View,
   Text,
   Pressable,
-  Alert,
   Linking,
   Platform,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { Dialogx } from './customDialog';
 import LinearGradient from 'react-native-linear-gradient';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import { _http_request, cacheStorage, help } from './functions';
 import { namer, __CONFIG__ } from './static';
 import { useTheme, ThemeColors } from './theme';
-import { openPaymentPage } from './functions/paymentNotices';
+import {
+  markNoticeAlreadyShown,
+  openPaymentPage,
+} from './functions/paymentNotices';
 
 // subscriptions.external_platform: 1=stripe, 2=apple, 3=google
 const PLATFORM_LABEL: Record<number, string> = {
@@ -42,6 +45,114 @@ const formatDate = (value?: string | null) =>
 const planTitle = (tier: string, fallback?: string | null) =>
   tier === 'vip' ? 'VIP' : tier === 'plus' ? 'Plus' : fallback ?? 'Your plan';
 
+/** Where the plan is billed and what it's called, for the helpers below. */
+export function describePlan(profile: any) {
+  const sub = profile?.subscription ?? null;
+  const state = help.getSubscriptionState(profile);
+  const pastDue = sub?.status === 'past_due';
+  const tier = pastDue
+    ? String(sub?.product_name ?? '').toLowerCase()
+    : state.tier;
+  return {
+    sub,
+    platform: Number(sub?.platform ?? 0),
+    pastDue,
+    cancelPending: Boolean(sub?.cancel_at_period_end),
+    tier,
+    title: planTitle(tier, sub?.product_name),
+  };
+}
+
+const gatewayCall = async (action: string, subscriptionId?: string) =>
+  _http_request({
+    customApiUrl: `${__CONFIG__.HTTPS_API_DOMAIN}/api/secure/gateway/${action}`,
+    reqType: 'POST',
+    bodyArray: { subscriptionId },
+  }) as Promise<any>;
+
+const explainFailure = (res: any, fallbackTitle: string) => {
+  Dialogx.alert(
+    res?.reason === 'manage_in_store'
+      ? 'Managed by your app store'
+      : fallbackTitle,
+    res?.message ??
+      "We couldn't reach our payment provider. Check your connection and try again.",
+    undefined,
+    { tone: res?.reason === 'manage_in_store' ? 'info' : 'error' },
+  );
+};
+
+/** Opens the App Store / Google Play subscriptions page. */
+export function openStoreSubscriptions(platform: number) {
+  Linking.openURL(
+    platform === 2 || (platform !== 3 && Platform.OS === 'ios')
+      ? 'https://apps.apple.com/account/subscriptions'
+      : 'https://play.google.com/store/account/subscriptions',
+  ).catch(() =>
+    Dialogx.alert(
+      "Couldn't open your subscriptions",
+      'Open your app store and go to Subscriptions.',
+      undefined,
+      { tone: 'error' },
+    ),
+  );
+}
+
+/**
+ * Cancel flow for the Settings danger zone: confirms, cancels at period end, then
+ * reports the result. Store-billed plans are sent to the store instead.
+ */
+export async function confirmCancelPlan(
+  profile: any,
+  onChanged: (freshProfile: any) => void,
+) {
+  const { sub, platform, title, pastDue } = describePlan(profile);
+  if (!sub) return;
+  if (platform !== 1) {
+    const ok = await Dialogx.confirm({
+      title: `Cancel ${title}`,
+      message: `${title} is billed through ${
+        platform === 2 ? 'the App Store' : 'Google Play'
+      }, so it's cancelled there.`,
+      confirmText: `Open ${platform === 2 ? 'App Store' : 'Google Play'}`,
+      tone: 'info',
+      icon: 'storefront',
+    });
+    if (ok) openStoreSubscriptions(platform);
+    return;
+  }
+  const ok = await Dialogx.confirm({
+    title: `Cancel ${title}?`,
+    message: pastDue
+      ? `Your ${title} renewal failed. Cancelling stops further payment attempts and ends the plan.`
+      : `You'll keep ${title} until ${formatDate(
+          sub?.end_date,
+        )}. After that it won't renew and you won't be charged again.`,
+    confirmText: 'Cancel plan',
+    cancelText: `Keep ${title}`,
+    destructive: true,
+    icon: 'close-circle',
+  });
+  if (!ok) return;
+  const res = await gatewayCall('cancel-subscription', sub?.id);
+  if (res?.code !== 200) {
+    explainFailure(res, "Couldn't cancel your plan");
+    return;
+  }
+  const fresh = await cacheStorage
+    .getCurrentUserProfile(true)
+    .catch(() => null);
+  if (fresh) onChanged(fresh);
+  markNoticeAlreadyShown('subscription_cancel_scheduled');
+  Dialogx.alert(
+    `${title} won't renew`,
+    res?.message ??
+      `You'll keep ${title} until the end of this billing period.`,
+    [{ text: 'OK' }],
+    { tone: 'info', icon: 'calendar' },
+  );
+}
+
 /**
  * The user's plan in Settings: what they have, when it renews or ends, how it's
  * billed, and every action on it (cancel / keep, fix a failed payment, manage
@@ -60,16 +171,16 @@ export function SubscriptionCard({
   const s = useMemo(() => createStyles(colors), [colors]);
   const [busy, setBusy] = useState<string | null>(null);
 
-  const sub = profile?.subscription ?? null;
   const state = help.getSubscriptionState(profile);
-  const platform = Number(sub?.platform ?? 0);
+  const {
+    sub,
+    platform,
+    pastDue,
+    cancelPending,
+    tier: tierForTitle,
+    title,
+  } = describePlan(profile);
   const isStripe = platform === 1;
-  const pastDue = sub?.status === 'past_due';
-  const cancelPending = Boolean(sub?.cancel_at_period_end);
-  const tierForTitle = pastDue
-    ? String(sub?.product_name ?? '').toLowerCase()
-    : state.tier;
-  const title = planTitle(tierForTitle, sub?.product_name);
 
   const refresh = async () => {
     const fresh = await cacheStorage
@@ -81,46 +192,10 @@ export function SubscriptionCard({
   const callGateway = async (action: string) => {
     setBusy(action);
     try {
-      const res: any = await _http_request({
-        customApiUrl: `${__CONFIG__.HTTPS_API_DOMAIN}/api/secure/gateway/${action}`,
-        reqType: 'POST',
-        bodyArray: { subscriptionId: sub?.id },
-      });
-      return res;
+      return await gatewayCall(action, sub?.id);
     } finally {
       setBusy(null);
     }
-  };
-
-  const explainFailure = (res: any, fallbackTitle: string) => {
-    Alert.alert(
-      res?.reason === 'manage_in_store'
-        ? 'Managed by your app store'
-        : fallbackTitle,
-      res?.message ??
-        "We couldn't reach our payment provider. Check your connection and try again.",
-    );
-  };
-
-  const cancelPlan = () => {
-    Alert.alert(
-      `Cancel ${title}?`,
-      `You'll keep ${title} until ${formatDate(
-        sub?.end_date,
-      )}. After that it won't renew and you won't be charged again.`,
-      [
-        { text: `Keep ${title}`, style: 'cancel' },
-        {
-          text: 'Cancel plan',
-          style: 'destructive',
-          onPress: async () => {
-            const res = await callGateway('cancel-subscription');
-            if (res?.code === 200) await refresh();
-            else explainFailure(res, "Couldn't cancel your plan");
-          },
-        },
-      ],
-    );
   };
 
   const resumePlan = async () => {
@@ -133,19 +208,6 @@ export function SubscriptionCard({
     const res = await callGateway('manage-billing');
     if (res?.code === 301 && res?.url) openPaymentPage(res.url);
     else explainFailure(res, "Couldn't open billing");
-  };
-
-  const openStoreSubscriptions = () => {
-    Linking.openURL(
-      platform === 2 || Platform.OS === 'ios'
-        ? 'https://apps.apple.com/account/subscriptions'
-        : 'https://play.google.com/store/account/subscriptions',
-    ).catch(() =>
-      Alert.alert(
-        "Couldn't open your subscriptions",
-        'Open your app store and go to Subscriptions.',
-      ),
-    );
   };
 
   // ── Free: no plan ─────────────────────────────────────────────────────────
@@ -265,7 +327,7 @@ export function SubscriptionCard({
             colors={colors}
             icon="open-outline"
             label={`Manage in ${platform === 2 ? 'App Store' : 'Google Play'}`}
-            onPress={openStoreSubscriptions}
+            onPress={() => openStoreSubscriptions(platform)}
           />
         ) : (
           <>
@@ -313,17 +375,6 @@ export function SubscriptionCard({
                 label="Billing & invoices"
                 busy={busy === 'manage-billing'}
                 onPress={manageBilling}
-              />
-            )}
-            {!cancelPending && (
-              <ActionButton
-                s={s}
-                colors={colors}
-                danger
-                icon="close-circle-outline"
-                label="Cancel plan"
-                busy={busy === 'cancel-subscription'}
-                onPress={cancelPlan}
               />
             )}
           </>

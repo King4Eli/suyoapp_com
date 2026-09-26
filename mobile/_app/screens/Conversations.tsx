@@ -10,7 +10,6 @@ import {
   Text,
   Pressable,
   TextInput,
-  Alert,
   FlatList,
   Platform,
   TouchableOpacity,
@@ -20,6 +19,7 @@ import {
   ImageBackground,
   Animated,
 } from 'react-native';
+import { Dialogx } from '../funcs/customDialog';
 import {
   Loaderx,
   bottomsheet_renderBackdrop,
@@ -212,23 +212,6 @@ const REPORT_REASONS = [
   'Privacy Violation',
   'Other',
 ];
-
-const confirmAlert = (title: string, message: string, confirmText: string) =>
-  new Promise<boolean>(resolve => {
-    Alert.alert(
-      title,
-      message,
-      [
-        { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-        {
-          text: confirmText,
-          style: 'destructive',
-          onPress: () => resolve(true),
-        },
-      ],
-      { cancelable: true, onDismiss: () => resolve(false) },
-    );
-  });
 
 type ConvoToolsSheetProps = {
   user: any;
@@ -973,10 +956,15 @@ export function Screen_conversation({
         },
       );
       if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-        Toastx.show({
-          message: 'Microphone permission is required to record.',
-          type: 'info',
-        });
+        Dialogx.alert(
+          'Microphone access needed',
+          'Allow microphone access in your phone settings to send voice notes.',
+          [
+            { text: 'Not now', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() },
+          ],
+          { tone: 'warning', icon: 'mic-off' },
+        );
         return false;
       }
       return true;
@@ -1081,10 +1069,15 @@ export function Screen_conversation({
       autoStopRecordingRef.current = false;
 
       if (error?.message?.includes('permission')) {
-        Toastx.show({
-          message: 'Microphone permission required',
-          type: 'error',
-        });
+        Dialogx.alert(
+          'Microphone access needed',
+          'Allow microphone access in your phone settings to send voice notes.',
+          [
+            { text: 'Not now', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() },
+          ],
+          { tone: 'warning', icon: 'mic-off' },
+        );
       } else {
         Toastx.show({
           message: 'Unable to start recording',
@@ -1189,7 +1182,13 @@ export function Screen_conversation({
     matchId: route.params?.matchId,
     // match_status: 2=notinterested (unmatch), 3=block, 4=reported -- all three drop
     // the chat from both users' lists and stop further messages (pushConversation.js).
-    endMatch: async (matchStatus: 2 | 3 | 4, doneMessage: string) => {
+    // doneTitle/doneMessage: shown as a dialog for reports (worth acknowledging),
+    // a toast otherwise.
+    endMatch: async (
+      matchStatus: 2 | 3 | 4,
+      doneMessage: string,
+      doneTitle?: string,
+    ) => {
       Loaderx.show();
       try {
         const response = await _http_request({
@@ -1203,34 +1202,48 @@ export function Screen_conversation({
           },
         });
         if (response?.code !== 200) {
-          Toastx.show({
-            type: 'info',
-            message: response?.message ?? 'Something went wrong, try again.',
-          });
+          Dialogx.alert(
+            "That didn't work",
+            response?.message ?? 'Something went wrong, please try again.',
+            undefined,
+            { tone: 'error' },
+          );
           return;
         }
         chatsBadge.refresh();
         bottomSheet_convotools?.ref?.current?.close();
-        Toastx.show({ type: 'success', message: doneMessage });
+        if (doneTitle) {
+          Dialogx.alert(doneTitle, doneMessage, [{ text: 'OK' }], {
+            tone: 'success',
+            icon: 'shield-checkmark',
+          });
+        } else {
+          Toastx.show({ type: 'success', message: doneMessage });
+        }
         navigation.goBack();
       } finally {
         Loaderx.hide();
       }
     },
     unmatch: async () => {
-      const ok = await confirmAlert(
-        'Unmatch?',
-        "You'll lose this conversation and won't be able to message each other again.",
-        'Unmatch',
-      );
+      const ok = await Dialogx.confirm({
+        title: 'Unmatch?',
+        message:
+          "You'll lose this conversation and won't be able to message each other again.",
+        confirmText: 'Unmatch',
+        destructive: true,
+        icon: 'heart-dislike',
+      });
       if (ok) await funt.endMatch(2, 'Unmatched');
     },
     block: async () => {
-      const ok = await confirmAlert(
-        'Block this person?',
-        "They won't be able to see your profile or message you again.",
-        'Block',
-      );
+      const ok = await Dialogx.confirm({
+        title: 'Block this person?',
+        message: "They won't be able to see your profile or message you again.",
+        confirmText: 'Block',
+        destructive: true,
+        icon: 'ban',
+      });
       if (ok) await funt.endMatch(3, 'User blocked');
     },
     report: async (reason: string) => {
@@ -1241,13 +1254,19 @@ export function Screen_conversation({
       });
       Loaderx.hide();
       if (!reported) {
-        Toastx.show({
-          type: 'info',
-          message: "Couldn't send your report, try again.",
-        });
+        Dialogx.alert(
+          "Couldn't send your report",
+          'Please check your connection and try again.',
+          undefined,
+          { tone: 'error' },
+        );
         return;
       }
-      await funt.endMatch(4, 'Thanks — your report was sent');
+      await funt.endMatch(
+        4,
+        'Our safety team will review it. This match has been removed from your chats.',
+        'Thanks for reporting',
+      );
     },
 
     isLocalFile: (item: any) => {
@@ -1413,7 +1432,12 @@ export function Screen_conversation({
 
             navigationRef.setParams({ matchId: funt.matchId });
           } else if (response !== null) {
-            Alert.alert('Error!', response?.message);
+            Dialogx.alert(
+              "Couldn't load this chat",
+              response?.message ?? 'Please try again.',
+              undefined,
+              { tone: 'error' },
+            );
             logReport({
               type: 'http -' + response.code,
               useraction: 'getConversation',
@@ -1829,7 +1853,7 @@ export function Screen_conversation({
   const deleteMessage = (item: convoInterface) => {
     if (!item.fromMe || item.type === 'deleted') return;
 
-    Alert.alert('Delete this message?', "This can't be undone.", [
+    Dialogx.alert('Delete this message?', "This can't be undone.", [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
