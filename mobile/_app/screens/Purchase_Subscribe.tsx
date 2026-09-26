@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  Linking,
   Animated,
   Platform,
 } from 'react-native';
@@ -22,6 +21,10 @@ import {
   bottomsheet_renderBackdrop,
 } from '../funcs/functions_stateful';
 import { purchaseNative } from '../funcs/iap';
+import {
+  openPaymentPage,
+  presentCheckoutError,
+} from '../funcs/functions/paymentNotices';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { namer, styles, __CONFIG__ } from '../funcs/static';
@@ -182,14 +185,9 @@ export const Screen_PurchaseSubscribe = ({
     });
     Loaderx.hide();
     if (res?.code === 301 && res?.type === 'external' && res?.url) {
-      Linking.openURL(res.url).catch(() => {
-        Alert.alert(
-          'Payment Error',
-          'Unable to open payment page. Please try again.',
-        );
-      });
+      openPaymentPage(res.url);
     } else {
-      Alert.alert('Payment Error', res?.message ?? 'There has been an error.');
+      presentCheckoutError(res);
     }
   };
 

@@ -21,7 +21,7 @@ export default async function getEntitlement() {
   try {
     const subscription = await getActiveSubscription(sessions.currentUserID);
     response.subscription = subscription;
-    response.hasActiveSubscription = subscription !== null;
+    response.hasActiveSubscription = subscription?.status === "active";
     response.entitlements = await getEntitlements(sessions.currentUserID);
   } catch (err) {
     tools.serverLog(`Error in getEntitlement: ${err}`, "getEntitlement-0");

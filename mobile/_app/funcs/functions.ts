@@ -27,6 +27,10 @@ import {
 } from './functions/httpRequest';
 import { cacheStorage } from './functions/llstorage';
 import { reportUser } from './functions/reportUser';
+import {
+  checkPaymentNotices,
+  followCheckoutReturn,
+} from './functions/paymentNotices';
 
 export { cacheStorage };
 export { xxa_logggingReport as logReport };
@@ -211,6 +215,8 @@ export const help = {
   },
 };
 
+let paymentNoticeWatcher: { remove: () => void } | null = null;
+
 export const __init__app = async (): Promise<void> => {
   // get mapper (public -- no session needed)
   await cacheStorage.CONFIG.getMapper();
@@ -238,6 +244,15 @@ export const __init__app = async (): Promise<void> => {
   // pending likes / unread chats counts for the bottom tab badges
   likesBadge.refresh();
   chatsBadge.refresh();
+
+  // payment events that happened while the app was closed (renewals, failed
+  // payments, refunds...), and again whenever it comes back to the foreground
+  checkPaymentNotices();
+  if (!paymentNoticeWatcher) {
+    paymentNoticeWatcher = AppState.addEventListener('change', state => {
+      if (state === 'active') checkPaymentNotices();
+    });
+  }
 
   // 111111
   // update location -- gated so a re-launch in the same neighborhood doesn't
@@ -342,6 +357,10 @@ export const __init__app = async (): Promise<void> => {
               },
             });
           }
+        } else if (data.event === 'payment-event') {
+          // Emitted by the Stripe webhook (api global/paymentNotices.js). Fetched
+          // rather than shown from the payload so it's marked seen server-side.
+          checkPaymentNotices();
         } else if (data.event === 'message-deleted') {
           // Emitted by pushDeleteMessage.js -- a deleted unread last message no longer counts as unread.
           chatsBadge.refresh();
@@ -386,47 +405,6 @@ export const __init__app = async (): Promise<void> => {
   })();
 };
 
-// Cold-start deep links (Linking.getInitialURL) can fire before <NavigationContainer>
-// has mounted, so navigationRef.isReady() is briefly false — poll instead of busy-looping
-// or checking once. Never call navigate/resetRoot while isReady() is false; it will throw.
-async function waitForNavigationReady(
-  timeoutMs = 4000,
-  intervalMs = 100,
-): Promise<boolean> {
-  const start = Date.now();
-  while (!navigationRef.isReady()) {
-    if (Date.now() - start >= timeoutMs) return false;
-    await new Promise<void>(resolve => setTimeout(() => resolve(), intervalMs));
-  }
-  return true;
-}
-
-// Stripe's webhook can land a moment after the success redirect, so poll the
-// lightweight entitlement endpoint briefly instead of trusting a single profile refetch.
-async function waitForEntitlementRefresh(
-  maxAttempts = 5,
-  delayMs = 2000,
-): Promise<boolean> {
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      const entitlement = await xxa__http_requests({
-        customApiUrl:
-          __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getEntitlement',
-        reqType: 'POST',
-      });
-      if (entitlement?.hasActiveSubscription) {
-        return true;
-      }
-    } catch (error) {
-      console.error('Entitlement refresh check failed:', error);
-    }
-    if (attempt < maxAttempts) {
-      await new Promise<void>(resolve => setTimeout(() => resolve(), delayMs));
-    }
-  }
-  return false;
-}
-
 export function handleDeepLink(url: string) {
   if (!url) return;
 
@@ -437,43 +415,39 @@ export function handleDeepLink(url: string) {
     // clean path
     const path = rawPath.split('?')[0].replace(/\/$/, '') || '/';
 
+    const query = rawPath.split('?')[1] ?? '';
+    const paymentId =
+      query
+        .split('&')
+        .map(pair => pair.split('='))
+        .find(([key]) => key === 'pid')?.[1] ?? null;
+
+    // Checkout returns: each shows what actually happened to that payment (see
+    // functions/paymentNotices.ts), not a blanket "payment successful".
     const paymentRoutes: Record<string, () => void> = {
-      '/payment/success': async () => {
+      '/payment/success': () => {
         Toastx.show({
-          type: 'success',
-          message: 'Payment successful — your plan is now active',
-          duration: 8000,
+          type: 'info',
+          title: 'Confirming your payment…',
+          message: 'Hang tight, this only takes a moment.',
+          duration: 4000,
         });
-
-        // Give the Stripe webhook a chance to land before pulling the fresh profile,
-        // since the checkout redirect can beat the webhook to our server.
-        await waitForEntitlementRefresh();
-
-        await Promise.all([
-          cacheStorage.getCurrentUserProfile(true),
-          cacheStorage.getProducts(true),
-        ]);
-
-        if (await waitForNavigationReady()) {
-          navigationRef.resetRoot({
-            index: 0,
-            routes: [
-              {
-                name: namer.navigation.home,
-                state: {
-                  routes: [{ name: namer.navigation.profile }],
-                },
-              },
-            ],
-          });
-        }
+        followCheckoutReturn(paymentId ? decodeURIComponent(paymentId) : null);
       },
       '/payment/cancelled': () => {
         Toastx.show({
           type: 'info',
-          message: 'Payment cancelled — no charge was made',
-          duration: 9000,
+          title: 'Checkout cancelled',
+          message:
+            "You weren't charged. You can pick up where you left off anytime.",
+          duration: 7000,
         });
+      },
+      '/payment/billing': () => {
+        // Back from Stripe's billing portal -- a card update may have retried a
+        // failed renewal, so pick up whatever that produced.
+        checkPaymentNotices();
+        cacheStorage.getCurrentUserProfile(true).catch(() => {});
       },
     };
 

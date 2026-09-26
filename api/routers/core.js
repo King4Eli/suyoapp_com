@@ -19,6 +19,8 @@ import pushDevice from "./core/pushDevice.js";
 import handleFileUpload from "./core/handleFileUpload.js";
 import getProducts from "./core/getProducts.js";
 import getPaymentHistory from "./core/getPaymentHistory.js";
+import getPaymentStatus from "./core/getPaymentStatus.js";
+import getPaymentNotices from "./core/getPaymentNotices.js";
 import getInterests from "./core/getInterests.js";
 import getPrompts from "./core/getPrompts.js";
 import getReligions from "./core/getReligions.js";
@@ -173,6 +175,14 @@ core_router.post("/:action", async (req, res) => {
         req.app.get("io"),
       );
       return res.json(direct);
+    }
+    case "getPaymentStatus": {
+      const status = await getPaymentStatus({ paymentId: req.body?.paymentId });
+      return res.json(status);
+    }
+    case "getPaymentNotices": {
+      const notices = await getPaymentNotices();
+      return res.json(notices);
     }
     case "pushRewindMatch": {
       const rewound = await pushRewindMatch({ matchId: req.body?.matchId });
