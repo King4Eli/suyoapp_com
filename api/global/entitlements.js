@@ -105,6 +105,13 @@ export async function getActiveSubscription(userId) {
 // VIP is a superset of Plus, which is a superset of Free.
 export const TIERS = /** @type {const} */ (["free", "plus", "vip"]);
 
+// ── Plan policy ─────────────────────────────────────────────────────────────
+// The one place that says what each subscription tier may do. Every server-side
+// gate reads from here (via getEntitlements / hasFeature) -- never compare tier
+// names inline in a router, and never trust the client's idea of the plan.
+// VIP is a superset of Plus, which is a superset of Free.
+export const TIERS = /** @type {const} */ (["free", "plus", "vip"]);
+
 /**
  * @typedef {typeof TIERS[number]} Tier
  * @typedef {{
