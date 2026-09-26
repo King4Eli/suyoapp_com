@@ -3,6 +3,7 @@ import { db } from "../../db/client.js";
 import { matches } from "../../db/schema.js";
 import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
+import { pushBadgeCounts } from "../../global/badges.js";
 import { hasFeature } from "../../global/entitlements.js";
 
 /**
@@ -11,8 +12,9 @@ import { hasFeature } from "../../global/entitlements.js";
  * users buy a one-time rewind instead, which the payment webhook applies with the
  * same UPDATE (router_hook.js, category "rewind").
  * @param {{ matchId?: string }} data
+ * @param {import("socket.io").Server} [io]
  */
-export default async function pushRewindMatch(data) {
+export default async function pushRewindMatch(data, io) {
   /** @type {any} */
   const response = { code: 400, message: "Missing match." };
   try {
@@ -43,6 +45,7 @@ export default async function pushRewindMatch(data) {
     }
     response.code = 200;
     response.message = "Match rewound";
+    pushBadgeCounts(io, sessions.currentUserID);
   } catch (err) {
     tools.serverLog(`Error in pushRewindMatch: ${err}`, "pushRewindMatch-1");
     response.code = 500;

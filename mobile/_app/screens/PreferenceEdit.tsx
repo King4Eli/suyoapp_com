@@ -325,6 +325,45 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
     />
   );
 
+  // One card per kind of premium filter (lifestyle, background, education).
+  // Locked plans still see what's in each card -- dimmed, with a lock chip --
+  // and tapping it goes to plans. The server ignores these filters for plans
+  // without them regardless (api getPeopleToMatch paidFilter).
+  const renderPremiumGroup = (
+    title: string,
+    icon: string,
+    children: React.ReactNode,
+  ) => (
+    <View style={localStyles.premiumGroup}>
+      <View style={localStyles.premiumGroupHeader}>
+        <View style={localStyles.premiumGroupIcon}>
+          <IIcon name={icon} size={16} color={colors.primary} />
+        </View>
+        <Text style={localStyles.premiumGroupTitle}>{title}</Text>
+        {!hasPremium && (
+          <View style={localStyles.premiumBadge}>
+            <IIcon name="lock-closed" size={11} color="#9a3412" />
+            <Text style={localStyles.premiumBadgeText}>Premium</Text>
+          </View>
+        )}
+      </View>
+      <Pressable
+        disabled={hasPremium}
+        onPress={() => navigation.push(namer.navigation.subscription)}
+      >
+        <View
+          pointerEvents={hasPremium ? 'auto' : 'none'}
+          style={[
+            localStyles.groupInner,
+            !hasPremium && localStyles.moreDisabledBlock,
+          ]}
+        >
+          {children}
+        </View>
+      </Pressable>
+    </View>
+  );
+
   return (
     <SafeAreaView
       style={[styles.container, localStyles.root, {}]}
@@ -470,14 +509,10 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
             </View>
           ) : null}
 
-          <View
-            pointerEvents={hasPremium ? 'auto' : 'none'}
-            style={[
-              localStyles.group,
-              !hasPremium && localStyles.moreDisabledBlock,
-            ]}
-          >
-            <View style={localStyles.groupInner}>
+          {renderPremiumGroup(
+            'Lifestyle',
+            'leaf-outline',
+            <>
               {renderRadioAccordion(
                 'Should they have kids?',
                 preferences.children,
@@ -497,16 +532,24 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
                 id => setPreferences(prev => ({ ...prev, smoking: id })),
               )}
               {renderRadioAccordion(
-                'Preferred ethnicity?',
-                preferences.ethnicity,
-                radioButtons.getEthnicity,
-                id => setPreferences(prev => ({ ...prev, ethnicity: id })),
-              )}
-              {renderRadioAccordion(
                 'Should they have pet(s)?',
                 preferences.pets,
                 radioButtons.getPets,
                 id => setPreferences(prev => ({ ...prev, pets: id })),
+                undefined,
+                true,
+              )}
+            </>,
+          )}
+          {renderPremiumGroup(
+            'Background & beliefs',
+            'earth-outline',
+            <>
+              {renderRadioAccordion(
+                'Preferred ethnicity?',
+                preferences.ethnicity,
+                radioButtons.getEthnicity,
+                id => setPreferences(prev => ({ ...prev, ethnicity: id })),
               )}
               {renderRadioAccordion(
                 'Preferred religion?',
@@ -519,7 +562,15 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
                 preferences.politicalview,
                 radioButtons.getPoliticalView,
                 id => setPreferences(prev => ({ ...prev, politicalview: id })),
+                undefined,
+                true,
               )}
+            </>,
+          )}
+          {renderPremiumGroup(
+            'Education & language',
+            'school-outline',
+            <>
               {renderRadioAccordion(
                 'Preferred highest education?',
                 preferences.highEducation,
@@ -534,8 +585,8 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
                 undefined,
                 true,
               )}
-            </View>
-          </View>
+            </>,
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -672,6 +723,33 @@ function createLocalStyles(colors: ThemeColors) {
       alignItems: 'center',
       gap: 10,
       ...elevation(colors.shadow, 1),
+    },
+    premiumGroup: {
+      borderRadius: 14,
+      backgroundColor: colors.surface,
+      paddingTop: 12,
+      ...elevation(colors.shadow, 1),
+    },
+    premiumGroupHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingHorizontal: 12,
+      paddingBottom: 6,
+    },
+    premiumGroupIcon: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primarySoft,
+    },
+    premiumGroupTitle: {
+      flex: 1,
+      fontSize: 15.5,
+      fontWeight: '700',
+      color: colors.text,
     },
     moreDisabledBlock: {
       opacity: 0.5,

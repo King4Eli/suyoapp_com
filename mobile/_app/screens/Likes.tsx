@@ -96,7 +96,8 @@ export function Screen_likes({ navigation }: { navigation: any }) {
 
   // keep the Likes tab badge in step with the list shown here
   useEffect(() => {
-    if (Array.isArray(getNewLikes)) likesBadge.set(getNewLikes.length);
+    // The list is only a teaser for free plans, so the badge comes from the server.
+    if (Array.isArray(getNewLikes)) likesBadge.refresh();
   }, [getNewLikes]);
 
   // profile

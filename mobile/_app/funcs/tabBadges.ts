@@ -2,9 +2,11 @@ import { useSyncExternalStore } from 'react';
 import { __CONFIG__ } from './static';
 import { _http_request } from './functions';
 
-// Counts shown as bottom-tab badges. Each store refetches its own endpoint on
-// refresh(); screens that already hold the list call set() directly instead.
-function createBadgeStore(endpoint: string, countFrom: (response: any) => any) {
+// Counts shown as bottom-tab badges. The server pushes changes over the socket
+// ("badge-counts", see api global/badges.js); refresh() pulls both counts from
+// one small endpoint on launch/foreground or after a local action. Counts are
+// capped at 10 by the server -- the tab shows "9+" beyond 9.
+function createBadgeStore() {
   let count = 0;
   const subscribers = new Set<() => void>();
 
@@ -16,18 +18,7 @@ function createBadgeStore(endpoint: string, countFrom: (response: any) => any) {
       count = next;
       subscribers.forEach(notify => notify());
     },
-    async refresh() {
-      try {
-        const response: any = await _http_request({
-          reqType: 'POST',
-          customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + endpoint,
-        });
-        const next = countFrom(response);
-        if (Number.isFinite(next)) store.set(next);
-      } catch (error: any) {
-        console.error(`badge refresh ${endpoint} failed:`, error?.message);
-      }
-    },
+    refresh: () => refreshBadgeCounts(),
     subscribe(notify: () => void) {
       subscribers.add(notify);
       return () => {
@@ -45,15 +36,37 @@ export const countUnreadChats = (withmessages: any) =>
     : NaN;
 
 // people who liked/superliked the current user and are still waiting on a response
-export const likesBadge = createBadgeStore('/api/core/v1/getLikes', response =>
-  Array.isArray(response?.likedlist) ? response.likedlist.length : NaN,
-);
+export const likesBadge = createBadgeStore();
 
 // conversations whose last message is from the other person and unread
-export const chatsBadge = createBadgeStore(
-  '/api/core/v1/getChatLists',
-  response => countUnreadChats(response?.chatsListings?.withmessages),
-);
+export const chatsBadge = createBadgeStore();
+
+/** Applies counts from getBadgeCounts or a "badge-counts" socket push. */
+export function applyBadgeCounts(counts: { likes?: number; chats?: number }) {
+  if (Number.isFinite(counts?.likes)) likesBadge.set(Number(counts.likes));
+  if (Number.isFinite(counts?.chats)) chatsBadge.set(Number(counts.chats));
+}
+
+// Both badges come from one request; calls made while one is in flight share it.
+let inFlight: Promise<void> | null = null;
+export function refreshBadgeCounts(): Promise<void> {
+  if (inFlight) return inFlight;
+  inFlight = (async () => {
+    try {
+      const response: any = await _http_request({
+        reqType: 'POST',
+        customApiUrl:
+          __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getBadgeCounts',
+      });
+      if (response?.code === 200) applyBadgeCounts(response);
+    } catch (error: any) {
+      console.error('badge refresh failed:', error?.message);
+    } finally {
+      inFlight = null;
+    }
+  })();
+  return inFlight;
+}
 
 export const useBadgeCount = (store: typeof likesBadge) =>
   useSyncExternalStore(store.subscribe, store.get);

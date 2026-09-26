@@ -3,6 +3,7 @@ import { db } from "../../db/client.js";
 import { conversations, matches } from "../../db/schema.js";
 import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
+import { pushBadgeCounts } from "../../global/badges.js";
 
 /**
  * `allowPending` is internal-only (pushDirectMessage): the router never passes it,
@@ -199,6 +200,8 @@ export default async function pushConversation(
           "pushConversation-200",
         );
       }
+      // The recipient's Chats badge (unless they read it live, above).
+      pushBadgeCounts(io, recipientID);
     }
   } catch (err) {
     tools.serverLog(

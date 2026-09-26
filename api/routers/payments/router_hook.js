@@ -15,6 +15,7 @@ import {
   grantRoses,
 } from "../../global/entitlements.js";
 import { stripe_gateway, tools } from "../../global/functions.js";
+import { pushBadgeCounts } from "../../global/badges.js";
 import {
   createPaymentNotice,
   describeVariant,
@@ -501,6 +502,7 @@ async function activateCheckout(session, ctx, io) {
     return { success: true };
   }
 
+  if (described.category === "rewind") pushBadgeCounts(io, ctx.userId);
   await createPaymentNotice(
     io,
     ctx.userId,

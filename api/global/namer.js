@@ -6,6 +6,8 @@ export const namer = {
     mapper: "mapper:lookup",
     streak: "streak:",
     streakReward: "streak:reward:",
+    badgesLast: "badges:last:",
+    verifyPose: "verify:pose:",
   },
   ratelimit: {
     login_ip: "ratelimit:login:ip:",
