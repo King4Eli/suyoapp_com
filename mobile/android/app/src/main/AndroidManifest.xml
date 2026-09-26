@@ -39,6 +39,7 @@
             
             <data android:scheme="https" android:host="suyoapp.com" android:pathPrefix="/payment/success" />
             <data android:scheme="https" android:host="suyoapp.com" android:pathPrefix="/payment/cancelled" />
+            <data android:scheme="https" android:host="suyoapp.com" android:pathPrefix="/payment/billing" />
         </intent-filter>
       </activity>
 

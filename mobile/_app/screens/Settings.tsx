@@ -38,6 +38,7 @@ import { Toastx } from '../funcs/customNotification';
 import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
 import { bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import { useTheme, ThemeMode, ThemeColors } from '../funcs/theme';
+import { SubscriptionCard } from '../funcs/customSubscriptionCard';
 
 export function Screen_settings({ navigation }: { navigation: any }) {
   const [getProfile, setProfile] = useState<any>(null);
@@ -53,13 +54,10 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   const [notifyEmailEnabled, setNotifyEmailEnabled] = useState(true);
 
   const subscriptionState = help.getSubscriptionState(getProfile);
-  const activeSubscription = subscriptionState.hasActive;
   const profileDetails = getProfile?.profile ?? {};
   const profileEmail = profileDetails?.email ?? getProfile?.user_email ?? '';
   const profilePhone =
     profileDetails?.phonenumber ?? getProfile?.user_phonenumber ?? '';
-  const profileName =
-    profileDetails?.fullname ?? getProfile?.user_fullname ?? 'User';
 
   // Bottom sheet refs with larger snap points for keyboard
   const bottomSheetRef_push = {
@@ -90,6 +88,17 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     pushEnabled: true,
     emailEnabled: true,
   };
+
+  // Plan changes (checkout, renewal, cancel) refresh the cached profile elsewhere;
+  // pick them up whenever Settings comes back into view.
+  useEffect(() => {
+    return navigation.addListener('focus', () => {
+      cacheStorage
+        .getCurrentUserProfile()
+        .then((profile: any) => profile && setProfile(profile))
+        .catch(() => {});
+    });
+  }, [navigation]);
 
   useEffect(() => {
     let mounted = true;
@@ -264,47 +273,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
       });
     }
   };
-
-  // Profile header with modern design
-  const ProfileHeader = () => (
-    <View
-      style={{
-        backgroundColor: colors.primary,
-        padding: 10,
-        marginTop: 2,
-        borderRadius: 15,
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
-      }}
-    >
-      <View style={modernStyles.avatarContainer}>
-        <View style={modernStyles.avatar}>
-          <Text style={modernStyles.avatarText}>
-            {profileName?.charAt(0) || 'U'}
-          </Text>
-        </View>
-        {activeSubscription && (
-          <View style={modernStyles.premiumBadge}>
-            <Feather name="star" size={12} color="#FFF" />
-          </View>
-        )}
-      </View>
-      <View style={modernStyles.profileDetails}>
-        <Text
-          style={{
-            fontSize: 22,
-            fontWeight: 'bold',
-            color: '#FFFFFF',
-            marginBottom: 4,
-            textTransform: 'capitalize',
-          }}
-        >
-          {profileName}
-        </Text>
-      </View>
-    </View>
-  );
 
   // Modern card component
   const ModernCard = ({ children, style }: any) => (
@@ -1176,7 +1144,11 @@ export function Screen_settings({ navigation }: { navigation: any }) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.conainerScrollView}
         >
-          <ProfileHeader />
+          <SubscriptionCard
+            profile={getProfile}
+            navigation={navigation}
+            onChanged={setProfile}
+          />
 
           <View style={[{ paddingVertical: 20 }]}>
             {/* Quick Actions */}
@@ -1652,41 +1624,6 @@ function createModernStyles(colors: ThemeColors) {
     stepDotActive: {
       backgroundColor: colors.primary,
       width: 12,
-    },
-    avatarContainer: {
-      position: 'relative',
-    },
-    avatar: {
-      width: 70,
-      height: 70,
-      borderRadius: 35,
-      backgroundColor: 'rgba(255, 255, 255, 0.2)',
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 3,
-      borderColor: 'rgba(255, 255, 255, 0.3)',
-    },
-    avatarText: {
-      fontSize: 28,
-      fontWeight: 'bold',
-      color: '#FFFFFF',
-    },
-    premiumBadge: {
-      position: 'absolute',
-      bottom: -2,
-      right: -2,
-      backgroundColor: colors.premium,
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 2,
-      borderColor: '#FFFFFF',
-    },
-    profileDetails: {
-      marginLeft: 16,
-      flex: 1,
     },
     profileSubtitle: {
       fontSize: 14,

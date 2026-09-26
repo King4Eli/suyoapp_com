@@ -5,6 +5,7 @@ import {
   date,
   decimal,
   double,
+  index,
   int,
   json,
   longtext,
@@ -268,13 +269,35 @@ export const matches = mysqlTable("matches", {
     .default(sql`(unix_timestamp())`),
 });
 
+// What happened with a user's payment/subscription, in words written for them --
+// one row per event (activated, renewed, renewal failed, refunded, ...). The app
+// pulls unseen rows (getPaymentNotices) and is also pinged live over the socket.
+// See global/paymentNotices.js for the event kinds and their wording.
+export const userPaymentNotices = mysqlTable(
+  "user_payment_notices",
+  {
+    id: varchar("id", { length: 50 }).primaryKey().notNull(),
+    userId: varchar("user_id", { length: 50 }).notNull(),
+    kind: varchar("kind", { length: 40 }).notNull(),
+    // success | info | warning | error -- how the app should present it
+    tone: varchar("tone", { length: 10 }).notNull().default("info"),
+    title: varchar("title", { length: 120 }).notNull(),
+    body: varchar("body", { length: 500 }).notNull(),
+    paymentId: varchar("payment_id", { length: 50 }),
+    seen: tinyint("seen").notNull().default(0),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("user_payment_notices_user_seen").on(t.userId, t.seen)],
+);
+
 export const payments = mysqlTable("payments", {
   paymentId: varchar("payment_id", { length: 50 }).primaryKey().notNull(),
   pAmount: decimal("p_amount", { precision: 10, scale: 2 }).notNull(),
   pCurrency: varchar("p_currency", { length: 10 }).default("USD"),
   // 1=sub,2=onetime
   type: tinyint("type").notNull(),
-  // 0=pending, 1=completed, 2=refunded, 3=failed, 4=expired
+  // 0=pending (checkout open), 1=completed, 2=refunded, 3=failed, 4=expired,
+  // 5=processing (checkout done, bank/Cash App payment not cleared yet)
   status: tinyint("status").notNull().default(0),
   // from Stripe/PayPal/Apple/Google
   pTransactionReference: varchar("p_transaction_reference", { length: 255 }),

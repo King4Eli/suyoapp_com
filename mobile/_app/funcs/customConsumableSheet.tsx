@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Linking,
   Modal,
   Platform,
   Pressable,
@@ -18,6 +17,10 @@ import {
 } from './functions';
 import { Loaderx } from './functions_stateful';
 import { purchaseNative } from './iap';
+import {
+  openPaymentPage,
+  presentCheckoutError,
+} from './functions/paymentNotices';
 import { __CONFIG__ } from './static';
 import { useTheme, ThemeColors } from './theme';
 
@@ -46,10 +49,9 @@ export async function startWebOnetimeCheckout({
       },
     });
     if (res?.code === 301 && res?.type === 'external' && res?.url) {
-      Linking.openURL(res.url);
-      return true;
+      return openPaymentPage(res.url);
     }
-    Alert.alert('Error', res?.message || 'Purchase failed. Please try again.');
+    presentCheckoutError(res);
     return false;
   } finally {
     Loaderx.hide();

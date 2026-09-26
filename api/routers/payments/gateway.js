@@ -1,6 +1,20 @@
 import { stripe_gateway, tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
 
+// Where Stripe sends the browser after checkout. These are the website's pages,
+// which the app's verified links (AndroidManifest /payment/success|cancelled) open
+// straight into the app; `pid` lets the app look up exactly this payment's outcome.
+const RETURN_BASE_URL = (
+  process.env.PAYMENT_RETURN_BASE_URL || "https://suyoapp.com"
+).replace(/\/$/, "");
+
+// Checkout links stay valid this long; the webhook marks the payment expired after.
+const CHECKOUT_TTL_SECONDS = 60 * 60;
+
+// Bank debits and Cash App can complete checkout before the money clears -- the
+// webhook holds fulfillment until checkout.session.async_payment_succeeded.
+const PAYMENT_METHOD_TYPES = ["card", "us_bank_account", "cashapp"];
+
 function normalizedDurationFunc(cycle = -1) {
   // 1'once',2'weekly',3'biweekly',4'monthly',5'yearly',
 
@@ -32,6 +46,114 @@ function normalizedPriceFunc(price = "") {
   }
 }
 
+/**
+ * Stripe's error, as something the user can act on. Raw Stripe messages are logged,
+ * never shown -- they can mention API keys, parameters or internal ids.
+ * @param {any} err
+ * @returns {{ code: number; message: string; retryable: boolean }}
+ */
+export function describeStripeError(err) {
+  switch (err?.type) {
+    case "StripeConnectionError":
+    case "StripeAPIError":
+      return {
+        code: 503,
+        message:
+          "We couldn't reach our payment provider. Check your connection and try again.",
+        retryable: true,
+      };
+    case "StripeRateLimitError":
+      return {
+        code: 503,
+        message: "Payments are busy right now. Please try again in a minute.",
+        retryable: true,
+      };
+    case "StripeCardError":
+      return {
+        code: 402,
+        message: err?.message || "Your card was declined.",
+        retryable: false,
+      };
+    case "StripeAuthenticationError":
+    case "StripePermissionError":
+    case "StripeInvalidRequestError":
+    default:
+      return {
+        code: 502,
+        message:
+          "Payments are temporarily unavailable. We've been notified -- please try again later.",
+        retryable: false,
+      };
+  }
+}
+
+/**
+ * Creates a hosted checkout session. Retries only errors worth retrying, and uses
+ * the paymentId as idempotency key so a retry after a lost response returns the
+ * same session instead of opening a second one.
+ * @param {"subscription" | "payment"} mode
+ * @param {{ productName: string; unitAmount: number; recurring?: any; userEmail: string; metadata: Record<string, string>; paymentId: string }} opts
+ */
+async function createCheckoutSession(mode, opts) {
+  const maxRetries = 3;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const session = await stripe_gateway.checkout.sessions.create(
+        {
+          mode,
+          // @ts-ignore
+          payment_method_types: PAYMENT_METHOD_TYPES,
+          customer_email: opts.userEmail,
+          client_reference_id: sessions?.currentUserID ?? undefined,
+          line_items: [
+            {
+              price_data: {
+                currency: "usd",
+                product_data: { name: opts.productName },
+                unit_amount: opts.unitAmount,
+                ...(opts.recurring ? { recurring: opts.recurring } : {}),
+              },
+              quantity: 1,
+            },
+          ],
+          success_url: `${RETURN_BASE_URL}/payment/success?pid=${encodeURIComponent(opts.paymentId)}`,
+          cancel_url: `${RETURN_BASE_URL}/payment/cancelled?pid=${encodeURIComponent(opts.paymentId)}`,
+          expires_at: Math.floor(Date.now() / 1000) + CHECKOUT_TTL_SECONDS,
+          metadata: opts.metadata,
+          // Copied onto the subscription/payment intent so later events (renewals,
+          // refunds) can be traced back without another lookup.
+          ...(mode === "subscription"
+            ? { subscription_data: { metadata: opts.metadata } }
+            : { payment_intent_data: { metadata: opts.metadata } }),
+        },
+        { idempotencyKey: `checkout-${opts.paymentId}` },
+      );
+      if (!session?.url) {
+        tools.serverLog(
+          `Checkout session ${session?.id} created without a URL`,
+          "gateway-1",
+        );
+        return { code: 502, message: describeStripeError(null).message };
+      }
+      return { code: 301, type: "external", url: session.url };
+    } catch (stripeError) {
+      const described = describeStripeError(stripeError);
+      tools.serverLog(
+        // @ts-ignore
+        `Stripe ${mode} checkout attempt ${attempt} failed (${stripeError?.type}): ${stripeError?.message}`,
+        "gateway-2",
+      );
+      if (!described.retryable || attempt === maxRetries) {
+        return { code: described.code, message: described.message };
+      }
+      await new Promise((resolve) =>
+        setTimeout(resolve, Math.pow(2, attempt) * 500),
+      );
+    }
+  }
+  return { code: 502, message: describeStripeError(null).message };
+}
+
 export default class GatewayPay {
   static async subscribe(
     host = "",
@@ -44,152 +166,62 @@ export default class GatewayPay {
     paymentId = "",
   ) {
     try {
-      // Validate required parameters
-      if (
-        !host ||
-        !sku ||
-        !sku_variant ||
-        !userEmail ||
-        !productname ||
-        !duration ||
-        !price ||
-        !paymentId
-      ) {
+      if (!sku || !sku_variant || !productname || !price || !paymentId) {
         tools.serverLog(
-          `Subscription missing required params: host=${host ? "yes" : "no"}, sku=${sku ? "yes" : "no"}, sku_variant=${sku_variant ? "yes" : "no"}, userEmail=${userEmail ? "yes" : "no"}, productname=${productname ? "yes" : "no"}, duration=${duration ? "yes" : "no"}, price=${price ? "yes" : "no"}, paymentId=${paymentId ? "yes" : "no"}`,
+          `Subscription missing params: sku=${Boolean(sku)}, variant=${Boolean(sku_variant)}, product=${Boolean(productname)}, price=${Boolean(price)}, paymentId=${Boolean(paymentId)}`,
           "gateway-11",
         );
         return {
           code: 400,
-          message: "Missing required parameters for subscription creation.",
+          message: "This plan can't be purchased right now.",
+        };
+      }
+      if (!userEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) {
+        return {
+          code: 400,
+          reason: "email_required",
+          message:
+            "Add a valid email address in Settings before subscribing -- we send your receipts there.",
         };
       }
 
       const normalizedPrice = normalizedPriceFunc(price);
       const normalizedDurationValue = normalizedDurationFunc(duration);
-
-      if (!normalizedPrice) {
-        tools.serverLog(`Subscription invalid price: ${price}`, "gateway-7");
-        return {
-          code: 400,
-          message: "Invalid price format. Price must be a positive number.",
-        };
-      }
-
-      if (!normalizedDurationValue) {
+      if (!normalizedPrice || !normalizedDurationValue) {
         tools.serverLog(
-          `Subscription invalid duration: ${duration}`,
+          `Subscription bad price/duration: price=${price}, duration=${duration}`,
           "gateway-6",
         );
         return {
           code: 400,
-          message:
-            "Invalid duration. Supported: monthly, yearly, weekly, daily.",
+          message: "This plan can't be purchased right now.",
         };
       }
 
-      // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(userEmail)) {
-        tools.serverLog(
-          `Subscription invalid email: ${userEmail}`,
-          "gateway-8",
-        );
-        return {
-          code: 400,
-          message: "Invalid email format.",
-        };
-      }
-
-      // Create Stripe checkout session with retry logic
-      let session;
-      const maxRetries = 3;
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          // @ts-ignore
-          session = await stripe_gateway.checkout.sessions.create({
-            mode: "subscription",
-            payment_method_types: ["card", "us_bank_account", "cashapp"],
-            customer_email: userEmail,
-            line_items: [
-              {
-                price_data: {
-                  currency: "usd",
-                  product_data: {
-                    name: productname,
-                    metadata: {
-                      true_sku: sku,
-                      duration: duration,
-                      userId: sessions?.currentUserID,
-                    },
-                  },
-                  unit_amount: normalizedPrice,
-                  recurring: {
-                    interval: normalizedDurationValue.name,
-                    interval_count: normalizedDurationValue.d,
-                  },
-                },
-                quantity: 1,
-              },
-            ],
-            success_url: "http://" + host + "/api/secure/gateway/success",
-            cancel_url: "http://" + host + "/api/secure/gateway/cancel",
-            metadata: {
-              userId: sessions?.currentUserID,
-              sku: sku,
-              sku_variant,
-              type: "subscription",
-              paymentId,
-            },
-          });
-          break; // Success, exit retry loop
-        } catch (stripeError) {
-          tools.serverLog(
-            `Stripe subscription attempt ${attempt} failed: ${stripeError}`,
-            "gateway-2",
-          );
-          if (attempt === maxRetries) {
-            return {
-              code: 500,
-              // @ts-ignore
-              message: `Payment gateway error: ${stripeError.message || "Unknown Stripe error"}`,
-            };
-          }
-          // Wait before retry (exponential backoff)
-          await new Promise((resolve) =>
-            setTimeout(resolve, Math.pow(2, attempt) * 1000),
-          );
-        }
-      }
-
-      if (!session || !session.url) {
-        tools.serverLog(
-          `Subscription created no session or URL: session=${Boolean(session)}, url=${session?.url ? "yes" : "no"}`,
-          "gateway-1",
-        );
-        return {
-          code: 500,
-          message: "Failed to create payment session.",
-        };
-      }
-
-      return {
-        code: 301,
-        type: "external",
-        url: session.url,
-      };
+      return await createCheckoutSession("subscription", {
+        productName: productname,
+        unitAmount: normalizedPrice,
+        recurring: {
+          interval: normalizedDurationValue.name,
+          interval_count: normalizedDurationValue.d,
+        },
+        userEmail,
+        paymentId,
+        metadata: {
+          userId: sessions?.currentUserID ?? "",
+          sku,
+          sku_variant: String(sku_variant),
+          type: "subscription",
+          paymentId,
+          host,
+        },
+      });
     } catch (error) {
       tools.serverLog(
         `Unexpected error in subscription creation: ${error}`,
         "gateway-5",
       );
-      return {
-        code: 500,
-        // @ts-ignore
-        message:
-          error.message ||
-          "An unexpected error occurred during subscription creation.",
-      };
+      return { code: 500, message: describeStripeError(error).message };
     }
   }
 
@@ -205,28 +237,26 @@ export default class GatewayPay {
     matchId = "",
   ) {
     try {
-      // Validate required parameters
-      if (
-        !host ||
-        !sku ||
-        !sku_variant ||
-        !userEmail ||
-        !productname ||
-        !price ||
-        !paymentId
-      ) {
+      if (!sku || !sku_variant || !productname || !price || !paymentId) {
         tools.serverLog(
-          `One-time payment missing required params: host=${host ? "yes" : "no"}, sku=${sku ? "yes" : "no"}, sku_variant=${sku_variant ? "yes" : "no"}, userEmail=${userEmail ? "yes" : "no"}, productname=${productname ? "yes" : "no"}, price=${price ? "yes" : "no"}, paymentId=${paymentId ? "yes" : "no"}`,
+          `One-time payment missing params: sku=${Boolean(sku)}, variant=${Boolean(sku_variant)}, product=${Boolean(productname)}, price=${Boolean(price)}, paymentId=${Boolean(paymentId)}, duration=${duration}`,
           "gateway-0",
         );
         return {
           code: 400,
-          message: "Missing required parameters for one-time payment creation.",
+          message: "This item can't be purchased right now.",
+        };
+      }
+      if (!userEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) {
+        return {
+          code: 400,
+          reason: "email_required",
+          message:
+            "Add a valid email address in Settings before buying -- we send your receipts there.",
         };
       }
 
       const normalizedPrice = normalizedPriceFunc(price);
-
       if (!normalizedPrice) {
         tools.serverLog(
           `One-time payment invalid price: ${price}`,
@@ -234,108 +264,31 @@ export default class GatewayPay {
         );
         return {
           code: 400,
-          message: "Invalid price format. Price must be a positive number.",
+          message: "This item can't be purchased right now.",
         };
       }
 
-      // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(userEmail)) {
-        tools.serverLog(
-          `One-time payment invalid email: ${userEmail}`,
-          "gateway-0",
-        );
-        return {
-          code: 400,
-          message: "Invalid email format.",
-        };
-      }
-
-      // Create Stripe checkout session for one-time payment with retry logic
-      let session;
-      const maxRetries = 3;
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          session = await stripe_gateway.checkout.sessions.create({
-            mode: "payment",
-            payment_method_types: ["card", "us_bank_account", "cashapp"],
-            customer_email: userEmail,
-            line_items: [
-              {
-                price_data: {
-                  currency: "usd",
-                  product_data: {
-                    name: productname,
-                    metadata: {
-                      true_sku: sku,
-                      duration: duration,
-                      userId: sessions?.currentUserID,
-                    },
-                  },
-                  unit_amount: normalizedPrice,
-                },
-                quantity: 1,
-              },
-            ],
-            success_url: "http://" + host + "/api/secure/gateway/success",
-            cancel_url: "http://" + host + "/api/secure/gateway/cancel",
-            metadata: {
-              userId: sessions?.currentUserID,
-              sku: sku,
-              sku_variant,
-              type: "onetime",
-              paymentId,
-              ...(matchId ? { matchId } : {}),
-            },
-          });
-          break; // Success, exit retry loop
-        } catch (stripeError) {
-          tools.serverLog(
-            `Stripe one-time payment attempt ${attempt} failed: ${stripeError}`,
-            "gateway-0",
-          );
-          if (attempt === maxRetries) {
-            return {
-              code: 500,
-              // @ts-ignore
-              message: `Payment gateway error: ${stripeError.message || "Unknown Stripe error"}`,
-            };
-          }
-          // Wait before retry (exponential backoff)
-          await new Promise((resolve) =>
-            setTimeout(resolve, Math.pow(2, attempt) * 1000),
-          );
-        }
-      }
-
-      if (!session || !session.url) {
-        tools.serverLog(
-          `One-time payment created no session or URL: session=${Boolean(session)}, url=${session?.url ? "yes" : "no"}`,
-          "gateway-0",
-        );
-        return {
-          code: 500,
-          message: "Failed to create payment session.",
-        };
-      }
-
-      return {
-        code: 301,
-        type: "external",
-        url: session.url,
-      };
+      return await createCheckoutSession("payment", {
+        productName: productname,
+        unitAmount: normalizedPrice,
+        userEmail,
+        paymentId,
+        metadata: {
+          userId: sessions?.currentUserID ?? "",
+          sku,
+          sku_variant: String(sku_variant),
+          type: "onetime",
+          paymentId,
+          host,
+          ...(matchId ? { matchId } : {}),
+        },
+      });
     } catch (error) {
       tools.serverLog(
         `Unexpected error in one-time payment creation: ${error}`,
         "gateway-0",
       );
-      return {
-        code: 500,
-        // @ts-ignore
-        message:
-          error.message ||
-          "An unexpected error occurred during one-time payment creation.",
-      };
+      return { code: 500, message: describeStripeError(error).message };
     }
   }
 }

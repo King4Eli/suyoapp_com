@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, sql } from "drizzle-orm";
+import { and, desc, eq, gt, or, sql } from "drizzle-orm";
 import { db } from "../db/client.js";
 import {
   payments,
@@ -21,7 +21,9 @@ export const FREE_LIKE_WINDOW_SECONDS = envInt(
 );
 
 /**
- * The caller's current active (paid-through) subscription, or null if none.
+ * The caller's current subscription for display: active (paid-through), or past due
+ * (a renewal failed and Stripe is still retrying -- shown so the user can fix their
+ * payment method; it grants nothing, see getSubscriptionTier). Null if none.
  * @param {string} userId
  */
 export async function getActiveSubscription(userId) {
@@ -34,6 +36,7 @@ export async function getActiveSubscription(userId) {
       externalPlatform: subscriptions.externalPlatform,
       externalId: subscriptions.externalId,
       cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
+      subStatus: subscriptions.status,
       planName: productListVariant.name,
       planDescription: productListVariant.description,
       planPrice: productListVariant.price,
@@ -58,8 +61,13 @@ export async function getActiveSubscription(userId) {
     .where(
       and(
         eq(subscriptions.userId, userId),
-        eq(subscriptions.status, 1),
-        gt(subscriptions.endDate, sql`NOW()`),
+        or(
+          and(
+            eq(subscriptions.status, 1),
+            gt(subscriptions.endDate, sql`NOW()`),
+          ),
+          eq(subscriptions.status, 2),
+        ),
       ),
     )
     .orderBy(desc(subscriptions.dateCreated))
@@ -86,7 +94,7 @@ export async function getActiveSubscription(userId) {
     payment_currency: subData.paymentCurrency,
     start_date: subData.startDate,
     end_date: subData.endDate,
-    status: "active",
+    status: Number(subData.subStatus) === 2 ? "past_due" : "active",
     cancel_at_period_end: Boolean(subData.cancelAtPeriodEnd),
     days_remaining: Math.max(
       0,
