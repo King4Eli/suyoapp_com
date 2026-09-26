@@ -81,14 +81,7 @@ export function Zz_devv({ navigation }: { route: any; navigation: any }) {
           <Text>Image url: {__MAPPER?.img_domain ?? '(unset)'}</Text>
         </Pressable>
 
-        <Pressable
-          style={modernStyles.dangerSection}
-          onPress={async () => {
-            Clipboard.setString(getSession?.x_omi_payload ?? '');
-          }}
-        >
-          <Text>session token: {getSession?.x_omi_payload} </Text>
-        </Pressable>
+
 
         <Pressable
           style={modernStyles.dangerSection}
@@ -112,15 +105,6 @@ export function Zz_devv({ navigation }: { route: any; navigation: any }) {
           }}
         >
           <Text>Test Log function</Text>
-        </Pressable>
-
-        <Pressable
-          style={modernStyles.dangerSection}
-          onPress={async () => {
-            navigation.navigate('zz_nofile');
-          }}
-        >
-          <Text>Testing null page</Text>
         </Pressable>
       </ScrollView>
     </View>
