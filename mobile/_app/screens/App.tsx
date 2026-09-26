@@ -25,7 +25,6 @@ import { Screen_editProfileInterests } from './ProfileEditInterests';
 import { sessionManager, SessionTypes } from '../funcs/SessionContext';
 import { Screen_editpreference } from './PreferenceEdit';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Zz_nofilee } from './zz_nofilee';
 import { namer, resourceMap } from '../funcs/static';
 import { Screen_PurchaseSubscribe } from './Purchase_Subscribe';
 import {
@@ -349,11 +348,6 @@ const MainApp: React.FC = () => {
           <Stack.Screen
             name={namer.navigation.devpage}
             component={Zz_devv}
-            options={{}}
-          />
-          <Stack.Screen
-            name={'zz_nofile'}
-            component={Zz_nofilee}
             options={{}}
           />
         </Stack.Navigator>
