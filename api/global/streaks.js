@@ -118,10 +118,7 @@ export async function getStreakStatus(userId) {
     }
     status.rewardsPending = Math.max(0, Number(pending ?? 0));
   } catch (err) {
-    tools.serverLog(
-      `getStreakStatus failed for ${userId}: ${err}`,
-      "streak-2",
-    );
+    tools.serverLog(`getStreakStatus failed for ${userId}: ${err}`, "streak-2");
   }
   return status;
 }

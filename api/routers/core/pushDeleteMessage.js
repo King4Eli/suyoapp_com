@@ -66,13 +66,13 @@ export default async function pushDeleteMessage(convoId, io) {
           row.match_user_id_from === sessions.currentUserID
             ? row.match_user_id_to
             : row.match_user_id_from;
-        io.to([
-          `match-${row.convo_match_id}`,
-          `user-${otherUserId}`,
-        ]).emit("message-deleted", {
-          matchId: row.convo_match_id,
-          convoId,
-        });
+        io.to([`match-${row.convo_match_id}`, `user-${otherUserId}`]).emit(
+          "message-deleted",
+          {
+            matchId: row.convo_match_id,
+            convoId,
+          },
+        );
         pushBadgeCounts(io, otherUserId);
       }
       response.code = 200;

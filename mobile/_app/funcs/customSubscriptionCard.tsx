@@ -311,13 +311,6 @@ export function SubscriptionCard({
           label="Billed through"
           value={PLATFORM_LABEL[platform] ?? '—'}
         />
-        {!pastDue && typeof sub?.days_remaining === 'number' && (
-          <DetailRow
-            s={s}
-            label={cancelPending ? 'Days left' : 'Days until renewal'}
-            value={String(sub.days_remaining)}
-          />
-        )}
       </View>
 
       <View style={s.actions}>
@@ -365,16 +358,6 @@ export function SubscriptionCard({
                     tab: 'vip',
                   })
                 }
-              />
-            )}
-            {!pastDue && (
-              <ActionButton
-                s={s}
-                colors={colors}
-                icon="receipt-outline"
-                label="Billing & invoices"
-                busy={busy === 'manage-billing'}
-                onPress={manageBilling}
               />
             )}
           </>

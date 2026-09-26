@@ -7,7 +7,10 @@ export const productLists = [
     plName: "Boost",
     plDescription: {
       features: [
-        { d: "Be one of the top profiles in your area for 30 minutes", e: true },
+        {
+          d: "Be one of the top profiles in your area for 30 minutes",
+          e: true,
+        },
       ],
     },
     category: "boost",
