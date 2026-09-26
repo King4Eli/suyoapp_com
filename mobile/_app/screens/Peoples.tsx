@@ -14,7 +14,6 @@ import {
   Text,
   Pressable,
   ScrollView,
-  Alert,
   TouchableOpacity,
   StyleSheet,
   Modal,
@@ -24,6 +23,7 @@ import {
   Platform,
   TextInput as RNTextInput,
 } from 'react-native';
+import { Dialogx } from '../funcs/customDialog';
 import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs';
 import { useHeaderHeight } from '@react-navigation/elements';
 import {
@@ -295,10 +295,12 @@ export default function Peoples_Screen({
     }
     // Match changed meanwhile (e.g. they blocked): take the card back out.
     setPeopleToMatch(prev => (prev ?? []).slice(1));
-    Toastx.show({
-      type: 'info',
-      message: response?.message ?? "Couldn't rewind this match.",
-    });
+    Dialogx.alert(
+      "Couldn't rewind this match",
+      response?.message ?? 'This match is no longer available.',
+      undefined,
+      { tone: 'warning', icon: 'arrow-undo' },
+    );
   }, [getSkippedLastPerson, getProfile]);
 
   // header options
@@ -573,10 +575,14 @@ export default function Peoples_Screen({
                 //then
                 peoples_action('report', 4).then(() => {
                   bottomSheetRef_reportUser.ref.current?.close();
-                  Toastx.show({
-                    type: 'success',
-                    message: reportedUserName + ' has been reported!',
-                  });
+                  Dialogx.alert(
+                    'Thanks for reporting',
+                    `Our safety team will review your report about ${
+                      reportedUserName || 'this person'
+                    }. You won't see them again.`,
+                    [{ text: 'OK' }],
+                    { tone: 'success', icon: 'shield-checkmark' },
+                  );
                   Loaderx.hide();
                   scrollViewRef.current?.scrollTo({ y: 0, animated: true });
                 });
@@ -638,23 +644,45 @@ export default function Peoples_Screen({
                 },
           })
             .then(response => {
+              // Out of something: ask, rather than throwing the user into a store.
               if (response?.code === 429 || response?.code === 402) {
-                Toastx.show({
-                  type: 'info',
-                  message:
-                    response?.message ?? 'Action not available right now.',
-                  duration: 4000,
-                });
                 if (response?.code === 429) {
-                  navigation.navigate(namer.navigation.subscription);
+                  Dialogx.alert(
+                    "You're out of likes for today",
+                    response?.message ??
+                      'Your likes refill tomorrow. Upgrade for unlimited likes.',
+                    [
+                      { text: 'Later', style: 'cancel' },
+                      {
+                        text: 'See plans',
+                        onPress: () =>
+                          navigation.navigate(namer.navigation.subscription),
+                      },
+                    ],
+                    { tone: 'info', icon: 'heart' },
+                  );
                 } else if (response?.outOf === 'directMessages') {
                   setEntitlements(prev => ({
                     ...prev,
                     directMessages: { remainingToday: 0, balance: 0 },
                   }));
-                  navigation.navigate(namer.navigation.consumables, {
-                    productcategory: namer.productCategoryName.directmessage,
-                  });
+                  Dialogx.alert(
+                    "You're out of direct messages",
+                    response?.message ??
+                      'Your daily direct messages refill tomorrow.',
+                    [
+                      { text: 'Later', style: 'cancel' },
+                      {
+                        text: 'Get more',
+                        onPress: () =>
+                          navigation.navigate(namer.navigation.consumables, {
+                            productcategory:
+                              namer.productCategoryName.directmessage,
+                          }),
+                      },
+                    ],
+                    { tone: 'info', icon: 'chatbubble-ellipses' },
+                  );
                 } else {
                   setEntitlements(prev => ({
                     ...prev,
@@ -662,19 +690,34 @@ export default function Peoples_Screen({
                       ? { ...prev.roses, remainingToday: 0 }
                       : prev.roses,
                   }));
-                  navigation.navigate(namer.navigation.consumables, {
-                    productcategory: namer.productCategoryName.superlike,
-                  });
+                  Dialogx.alert(
+                    "You're out of roses",
+                    response?.message ?? 'Your daily roses refill tomorrow.',
+                    [
+                      { text: 'Later', style: 'cancel' },
+                      {
+                        text: 'Get roses',
+                        onPress: () =>
+                          navigation.navigate(namer.navigation.consumables, {
+                            productcategory:
+                              namer.productCategoryName.superlike,
+                          }),
+                      },
+                    ],
+                    { tone: 'info', icon: 'rose' },
+                  );
                 }
                 return;
               }
 
               if (isDirectMessage) {
                 if (response?.code !== 200) {
-                  Toastx.show({
-                    type: 'info',
-                    message: response?.message ?? "Couldn't send your message.",
-                  });
+                  Dialogx.alert(
+                    "Couldn't send your message",
+                    response?.message ?? 'Please try again.',
+                    undefined,
+                    { tone: 'error' },
+                  );
                   return;
                 }
                 Toastx.show({
@@ -701,13 +744,28 @@ export default function Peoples_Screen({
               const streak = response?.streak;
               if (streak?.newDay) {
                 cacheStorage.getCurrentUserProfile(true).catch(() => {});
-                Toastx.show({
-                  type: 'success',
-                  message: streak.rewardEarned
-                    ? `${streak.count}th-day streak conplete! Claim your reward in Profile.`
-                    : `Day ${streak.count} streak! Continue tomorrow.`,
-                  duration: 8000,
-                });
+                if (streak.rewardEarned) {
+                  // Worth stopping for: a dialog pointing at the reward.
+                  Dialogx.alert(
+                    `${streak.count}-day streak complete!`,
+                    'You earned a reward. Claim it from your Profile.',
+                    [
+                      { text: 'Later', style: 'cancel' },
+                      {
+                        text: 'Claim reward',
+                        onPress: () =>
+                          navigation.navigate(namer.navigation.profile),
+                      },
+                    ],
+                    { tone: 'success', icon: 'gift' },
+                  );
+                } else {
+                  Toastx.show({
+                    type: 'success',
+                    message: `Day ${streak.count} streak! Continue tomorrow.`,
+                    duration: 8000,
+                  });
+                }
               }
 
               if (typeof response?.rosesRemainingToday === 'number') {
@@ -912,10 +970,21 @@ export default function Peoples_Screen({
     if (link.url) {
       Linking.openURL(link.url);
     } else {
-      Toastx.show({
-        type: 'warning',
-        message: 'Upgrade to VIP to open social links',
-      });
+      Dialogx.alert(
+        'Social links are a VIP perk',
+        'Upgrade to VIP to open their social profiles.',
+        [
+          { text: 'Not now', style: 'cancel' },
+          {
+            text: 'See VIP',
+            onPress: () =>
+              navigation.navigate(namer.navigation.subscription, {
+                tab: 'vip',
+              }),
+          },
+        ],
+        { tone: 'info', icon: 'star' },
+      );
     }
   };
 
@@ -1460,31 +1529,15 @@ export default function Peoples_Screen({
                         },
                       ]}
                       onPress={async () => {
-                        function showConfirmAlert() {
-                          return new Promise(resolve => {
-                            Alert.alert(
-                              'Block this person?',
-                              'Blocking this person prevents them from ever seeing your profile or message you!',
-                              [
-                                {
-                                  text: 'No',
-                                  onPress: () => {
-                                    resolve(false);
-                                  },
-                                  style: 'cancel',
-                                },
-                                {
-                                  text: 'Block',
-                                  onPress: () => {
-                                    resolve(true);
-                                  },
-                                },
-                              ],
-                              { cancelable: false },
-                            );
-                          });
-                        }
-                        if ((await showConfirmAlert()) === false) {
+                        const ok = await Dialogx.confirm({
+                          title: 'Block this person?',
+                          message:
+                            "They'll never see your profile or be able to message you again.",
+                          confirmText: 'Block',
+                          destructive: true,
+                          icon: 'ban',
+                        });
+                        if (!ok) {
                           return;
                         } else {
                           peoples_action('block', 3).then(() => {

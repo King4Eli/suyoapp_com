@@ -1,12 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  Alert,
   AppState,
   Dimensions,
   PermissionsAndroid,
   Platform,
   Vibration,
 } from 'react-native';
+import { Dialogx } from './customDialog';
 import { sessionManager } from './SessionContext';
 import Geolocation from 'react-native-geolocation-service';
 import ngeohash from 'ngeohash';
@@ -590,8 +590,7 @@ export const _handle_Signup = async (
     }
   }
   if (err) {
-    Toastx.show({ type: 'error', message: 'Signup Error\n' + err });
-    Alert.alert('Signup Failed', err);
+    Dialogx.alert('Signup failed', err, undefined, { tone: 'error' });
   }
 };
 

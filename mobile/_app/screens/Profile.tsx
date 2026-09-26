@@ -1,6 +1,5 @@
 import React, { useLayoutEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,6 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Dialogx } from '../funcs/customDialog';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeImage } from '../funcs/customImage';
 import LinearGradient from 'react-native-linear-gradient';
@@ -165,7 +165,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
     if (response?.code === 200) {
       const gotRoses = Number(response?.granted?.roses ?? 0);
       const gotDirectMessages = Number(response?.granted?.directMessages ?? 0);
-      Alert.alert(
+      Dialogx.alert(
         'Reward claimed!',
         [
           gotRoses > 0 && `+${gotRoses} roses`,
@@ -176,9 +176,16 @@ export function Screen_profile({ navigation }: { navigation: any }) {
         ]
           .filter(Boolean)
           .join('\n') || 'Enjoy your reward.',
+        [{ text: 'Awesome' }],
+        { tone: 'success', icon: 'gift' },
       );
     } else {
-      Alert.alert('Oops', response?.message ?? 'Please try again.');
+      Dialogx.alert(
+        "Couldn't claim your reward",
+        response?.message ?? 'Please try again.',
+        undefined,
+        { tone: 'error' },
+      );
     }
   };
 

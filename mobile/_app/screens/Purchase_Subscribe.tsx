@@ -4,10 +4,10 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   Animated,
   Platform,
 } from 'react-native';
+import { Dialogx } from '../funcs/customDialog';
 import LinearGradient from 'react-native-linear-gradient';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import {
@@ -153,7 +153,14 @@ export const Screen_PurchaseSubscribe = ({
 
   const handleSubscribe = async (paymentMethod: 'iap' | 'card') => {
     if (!currentTier?.sku || !selectedVariant) {
-      Alert.alert('Error', 'Please select a plan first.');
+      Dialogx.alert(
+        'Pick a plan',
+        'Choose a plan and billing period first.',
+        undefined,
+        {
+          tone: 'info',
+        },
+      );
       return;
     }
 
@@ -168,11 +175,21 @@ export const Screen_PurchaseSubscribe = ({
       Loaderx.hide();
       if (result.code === 200) {
         paymentSheetRef.current?.close();
-        Alert.alert('Success', 'Your subscription is now active.');
+        Dialogx.alert(
+          'Welcome aboard!',
+          'Your subscription is now active.',
+          [{ text: "Let's go" }],
+          {
+            tone: 'success',
+            icon: 'diamond',
+          },
+        );
       } else if (result.code !== 499) {
-        Alert.alert(
-          'Payment Error',
-          result.message ?? 'There has been an error.',
+        Dialogx.alert(
+          "Payment didn't go through",
+          result.message ?? 'Please try again. You have not been charged.',
+          undefined,
+          { tone: 'error' },
         );
       }
       return;

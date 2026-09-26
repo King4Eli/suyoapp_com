@@ -1,7 +1,7 @@
-import { Alert, Linking } from 'react-native';
+import { Linking } from 'react-native';
+import { Dialogx } from '../customDialog';
 import { _http_request, navigationRef } from '../functions';
 import { namer, __CONFIG__ } from '../static';
-import { Toastx } from '../customNotification';
 import { cacheStorage } from './llstorage';
 
 // Payment/subscription events, in the words the server wrote for this user
@@ -35,38 +35,63 @@ const SUBSCRIPTION_KINDS = new Set([
 // from getPaymentNotices/getPaymentStatus before it's marked seen.
 const shown = new Set<string>();
 
+// Events the app already told the user about itself (e.g. Settings confirms a
+// cancellation immediately) -- the webhook's notice for the same thing, arriving
+// seconds later, is skipped instead of shown twice.
+const alreadyToldUntil = new Map<string, number>();
+export function markNoticeAlreadyShown(kind: string, forMs = 2 * 60 * 1000) {
+  alreadyToldUntil.set(kind, Date.now() + forMs);
+}
+
 const openSettings = () => {
   if (navigationRef.isReady()) {
     navigationRef.navigate(namer.navigation.settings as never);
   }
 };
 
+// Icons that say more than the tone's default for a few key events.
+const KIND_ICON: Record<string, string> = {
+  subscription_activated: 'diamond',
+  subscription_renewed: 'refresh-circle',
+  purchase_completed: 'gift',
+  rewind_completed: 'arrow-undo-circle',
+  rewind_refunded: 'cash',
+  payment_refunded: 'cash',
+  subscription_processing: 'time',
+  purchase_processing: 'time',
+};
+
+// Payment events always matter to the user, so they're dialogs, not toasts.
 export function presentPaymentNotice(notice: PaymentNotice) {
   if (!notice?.title || (notice.id && shown.has(notice.id))) return;
   if (notice.id) shown.add(notice.id);
-  const isPlan = SUBSCRIPTION_KINDS.has(notice.kind);
-
-  // Something needs the user's attention -- a dialog, not a toast that slides away.
-  if (notice.tone === 'error' || notice.tone === 'warning') {
-    Alert.alert(
-      notice.title,
-      notice.body,
-      isPlan
-        ? [
-            { text: 'Later', style: 'cancel' },
-            { text: 'Open Settings', onPress: openSettings },
-          ]
-        : [{ text: 'OK' }],
-    );
+  if ((alreadyToldUntil.get(notice.kind) ?? 0) > Date.now()) {
+    alreadyToldUntil.delete(notice.kind);
     return;
   }
-  Toastx.show({
-    title: notice.title,
-    message: notice.body,
-    type: notice.tone === 'success' ? 'success' : 'info',
-    duration: 9000,
-    onPress: isPlan ? openSettings : undefined,
-  });
+  const isPlan = SUBSCRIPTION_KINDS.has(notice.kind);
+  const needsAction = notice.tone === 'error' || notice.tone === 'warning';
+
+  Dialogx.alert(
+    notice.title,
+    notice.body,
+    needsAction && isPlan
+      ? [
+          { text: 'Later', style: 'cancel' },
+          { text: 'Open Settings', onPress: openSettings },
+        ]
+      : [
+          {
+            text:
+              notice.kind === 'subscription_activated'
+                ? "Let's go"
+                : needsAction
+                ? 'OK'
+                : 'Got it',
+          },
+        ],
+    { tone: notice.tone, icon: KIND_ICON[notice.kind] },
+  );
 }
 
 /** Refreshes what payment events change: plan, perks, balances, products. */
@@ -137,27 +162,30 @@ export async function followCheckoutReturn(paymentId: string | null) {
   if (last?.notice) {
     presentPaymentNotice(last.notice);
   } else if (last?.status === 'completed') {
-    Toastx.show({
-      type: 'success',
-      title: 'Payment received',
-      message: 'Your purchase is confirmed.',
-      duration: 8000,
-    });
+    Dialogx.alert(
+      'Payment received',
+      'Your purchase is confirmed.',
+      undefined,
+      {
+        tone: 'success',
+      },
+    );
   } else if (last?.status === 'failed') {
-    Alert.alert(
+    Dialogx.alert(
       "Payment didn't go through",
       "You haven't been charged. Please try again or use another payment method.",
+      undefined,
+      { tone: 'error' },
     );
   } else {
     // Still with Stripe (or we couldn't reach the server) -- the webhook will
     // finish it, and the notice will show on the next check.
-    Toastx.show({
-      type: 'info',
-      title: 'Confirming your payment',
-      message:
-        "This is taking a little longer than usual. We'll let you know as soon as it's done.",
-      duration: 9000,
-    });
+    Dialogx.alert(
+      'Confirming your payment',
+      "This is taking a little longer than usual. We'll let you know as soon as it's done -- you don't need to pay again.",
+      [{ text: 'Got it' }],
+      { tone: 'info', icon: 'time' },
+    );
   }
 }
 
@@ -169,31 +197,48 @@ export function presentCheckoutError(res: any) {
   const message: string | undefined = res?.message;
   switch (res?.reason) {
     case 'already_subscribed':
-      Alert.alert('You already have this plan', message, [
-        { text: 'OK', style: 'cancel' },
-        { text: 'Open Settings', onPress: openSettings },
-      ]);
+      Dialogx.alert(
+        'You already have this plan',
+        message,
+        [
+          { text: 'OK', style: 'cancel' },
+          { text: 'Open Settings', onPress: openSettings },
+        ],
+        { tone: 'info', icon: 'diamond' },
+      );
       return;
     case 'manage_in_store':
-      Alert.alert('Managed by your app store', message);
+      Dialogx.alert('Managed by your app store', message, undefined, {
+        tone: 'info',
+        icon: 'storefront',
+      });
       return;
     case 'email_required':
-      Alert.alert('Add your email first', message, [
-        { text: 'Later', style: 'cancel' },
-        { text: 'Open Settings', onPress: openSettings },
-      ]);
+      Dialogx.alert(
+        'Add your email first',
+        message,
+        [
+          { text: 'Later', style: 'cancel' },
+          { text: 'Open Settings', onPress: openSettings },
+        ],
+        { tone: 'warning', icon: 'mail' },
+      );
       return;
   }
   if (!res) {
-    Alert.alert(
+    Dialogx.alert(
       "Couldn't reach us",
       'Check your internet connection and try again.',
+      undefined,
+      { tone: 'error', icon: 'cloud-offline' },
     );
     return;
   }
-  Alert.alert(
+  Dialogx.alert(
     res?.code === 503 ? 'Payments are busy' : "Couldn't start checkout",
     message ?? 'Something went wrong on our side. Please try again.',
+    undefined,
+    { tone: 'error' },
   );
 }
 
@@ -203,9 +248,11 @@ export async function openPaymentPage(url: string) {
     await Linking.openURL(url);
     return true;
   } catch {
-    Alert.alert(
+    Dialogx.alert(
       "Couldn't open the payment page",
       'Please check that a web browser is installed and try again.',
+      undefined,
+      { tone: 'error' },
     );
     return false;
   }

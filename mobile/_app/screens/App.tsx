@@ -39,6 +39,7 @@ import { Linking, StatusBar, View } from 'react-native';
 import { ThemeProvider, useTheme } from '../funcs/theme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Toastx } from '../funcs/customNotification';
+import { Dialogx } from '../funcs/customDialog';
 import LottieView from 'lottie-react-native';
 import { Zz_devv } from './zz_devv';
 import { Auth_Signup } from './Auth_Signup';
@@ -364,6 +365,7 @@ const App = () => (
           <Loaderx />
           <MainApp />
           <Toastx />
+          <Dialogx />
         </BottomSheetModalProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>
