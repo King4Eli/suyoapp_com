@@ -1,7 +1,10 @@
 name: suyoapp_com
+# Our images are tagged by CI with both :latest and the git commit sha.
+# IMAGE_TAG=<sha> docker compose up -d   -> run that exact build (deploys do this)
+# docker compose up -d                   -> :latest
 services:
   suyoapp_com_api:
-    image: rg2.vintolab.com/suyoapp_com/api:latest
+    image: rg2.vintolab.com/suyoapp_com/api:${IMAGE_TAG:-latest}
     container_name: suyoapp_com_api
     restart: unless-stopped
     ports:
@@ -20,7 +23,7 @@ services:
       - suyoapp_com_llm
 
   suyoapp_com_admin:
-    image: rg2.vintolab.com/suyoapp_com/admin:latest
+    image: rg2.vintolab.com/suyoapp_com/admin:${IMAGE_TAG:-latest}
     container_name: suyoapp_com_admin
     restart: unless-stopped
     ports:
@@ -33,7 +36,7 @@ services:
       - .env/redis.env
 
   suyoapp_com_webui:
-    image: rg2.vintolab.com/suyoapp_com/webui:latest
+    image: rg2.vintolab.com/suyoapp_com/webui:${IMAGE_TAG:-latest}
     container_name: suyoapp_com_webui
     restart: unless-stopped
     ports:

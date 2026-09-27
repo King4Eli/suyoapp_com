@@ -228,6 +228,9 @@ export const logsApplication = mysqlTable("logs_application", {
   reportCurrentuser: varchar("report_currentuser", { length: 50 }),
   // references users_devices.device_id; replaces embedding full device info per log
   deviceId: varchar("device_id", { length: 191 }),
+  // API build (commit sha baked into the image, "dev" locally) that wrote the log --
+  // see global/buildInfo.js
+  buildHash: varchar("build_hash", { length: 64 }),
   createdAt: bigint("created_at", { mode: "number", unsigned: true })
     .notNull()
     .default(sql`(unix_timestamp())`),

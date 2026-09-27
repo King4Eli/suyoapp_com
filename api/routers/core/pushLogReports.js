@@ -2,6 +2,7 @@ import { db } from "../../db/client.js";
 import { logsApplication } from "../../db/schema.js";
 import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
+import { BUILD_HASH } from "../../global/buildInfo.js";
 // @ts-ignore
 import variables from "../../global/variables.json" with { type: "json" };
 
@@ -72,6 +73,7 @@ export default async function pushLogReport(scripts, requestIP) {
         app: {
           ...decodeStats.app,
           apiVersion: variables.site.api_version,
+          apiBuild: BUILD_HASH,
         },
       };
       return {
@@ -80,6 +82,7 @@ export default async function pushLogReport(scripts, requestIP) {
         reportData: JSON.stringify(enrichedStats),
         reportStatus: 0,
         reportCurrentuser: loggedUser,
+        buildHash: BUILD_HASH,
         deviceId,
       };
     });

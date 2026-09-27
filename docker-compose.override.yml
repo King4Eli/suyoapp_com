@@ -1,7 +1,11 @@
 name: suyoapp_com
 services:
   suyoapp_com_api:
-    build: ./api
+    build:
+      context: ./api
+      args:
+        # local builds report "dev" in logs; CI bakes the commit sha
+        BUILD_HASH: ${BUILD_HASH:-dev}
     volumes:
       - ./api:/app
     command: npm run http-dev

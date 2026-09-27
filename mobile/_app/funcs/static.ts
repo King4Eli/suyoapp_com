@@ -268,6 +268,7 @@ export const namer = {
     products: 'j6yn65ik57y',
     themeMode: 'pk3nf7vqxz8w2m',
     lastLocationPush: 'qm3nc7xr9wfj2t',
+    apiBuild: 'xw8br4ktq2zj7m', // X-Api-Build the caches were filled under
   },
   navigation: {
     devpage: 'zz_devv',
