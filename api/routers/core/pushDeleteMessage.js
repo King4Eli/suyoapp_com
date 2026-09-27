@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { conversations, matches } from "../../db/schema.js";
 import { tools } from "../../global/functions.js";
@@ -54,7 +54,8 @@ export default async function pushDeleteMessage(convoId, io) {
 
     const [result] = await db
       .update(conversations)
-      .set({ convoStatus: "-99" })
+      // date_updated bump: clients syncing with `since` pick up the deletion.
+      .set({ convoStatus: "-99", convoDateUpdated: sql`UNIX_TIMESTAMP()` })
       .where(eq(conversations.convoId, convoId));
 
     if (result.affectedRows > 0) {
