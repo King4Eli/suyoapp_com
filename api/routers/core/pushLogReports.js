@@ -10,7 +10,15 @@ import variables from "../../global/variables.json" with { type: "json" };
 const MAX_LOGS_PER_REQUEST = 500;
 
 /**
- * Store one or many frontend log reports.
+ * Store one or many frontend log reports. Works with or without a session.
+ *
+ * Attribution: a log belongs to an account only if it was created while that
+ * account was signed in on the device (entry.uid, recorded by the app at log
+ * time) AND this request carries a valid session for the same user -- so a log
+ * queued while signed out, or under a different account, is never credited to
+ * whoever happens to be signed in when the queue flushes. Otherwise the user is
+ * left empty. Entries from older app versions have no `uid` field; those keep
+ * the old behaviour (credited to the request's session, if any).
  *
  * `scripts` is a JSON string holding either a single log object (legacy, direct
  * send) or an array of them (offline queue flush). Both shapes are accepted and
@@ -43,16 +51,23 @@ export default async function pushLogReport(scripts, requestIP) {
     // Device details live in users_devices (registered once via pushDevice on
     // app init) -- we only store the device_id reference here, not the full
     // device payload, so it isn't re-sent/duplicated on every single log.
+    const sessionUser = sessions.currentUserID ?? null;
     const rows = list.map((decodeStats) => {
       const type = decodeStats.type ?? "undef_Type";
       const deviceId = decodeStats.device_id ?? null;
+      const loggedUser = !("uid" in decodeStats)
+        ? sessionUser
+        : decodeStats.uid && decodeStats.uid === sessionUser
+          ? sessionUser
+          : null;
       const enrichedStats = {
         ...decodeStats,
         device_id: undefined,
+        uid: undefined,
         requestIP: ipAddr,
         user: {
           ...decodeStats.user,
-          currentuser: sessions.currentUserID,
+          currentuser: loggedUser ?? undefined,
         },
         app: {
           ...decodeStats.app,
@@ -64,7 +79,7 @@ export default async function pushLogReport(scripts, requestIP) {
         reportType: type,
         reportData: JSON.stringify(enrichedStats),
         reportStatus: 0,
-        reportCurrentuser: sessions.currentUserID,
+        reportCurrentuser: loggedUser,
         deviceId,
       };
     });
