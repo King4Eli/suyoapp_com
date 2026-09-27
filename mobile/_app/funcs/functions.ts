@@ -221,6 +221,10 @@ export const __init__app = async (): Promise<void> => {
   // get mapper (public -- no session needed)
   await cacheStorage.CONFIG.getMapper();
 
+  // ship any logs that couldn't be delivered earlier -- no session needed, so
+  // signed-out devices (e.g. stuck on signup) still report their errors
+  flushLogQueue();
+
   // get session and verify
   const getSession_omi = sessionManager.getCurrentSession()?.x_omi_payload;
   const notSessionAndNavigation = !getSession_omi || navigationRef === null;
@@ -237,9 +241,6 @@ export const __init__app = async (): Promise<void> => {
   // register/refresh this device once per app session -- logs then reference
   // device_id instead of re-sending the full device payload every time
   cacheStorage.registerDevice();
-
-  // ship any logs that couldn't be delivered while offline last session
-  flushLogQueue();
 
   // pending likes / unread chats counts for the bottom tab badges
   likesBadge.refresh();
