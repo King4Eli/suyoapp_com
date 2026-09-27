@@ -54,3 +54,15 @@ function refetchEssentials() {
   cacheStorage.getProducts(true).catch(() => {});
   cacheStorage.getCurrentUserProfile(true).catch(() => {});
 }
+
+/**
+ * The API build this app last talked to, short form for display ("1a2b3c4",
+ * or "dev"). Null until the first API response has been seen.
+ */
+export async function getApiBuild(): Promise<string | null> {
+  const build =
+    knownBuild ??
+    (await AsyncStorage.getItem(namer.storage.apiBuild).catch(() => null));
+  if (!build) return null;
+  return /^[0-9a-f]{40}$/i.test(build) ? build.slice(0, 7) : build;
+}
