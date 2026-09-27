@@ -16,6 +16,7 @@ import {
 } from "../../global/entitlements.js";
 import { stripe_gateway, tools } from "../../global/functions.js";
 import { pushBadgeCounts } from "../../global/badges.js";
+import { BUILD_HASH } from "../../global/buildInfo.js";
 import {
   createPaymentNotice,
   describeVariant,
@@ -314,6 +315,7 @@ async function logPaymentIncident(type, userId, data) {
       reportData: JSON.stringify(data),
       reportStatus: 0,
       reportCurrentuser: userId,
+      buildHash: BUILD_HASH,
     });
   } catch (err) {
     tools.serverLog(`Failed to log ${type}: ${err}`, "hook_151");

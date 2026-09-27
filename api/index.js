@@ -10,6 +10,8 @@ import webhook_router from "./routers/payments/router_hook.js";
 import status_check from "./routers/status.js";
 import { startExpirePendingPaymentsJob } from "./global/expirePendingPayments.js";
 import { sessions } from "./global/sessions.js";
+import { tools } from "./global/functions.js";
+import { BUILD_HASH, BUILD_SHORT } from "./global/buildInfo.js";
 
 const http_port = 80;
 const app = express();
@@ -26,6 +28,13 @@ app.set("trust proxy", 1);
 // other's user id across an await. Must be the very first middleware so it
 // wraps the entire request lifecycle, including the webhook route below.
 app.use((req, res, next) => sessions.runInContext(next));
+
+// Every response says which API build answered, so the app can drop cached
+// server data (mapper, products, profile...) when a new build is deployed.
+app.use((req, res, next) => {
+  res.setHeader("X-Api-Build", BUILD_HASH);
+  next();
+});
 
 app.use(
   "/api/secure/stripe/webhook",
@@ -82,12 +91,19 @@ app.use("/api/realtime", realtimedata_router);
 // @ts-ignore
 app.use((err, req, res, _next) => {
   console.error("🔴 Error:", err);
-  res.status(500).json({ error: err.message });
+  // Unhandled route error: record it with the build that produced it.
+  tools.serverLog(
+    `Unhandled error on ${req.method} ${req.originalUrl}: ${err?.stack || err}`,
+    "unhandled",
+  );
+  res.status(500).json({ error: err.message, build: BUILD_SHORT });
 });
 
 // Start server with explicit host
 httpServer.listen(http_port, "0.0.0.0", () => {
-  console.log(`⚪ 📡success io Waiting for connections...`);
+  console.log(
+    `⚪ 📡success io Waiting for connections... (build ${BUILD_HASH})`,
+  );
 });
 
 // Log when server closes

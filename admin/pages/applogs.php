@@ -97,9 +97,9 @@ $params = [];
 $where = [];
 $sql = $view === 'group'
     ? 'SELECT r.report_type, COUNT(*) AS report_count FROM logs_application r LEFT JOIN users u ON u.user_id = r.report_currentuser'
-    : 'SELECT r.report_id, r.report_type, r.report_status, r.report_data, r.created_at, r.updated_at, r.report_currentuser, u.user_fullname, d.device_id, d.device_model, d.device_brand, d.device_os, d.app_version, d.is_emulator FROM logs_application r LEFT JOIN users u ON u.user_id = r.report_currentuser LEFT JOIN users_devices d ON d.device_id = r.device_id';
+    : 'SELECT r.report_id, r.report_type, r.report_status, r.report_data, r.created_at, r.updated_at, r.report_currentuser, r.build_hash, u.user_fullname, d.device_id, d.device_model, d.device_brand, d.device_os, d.app_version, d.is_emulator FROM logs_application r LEFT JOIN users u ON u.user_id = r.report_currentuser LEFT JOIN users_devices d ON d.device_id = r.device_id';
 if ($query !== '') {
-    $where[] = '(r.report_id LIKE :q OR r.report_type LIKE :q OR r.report_currentuser LIKE :q OR u.user_fullname LIKE :q)';
+    $where[] = '(r.report_id LIKE :q OR r.report_type LIKE :q OR r.report_currentuser LIKE :q OR u.user_fullname LIKE :q OR r.build_hash LIKE :q)';
     $params[':q'] = '%' . $query . '%';
 }
 if ($status !== '' && ctype_digit($status)) {
@@ -286,6 +286,12 @@ function build_logs_page_url(int $page): string
                                     <div class="fw-semibold"><?php echo htmlspecialchars($report['report_type'] ?? ''); ?></div>
                                     <div class="small text-muted"><?php echo htmlspecialchars($report['report_id'] ?? ''); ?>
                                     </div>
+                                    <?php if (!empty($report['build_hash'])): ?>
+                                        <?php $build = (string) $report['build_hash']; ?>
+                                        <span class="badge text-bg-light border font-monospace" title="<?php echo htmlspecialchars($build); ?>">
+                                            build <?php echo htmlspecialchars(preg_match('/^[0-9a-f]{40}$/i', $build) ? substr($build, 0, 7) : $build); ?>
+                                        </span>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
                                     <div class="fw-semibold">

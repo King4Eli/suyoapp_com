@@ -50,6 +50,13 @@
       "when": 1790459953728,
       "tag": "0006_selfie_verification_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1790477334991,
+      "tag": "0007_build_hash_on_logs",
+      "breakpoints": true
     }
   ]
 }
