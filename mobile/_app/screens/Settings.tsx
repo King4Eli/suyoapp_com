@@ -19,6 +19,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { Dialogx } from '../funcs/customDialog';
+import { getApiBuild } from '../funcs/functions/apiBuild';
 import { sessionManager } from '../funcs/SessionContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { namer, styles, __CONFIG__ } from '../funcs/static';
@@ -59,6 +60,11 @@ export function Screen_settings({ navigation }: { navigation: any }) {
 
   const subscriptionState = help.getSubscriptionState(getProfile);
   const currentPlan = describePlan(getProfile);
+  // Which API build answered last (X-Api-Build), shown under the app version.
+  const [apiBuild, setApiBuild] = useState<string | null>(null);
+  useEffect(() => {
+    getApiBuild().then(setApiBuild);
+  }, []);
   const profileDetails = getProfile?.profile ?? {};
   const profileEmail = profileDetails?.email ?? getProfile?.user_email ?? '';
   const profilePhone =
@@ -1368,6 +1374,11 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               <Text style={modernStyles.versionText}>
                 {DeviceInfo.getVersion()}:{DeviceInfo.getBuildNumber()}
               </Text>
+              {apiBuild && (
+                <Text style={modernStyles.versionSubText}>
+                  API: {apiBuild}
+                </Text>
+              )}
             </View>
           </View>
         </ScrollView>
@@ -1907,6 +1918,11 @@ function createModernStyles(colors: ThemeColors) {
       fontSize: 14,
       color: colors.textSecondary,
       marginBottom: 4,
+    },
+    versionSubText: {
+      fontSize: 12,
+      color: colors.textTertiary,
+      fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     },
   });
 }
