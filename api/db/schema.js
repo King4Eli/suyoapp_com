@@ -546,8 +546,39 @@ export const users = mysqlTable("users", {
   userPrivacyReadReceipts: mysqlEnum("user_privacy_read_receipts", ["0", "1"])
     .notNull()
     .default("0"),
+  // VIP-only travel mode: while on (and still VIP), the user's users_locations rows
+  // count as extra places to discover people from and be discovered in
+  userTravelMode: mysqlEnum("user_travel_mode", ["0", "1"])
+    .notNull()
+    .default("0"),
   userBioSocialLinks: longtext("user_bio_social_links"),
 });
+
+// Secondary (travel mode) locations -- at most MAX_SECONDARY_LOCATIONS per user
+// (global/travelMode.js). The primary location stays on users.geo_*; these rows
+// only affect discovery while users.user_travel_mode = '1' and the user is VIP.
+export const usersLocations = mysqlTable(
+  "users_locations",
+  {
+    idAi: bigint("id_ai", { mode: "number" })
+      .primaryKey()
+      .notNull()
+      .autoincrement(),
+    // utf8mb4_general_ci to match users.user_id (set by migration 0009 -- Drizzle
+    // can't declare collations); discovery compares the two
+    userId: varchar("user_id", { length: 50 }).notNull(),
+    // { display_name, city, state, country } from the geocoder
+    geoMeta: json("geo_meta").notNull(),
+    geoHash: varchar("geo_hash", { length: 12 }).notNull(),
+    geoLong: double("geo_long").notNull(),
+    geoLatd: double("geo_latd").notNull(),
+    dateCreated: timestamp("date_created").notNull().defaultNow(),
+  },
+  (t) => [
+    index("users_locations_user").on(t.userId),
+    index("users_locations_geo_hash").on(t.geoHash),
+  ],
+);
 
 export const usersDevices = mysqlTable("users_devices", {
   idAi: bigint("id_ai", { mode: "number" })

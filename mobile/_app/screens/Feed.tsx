@@ -1,4 +1,5 @@
 import React, {
+  ComponentRef,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -11,7 +12,6 @@ import {
   Text,
   Pressable,
   FlatList,
-  TextInput,
   ActivityIndicator,
   StyleSheet,
   Modal,
@@ -34,8 +34,13 @@ import RNFS from 'react-native-fs';
 import Video from 'react-native-video';
 import BottomSheet, {
   BottomSheetFlatList,
+  BottomSheetFooter,
+  BottomSheetFooterProps,
+  BottomSheetScrollView,
+  BottomSheetTextInput,
   BottomSheetView,
 } from '@gorhom/bottom-sheet';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { SafeImage } from '../funcs/customImage';
@@ -43,6 +48,7 @@ import {
   Skeleton,
   Loaderx,
   bottomsheet_renderBackdrop,
+  bottomsheet_renderHandle,
 } from '../funcs/functions_stateful';
 import { ActionBurstOverlay } from '../funcs/customCelebration';
 import { Toastx } from '../funcs/customNotification';
@@ -769,17 +775,20 @@ export function Screen_feed({
   const [composerMedia, setComposerMedia] = useState<PickedMedia[]>([]);
   const [isPosting, setIsPosting] = useState(false);
   const composerSheetRef = useRef<BottomSheet>(null);
-  const composerInputRef = useRef<TextInput>(null);
-  const composerSnapPoints = useMemo(() => ['70%'], []);
+  const composerInputRef =
+    useRef<ComponentRef<typeof BottomSheetTextInput>>(null);
+  const composerSnapPoints = useMemo(() => ['50%', '100%'], []);
+  const composerWasOpen = useRef(false);
   const optionsSheetRef = useRef<BottomSheet>(null);
-  const optionsSnapPoints = useMemo(() => ['32%'], []);
   const postMenuSheetRef = useRef<BottomSheet>(null);
-  const postMenuSnapPoints = useMemo(() => ['24%'], []);
+  const safeInsets = useSafeAreaInsets();
   const [menuPost, setMenuPost] = useState<any | null>(null);
 
   const commentsSheetRef = useRef<BottomSheet>(null);
-  const commentsSnapPoints = useMemo(() => ['92%'], []);
-  const commentInputRef = useRef<TextInput>(null);
+  const commentsSnapPoints = useMemo(() => ['55%', '100%'], []);
+  const [commentsFooterHeight, setCommentsFooterHeight] = useState(0);
+  const commentInputRef =
+    useRef<ComponentRef<typeof BottomSheetTextInput>>(null);
   const [commentsPost, setCommentsPost] = useState<any | null>(null);
   const [comments, setComments] = useState<any[] | null>(null);
   const [commentText, setCommentText] = useState('');
@@ -904,7 +913,7 @@ export function Screen_feed({
   const openComposer = useCallback(
     (mode: 'text' | 'photo' | 'video') => {
       optionsSheetRef.current?.close();
-      composerSheetRef.current?.expand();
+      composerSheetRef.current?.snapToIndex(0);
       if (mode === 'photo' || mode === 'video') {
         handlePickMedia(mode);
       }
@@ -1090,7 +1099,7 @@ export function Screen_feed({
     setCommentsPost(post);
     setComments(null);
     setReplyingTo(null);
-    commentsSheetRef.current?.expand();
+    commentsSheetRef.current?.snapToIndex(0);
     const response = await _http_request({
       reqType: 'POST',
       customApiUrl:
@@ -1236,6 +1245,54 @@ export function Screen_feed({
     {},
   );
 
+  const renderCommentsFooter = (footerProps: BottomSheetFooterProps) => (
+    <BottomSheetFooter {...footerProps}>
+      <View
+        style={[
+          stylesoy.commentInputRow,
+          { paddingBottom: 16 + safeInsets.bottom },
+        ]}
+        onLayout={e => setCommentsFooterHeight(e.nativeEvent.layout.height)}
+      >
+        {replyingTo && (
+          <View style={stylesoy.replyingToChip}>
+            <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+              Replying to {replyingTo.name}
+            </Text>
+            <Pressable onPress={() => setReplyingTo(null)} hitSlop={8}>
+              <IIcon name="close" size={14} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+        )}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <BottomSheetTextInput
+            ref={commentInputRef}
+            style={[stylesoy.commentInput, { color: colors.text }]}
+            placeholder={
+              replyingTo ? `Reply to ${replyingTo.name}...` : 'Add a comment...'
+            }
+            placeholderTextColor={colors.textTertiary}
+            value={commentText}
+            onChangeText={setCommentText}
+            multiline
+          />
+          <Pressable
+            style={[
+              stylesoy.commentSendBtn,
+              {
+                opacity: isSubmittingComment || !commentText.trim() ? 0.5 : 1,
+              },
+            ]}
+            disabled={isSubmittingComment || !commentText.trim()}
+            onPress={handleSubmitComment}
+          >
+            <IIcon name="send" size={18} color="#fff" />
+          </Pressable>
+        </View>
+      </View>
+    </BottomSheetFooter>
+  );
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <FlatList
@@ -1345,10 +1402,12 @@ export function Screen_feed({
         ref={optionsSheetRef}
         index={-1}
         enablePanDownToClose
-        snapPoints={optionsSnapPoints}
         backdropComponent={bottomsheet_renderBackdrop}
+        handleComponent={bottomsheet_renderHandle}
       >
-        <BottomSheetView style={{ padding: 16 }}>
+        <BottomSheetView
+          style={{ padding: 16, paddingBottom: 16 + safeInsets.bottom }}
+        >
           <Text style={[stylesoy.composerTitle, { color: colors.text }]}>
             New Post
           </Text>
@@ -1404,11 +1463,13 @@ export function Screen_feed({
         ref={postMenuSheetRef}
         index={-1}
         enablePanDownToClose
-        snapPoints={postMenuSnapPoints}
         backdropComponent={bottomsheet_renderBackdrop}
+        handleComponent={bottomsheet_renderHandle}
         onClose={() => setMenuPost(null)}
       >
-        <BottomSheetView style={{ padding: 16 }}>
+        <BottomSheetView
+          style={{ padding: 16, paddingBottom: 16 + safeInsets.bottom }}
+        >
           {isMyTimeline ? (
             <Pressable
               style={stylesoy.optionRow}
@@ -1452,7 +1513,10 @@ export function Screen_feed({
         index={-1}
         enablePanDownToClose
         snapPoints={commentsSnapPoints}
+        enableDynamicSizing={false}
         backdropComponent={bottomsheet_renderBackdrop}
+        handleComponent={bottomsheet_renderHandle}
+        footerComponent={renderCommentsFooter}
         keyboardBehavior="extend"
         keyboardBlurBehavior="restore"
         onClose={() => {
@@ -1462,107 +1526,67 @@ export function Screen_feed({
           setCommentText('');
         }}
       >
-        <BottomSheetView style={stylesoy.commentsSheet}>
-          <View style={stylesoy.commentsHeader}>
-            <Text
-              style={[
-                stylesoy.composerTitle,
-                { color: colors.text, marginBottom: 0 },
-              ]}
-            >
-              Comments
-              {typeof commentsPost?.comment_count === 'number'
-                ? ` · ${commentsPost.comment_count}`
-                : ''}
-            </Text>
+        <View style={stylesoy.commentsHeader}>
+          <Text
+            style={[
+              stylesoy.composerTitle,
+              { color: colors.text, marginBottom: 0 },
+            ]}
+          >
+            Comments
+            {typeof commentsPost?.comment_count === 'number'
+              ? ` · ${commentsPost.comment_count}`
+              : ''}
+          </Text>
+        </View>
+
+        {comments === null ? (
+          <View style={stylesoy.commentsCenterFill}>
+            <ActivityIndicator color={colors.accent} />
           </View>
-
-          {comments === null ? (
-            <View style={stylesoy.commentsCenterFill}>
-              <ActivityIndicator color={colors.accent} />
-            </View>
-          ) : (
-            <BottomSheetFlatList
-              style={{ flex: 1 }}
-              data={topLevelComments}
-              keyExtractor={(c: any) => c.comment_id}
-              contentContainerStyle={{ padding: 16, gap: 16, flexGrow: 1 }}
-              renderItem={({ item: c }: any) => (
-                <CommentItem
-                  comment={c}
-                  replies={repliesByParent[c.comment_id] ?? []}
-                  myUserId={myProfile?.user_id}
-                  imgDomain={imgDomain}
-                  colors={colors}
-                  stylesoy={stylesoy}
-                  onReply={cmt => {
-                    setReplyingTo({
-                      id: cmt.comment_id,
-                      name: cmt.user_fullname,
-                    });
-                    commentInputRef.current?.focus();
-                  }}
-                  onDelete={handleDeleteComment}
-                />
-              )}
-              ListEmptyComponent={
-                <View style={stylesoy.commentsCenterFill}>
-                  <IIcon
-                    name="chatbubble-outline"
-                    size={30}
-                    color={colors.textTertiary}
-                  />
-                  <Text style={{ color: colors.textSecondary, marginTop: 8 }}>
-                    No comments yet. Say something!
-                  </Text>
-                </View>
-              }
-            />
-          )}
-
-          <View style={stylesoy.commentInputRow}>
-            {replyingTo && (
-              <View style={stylesoy.replyingToChip}>
-                <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
-                  Replying to {replyingTo.name}
-                </Text>
-                <Pressable onPress={() => setReplyingTo(null)} hitSlop={8}>
-                  <IIcon name="close" size={14} color={colors.textSecondary} />
-                </Pressable>
-              </View>
-            )}
-            <View
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
-            >
-              <TextInput
-                ref={commentInputRef}
-                style={[stylesoy.commentInput, { color: colors.text }]}
-                placeholder={
-                  replyingTo
-                    ? `Reply to ${replyingTo.name}...`
-                    : 'Add a comment...'
-                }
-                placeholderTextColor={colors.textTertiary}
-                value={commentText}
-                onChangeText={setCommentText}
-                multiline
+        ) : (
+          <BottomSheetFlatList
+            style={{ flex: 1 }}
+            data={topLevelComments}
+            keyExtractor={(c: any) => c.comment_id}
+            contentContainerStyle={{
+              padding: 16,
+              paddingBottom: 16 + commentsFooterHeight,
+              gap: 16,
+              flexGrow: 1,
+            }}
+            renderItem={({ item: c }: any) => (
+              <CommentItem
+                comment={c}
+                replies={repliesByParent[c.comment_id] ?? []}
+                myUserId={myProfile?.user_id}
+                imgDomain={imgDomain}
+                colors={colors}
+                stylesoy={stylesoy}
+                onReply={cmt => {
+                  setReplyingTo({
+                    id: cmt.comment_id,
+                    name: cmt.user_fullname,
+                  });
+                  commentInputRef.current?.focus();
+                }}
+                onDelete={handleDeleteComment}
               />
-              <Pressable
-                style={[
-                  stylesoy.commentSendBtn,
-                  {
-                    opacity:
-                      isSubmittingComment || !commentText.trim() ? 0.5 : 1,
-                  },
-                ]}
-                disabled={isSubmittingComment || !commentText.trim()}
-                onPress={handleSubmitComment}
-              >
-                <IIcon name="send" size={18} color="#fff" />
-              </Pressable>
-            </View>
-          </View>
-        </BottomSheetView>
+            )}
+            ListEmptyComponent={
+              <View style={stylesoy.commentsCenterFill}>
+                <IIcon
+                  name="chatbubble-outline"
+                  size={30}
+                  color={colors.textTertiary}
+                />
+                <Text style={{ color: colors.textSecondary, marginTop: 8 }}>
+                  No comments yet. Say something!
+                </Text>
+              </View>
+            }
+          />
+        )}
       </BottomSheet>
 
       <BottomSheet
@@ -1570,18 +1594,26 @@ export function Screen_feed({
         index={-1}
         enablePanDownToClose
         snapPoints={composerSnapPoints}
+        enableDynamicSizing={false}
         backdropComponent={bottomsheet_renderBackdrop}
+        handleComponent={bottomsheet_renderHandle}
         keyboardBehavior="extend"
         keyboardBlurBehavior="restore"
         onChange={sheetIndex => {
-          if (sheetIndex === 0) composerInputRef.current?.focus();
+          // Focus once when the composer opens, not on every resize
+          if (sheetIndex >= 0 && !composerWasOpen.current)
+            composerInputRef.current?.focus();
+          composerWasOpen.current = sheetIndex >= 0;
         }}
       >
-        <BottomSheetView style={{ padding: 16, flex: 1 }}>
+        <BottomSheetScrollView
+          contentContainerStyle={{ padding: 16 }}
+          keyboardShouldPersistTaps="handled"
+        >
           <Text style={[stylesoy.composerTitle, { color: colors.text }]}>
             New Post
           </Text>
-          <TextInput
+          <BottomSheetTextInput
             ref={composerInputRef}
             style={stylesoy.composerInput}
             placeholder="Share something with everyone..."
@@ -1655,7 +1687,9 @@ export function Screen_feed({
               <Text style={{ color: '#fff', fontWeight: '700' }}>Post</Text>
             </Pressable>
           </View>
-        </BottomSheetView>
+        </BottomSheetScrollView>
+        {/* Keeps the scroll area above the home indicator / nav bar */}
+        <View style={{ height: safeInsets.bottom }} />
       </BottomSheet>
 
       <FullscreenMediaViewer

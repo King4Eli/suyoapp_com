@@ -91,11 +91,21 @@ webhook_router.post("/", async (req, res) => {
     await db
       .insert(stripeEvents)
       .values({ eventId: event.id, eventType: event.type });
-  } catch {
-    tools.serverLog(
-      `Duplicate webhook event skipped: ${event.id}`,
-      "hook_4857",
-    );
+  } catch (err) {
+    // A duplicate key is just Stripe redelivering -- expected, not worth a log.
+    // Anything else (DB down, ...) must NOT be acknowledged as processed, or
+    // Stripe stops retrying and the payment is lost: log it and ask for a retry.
+    // @ts-ignore -- drizzle wraps the mysql2 error in `cause`
+    const code = err?.cause?.code ?? err?.code;
+    if (code !== "ER_DUP_ENTRY") {
+      tools.serverLog(
+        `Couldn't claim webhook event ${event.id}: ${err}`,
+        "hook_4857",
+      );
+      return res
+        .status(500)
+        .json({ code: 500, message: "Could not record webhook event" });
+    }
     return res
       .status(200)
       .json({ code: 200, message: "Webhook already processed" });
@@ -432,10 +442,6 @@ async function activateCheckout(session, ctx, io) {
       },
       ctx.paymentId,
     );
-    tools.serverLog(
-      `Subscription ${subscriptionId} activated for ${ctx.userId}`,
-      "hook_897",
-    );
     return { success: true };
   }
 
@@ -512,7 +518,6 @@ async function activateCheckout(session, ctx, io) {
     { item: described.item },
     ctx.paymentId,
   );
-  tools.serverLog(`One-time payment completed: ${ctx.paymentId}`, "hook_8997");
   return { success: true };
 }
 
@@ -920,10 +925,6 @@ export async function fulfillOnetimePurchase(
     if (!Number.isFinite(roses) || roses <= 0) return { granted: false };
 
     await grantRoses(userId, roses);
-    tools.serverLog(
-      `Granted ${roses} roses to user ${userId} for payment ${paymentId}`,
-      "hook_9001",
-    );
     return { granted: true };
   }
 
@@ -933,10 +934,6 @@ export async function fulfillOnetimePurchase(
       return { granted: false };
 
     await grantDirectMessages(userId, directMessages);
-    tools.serverLog(
-      `Granted ${directMessages} direct messages to user ${userId} for payment ${paymentId}`,
-      "hook_9007",
-    );
     return { granted: true };
   }
 
@@ -945,10 +942,6 @@ export async function fulfillOnetimePurchase(
     if (!Number.isFinite(boosts) || boosts <= 0) return { granted: false };
 
     await grantBoosts(userId, boosts);
-    tools.serverLog(
-      `Granted ${boosts} boosts to user ${userId} for payment ${paymentId}`,
-      "hook_9006",
-    );
     return { granted: true };
   }
 
@@ -971,10 +964,6 @@ export async function fulfillOnetimePurchase(
       );
       return { granted: false, rewindFailed: true };
     }
-    tools.serverLog(
-      `Rewound match ${matchId} for user ${userId} for payment ${paymentId}`,
-      "hook_9003",
-    );
     return { granted: true };
   }
   return { granted: false };

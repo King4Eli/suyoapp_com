@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 include "../main_config.php";
+include "../global/funcs.php";
 
 $page_title = 'Dashboard';
 $page_subtitle = 'Database-wide statistics';
@@ -136,14 +137,6 @@ $stats = get_dashboard_stats($db);
 <html>
 <head>
     <?php include "../global/head.php"; ?>
-    <style>
-        .stat-card {
-            transition: transform 0.2s;
-        }
-        .stat-card:hover {
-            transform: translateY(-2px);
-        }
-    </style>
 </head>
 <body>
     <?php include "../global/header.php"; ?>
@@ -151,79 +144,39 @@ $stats = get_dashboard_stats($db);
     <div class="container-fluid py-4">
         <div class="row mb-4">
             <div class="col-12">
-                <h5 class="mb-3">Database Overview</h5>
+                <h5 class="admin-section-title">Database Overview</h5>
             </div>
 
             <div class="col-6 col-md-4 col-lg-3 mb-3">
-                <div class="card stat-card h-100">
-                    <div class="card-body">
-                        <div class="h4 mb-1"><?php echo number_format($tableStats['table_count']); ?></div>
-                        <div class="text-muted small">Total Tables</div>
-                    </div>
-                </div>
+                <?php echo stat_card($tableStats['table_count'], 'Total Tables', 'table', 'secondary'); ?>
             </div>
 
             <div class="col-6 col-md-4 col-lg-3 mb-3">
-                <div class="card stat-card h-100">
-                    <div class="card-body">
-                        <div class="h4 mb-1"><?php echo number_format($tableStats['total_rows']); ?></div>
-                        <div class="text-muted small">Total Rows</div>
-                    </div>
-                </div>
+                <?php echo stat_card($tableStats['total_rows'], 'Total Rows', 'database', 'secondary'); ?>
             </div>
 
             <div class="col-6 col-md-4 col-lg-3 mb-3">
-                <div class="card stat-card h-100">
-                    <div class="card-body">
-                        <div class="h4 mb-1"><?php echo number_format($stats['conversations_total']); ?></div>
-                        <div class="text-muted small">Conversations</div>
-                    </div>
-                </div>
+                <?php echo stat_card($stats['conversations_total'], 'Conversations', 'chat-dots', 'accent'); ?>
             </div>
 
             <div class="col-6 col-md-4 col-lg-3 mb-3">
-                <div class="card stat-card h-100">
-                    <div class="card-body">
-                        <div class="h4 mb-1"><?php echo number_format($stats['matches_total']); ?></div>
-                        <div class="text-muted small">Matches</div>
-                    </div>
-                </div>
+                <?php echo stat_card($stats['matches_total'], 'Matches', 'heart', 'primary'); ?>
             </div>
 
             <div class="col-6 col-md-4 col-lg-3 mb-3">
-                <div class="card stat-card h-100">
-                    <div class="card-body">
-                        <div class="h4 mb-1"><?php echo number_format($stats['reports_total']); ?></div>
-                        <div class="text-muted small">Reports</div>
-                    </div>
-                </div>
+                <?php echo stat_card($stats['reports_total'], 'Reports', 'flag', 'danger'); ?>
             </div>
 
             <div class="col-6 col-md-4 col-lg-3 mb-3">
-                <div class="card stat-card h-100">
-                    <div class="card-body">
-                        <div class="h4 mb-1"><?php echo number_format($stats['payments_total']); ?></div>
-                        <div class="text-muted small">Payments</div>
-                    </div>
-                </div>
+                <?php echo stat_card($stats['payments_total'], 'Payments', 'credit-card', 'success'); ?>
             </div>
 
             <div class="col-6 col-md-4 col-lg-3 mb-3">
-                <div class="card stat-card h-100">
-                    <div class="card-body">
-                        <div class="h4 mb-1"><?php echo number_format($stats['products_active']); ?></div>
-                        <div class="text-muted small">Active Products</div>
-                    </div>
-                </div>
+                <?php echo stat_card($stats['products_active'], 'Active Products', 'bag-check', 'info'); ?>
             </div>
 
             <div class="col-6 col-md-4 col-lg-3 mb-3">
-                <div class="card stat-card h-100">
-                    <div class="card-body">
-                        <div class="h4 mb-1"><?php echo number_format($stats['purchases_total']); ?></div>
-                        <div class="text-muted small">Product Purchases</div>
-                    </div>
-                </div>
+                <?php echo stat_card($stats['purchases_total'], 'Product Purchases', 'cart-check', 'warning'); ?>
             </div>
         </div>
 
@@ -231,7 +184,7 @@ $stats = get_dashboard_stats($db);
             <div class="col-lg-6 mb-4">
                 <div class="card h-100">
                     <div class="card-header">
-                        <h6 class="mb-0">Detailed Metrics</h6>
+                        <h6 class="mb-0"><i class="bi bi-bar-chart-line"></i>Detailed Metrics</h6>
                     </div>
                     <div class="card-body">
                         <table class="table table-sm mb-0">
@@ -269,7 +222,7 @@ $stats = get_dashboard_stats($db);
             <div class="col-lg-6 mb-4">
                 <div class="card h-100">
                     <div class="card-header">
-                        <h6 class="mb-0">Latest Activity Timestamps</h6>
+                        <h6 class="mb-0"><i class="bi bi-clock-history"></i>Latest Activity</h6>
                     </div>
                     <div class="card-body">
                         <table class="table table-sm mb-0">
@@ -301,8 +254,8 @@ $stats = get_dashboard_stats($db);
             <div class="col-12">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0">Table Row Counts (All SQL Tables)</h6>
-                        <span class="badge bg-light text-dark"><?php echo number_format($tableStats['table_count']); ?> tables</span>
+                        <h6 class="mb-0"><i class="bi bi-table"></i>Table Row Counts</h6>
+                        <span class="admin-chip"><?php echo number_format($tableStats['table_count']); ?> tables</span>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">

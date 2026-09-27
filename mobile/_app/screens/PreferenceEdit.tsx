@@ -13,6 +13,7 @@ import RangeSlider from 'rn-range-slider';
 import { namer, styles, __CONFIG__ } from '../funcs/static';
 import { _http_request, cacheStorage, help } from '../funcs/functions';
 import { AccordionItem } from '../funcs/customAccordion';
+import { onPaymentRefreshed } from '../funcs/functions/paymentNotices';
 import { Toastx } from '../funcs/customNotification';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme, ThemeColors, elevation } from '../funcs/theme';
@@ -33,6 +34,10 @@ const defaultPreferences = {
   politicalview: '-99',
   distance: { miles: 25, km: '40' },
 };
+
+// Search radius range -- matches the server's SEARCH_DISTANCE_MILES (no "no limit")
+const MIN_DISTANCE_MILES = 5;
+const MAX_DISTANCE_MILES = 100;
 
 function buildPreferencesPayload(
   preferences: typeof defaultPreferences,
@@ -67,6 +72,8 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
 
   const hasPremium =
     help.getSubscriptionState(getProfile).features.advancedFilters;
+  const hasTravelMode =
+    help.getSubscriptionState(getProfile).features.travelMode;
 
   const [getDistance, setDistance] = useState<{ miles: number; km: string }>({
     miles: defaultPreferences.distance.miles,
@@ -84,6 +91,23 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
     ),
   );
 
+  // Coming back from an upgrade: pick up the new plan so the filters unlock. Only
+  // the profile (plan) is replaced -- unsaved preference edits stay as they are.
+  useEffect(() => {
+    const reloadPlan = () => {
+      cacheStorage
+        .getCurrentUserProfile()
+        .then((profile: any) => profile && setProfile(profile))
+        .catch(() => {});
+    };
+    const unsubscribeFocus = navigation.addListener('focus', reloadPlan);
+    const unsubscribePayment = onPaymentRefreshed(reloadPlan);
+    return () => {
+      unsubscribeFocus();
+      unsubscribePayment();
+    };
+  }, [navigation]);
+
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -93,9 +117,15 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
         if (mounted) {
           setProfile(profile);
           const profilePreferences = profile?.preferences ?? {};
-          const distanceMiles = Number(
+          // Capped at MAX_DISTANCE_MILES -- older "no limit" saves (-99 / 105)
+          // show as the max, which is what the server searches anyway
+          const savedMiles = Number(
             profilePreferences?.distance ?? defaultPreferences.distance.miles,
           );
+          const distanceMiles =
+            Number.isFinite(savedMiles) && savedMiles > 0
+              ? Math.min(savedMiles, MAX_DISTANCE_MILES)
+              : MAX_DISTANCE_MILES;
           const nextPreferences = {
             minAge:
               profilePreferences?.minimum_age?.toString() ??
@@ -343,13 +373,15 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
         {!hasPremium && (
           <View style={localStyles.premiumBadge}>
             <IIcon name="lock-closed" size={11} color="#9a3412" />
-            <Text style={localStyles.premiumBadgeText}>Premium</Text>
+            <Text style={localStyles.premiumBadgeText}>Plus</Text>
           </View>
         )}
       </View>
       <Pressable
         disabled={hasPremium}
-        onPress={() => navigation.push(namer.navigation.subscription)}
+        onPress={() =>
+          navigation.push(namer.navigation.subscription, { tab: 'plus' })
+        }
       >
         <View
           pointerEvents={hasPremium ? 'auto' : 'none'}
@@ -426,17 +458,15 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
                 getProfile?.profile?.location?.city || 'your area'
               })`}</Text>
               <Text style={localStyles.inputSubTitle}>
-                {getDistance.miles > 100
-                  ? 'No limit on distance.'
-                  : `${getDistance.miles} miles from you`}
+                {`Up to ${getDistance.miles} miles from you`}
               </Text>
               <RangeSlider
                 disableRange={true}
                 style={{ width: '100%', height: 30 }}
                 low={getDistance.miles ?? 55}
                 high={getDistance.miles ?? 60}
-                min={5}
-                max={105}
+                min={MIN_DISTANCE_MILES}
+                max={MAX_DISTANCE_MILES}
                 step={5}
                 onValueChanged={(va: number) => {
                   if (va !== getDistance.miles) {
@@ -454,6 +484,32 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
               />
             </View>
           </View>
+
+          <Pressable
+            style={[localStyles.group, localStyles.travelRow]}
+            onPress={() => navigation.push(namer.navigation.editLocation)}
+          >
+            <View style={localStyles.premiumGroupIcon}>
+              <IIcon name="airplane-outline" size={18} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={localStyles.travelTitle}>Travel mode</Text>
+              <Text style={localStyles.travelSubtitle}>
+                Match with people in up to 2 more cities
+              </Text>
+            </View>
+            {!hasTravelMode && (
+              <View style={localStyles.premiumBadge}>
+                <IIcon name="lock-closed" size={11} color="#9a3412" />
+                <Text style={localStyles.premiumBadgeText}>VIP</Text>
+              </View>
+            )}
+            <IIcon
+              name="chevron-forward"
+              size={18}
+              color={colors.textTertiary}
+            />
+          </Pressable>
 
           <View style={localStyles.group}>
             <View style={localStyles.groupInner}>
@@ -479,11 +535,11 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
           </View>
 
           <View style={localStyles.sectionHeaderRow}>
-            <Text style={localStyles.sectionHeaderText}>Premium filters</Text>
+            <Text style={localStyles.sectionHeaderText}>Plus filters</Text>
             {!hasPremium && (
               <View style={localStyles.premiumBadge}>
                 <IIcon name="lock-closed" size={11} color="#9a3412" />
-                <Text style={localStyles.premiumBadgeText}>Premium</Text>
+                <Text style={localStyles.premiumBadgeText}>Plus</Text>
               </View>
             )}
           </View>
@@ -494,15 +550,19 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
                 <IIcon name="sparkles" size={22} color="#f59e0b" />
               </View>
               <Text style={localStyles.paywallTitle}>
-                Unlock premium filters
+                Unlock filters with Plus
               </Text>
               <Text style={localStyles.paywallSubTitle}>
-                Upgrading unlocks advanced matching by habits, lifestyle,
+                Plus and VIP unlock advanced matching by habits, lifestyle,
                 education, ethnicity, religion, pets, and more.
               </Text>
               <Pressable
                 style={localStyles.upgradeBtn}
-                onPress={() => navigation.push(namer.navigation.subscription)}
+                onPress={() =>
+                  navigation.push(namer.navigation.subscription, {
+                    tab: 'plus',
+                  })
+                }
               >
                 <Text style={localStyles.upgradeBtnText}>Upgrade</Text>
               </Pressable>
@@ -681,6 +741,19 @@ function createLocalStyles(colors: ThemeColors) {
       borderRadius: 14,
       backgroundColor: colors.surface,
       ...elevation(colors.shadow, 1),
+    },
+    travelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    travelTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
+    travelSubtitle: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      marginTop: 2,
     },
     groupInner: {
       borderRadius: 14,

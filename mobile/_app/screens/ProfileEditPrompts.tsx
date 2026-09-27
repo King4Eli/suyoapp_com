@@ -13,6 +13,7 @@ import {
   StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
+  LayoutAnimation,
   Platform,
   ActivityIndicator,
 } from 'react-native';
@@ -42,6 +43,13 @@ export function Screen_editProfilePrompts({
   >([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  // Accordion: the one question whose answer box is open
+  const [openPromptId, setOpenPromptId] = useState<number | null>(null);
+
+  const togglePrompt = (id: number) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setOpenPromptId(prev => (prev === id ? null : id));
+  };
 
   const returnWithUpdates = useCallback(() => {
     onSave?.(prompts);
@@ -112,6 +120,8 @@ export function Screen_editProfilePrompts({
     answer: string,
   ) => {
     if (prompts.some(p => p.id_ai === question.id_ai) || !answer.trim()) return;
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setOpenPromptId(null);
     setPrompts(prev => [
       ...prev,
       {
@@ -187,6 +197,8 @@ export function Screen_editProfilePrompts({
                 <PromptDraft
                   key={question.id_ai}
                   prompt={question.question}
+                  expanded={openPromptId === question.id_ai}
+                  onToggle={() => togglePrompt(question.id_ai)}
                   onSave={answer => savePrompt(question, answer)}
                   colors={colors}
                   styles={styles}
@@ -221,38 +233,75 @@ export function Screen_editProfilePrompts({
   );
 }
 
+// One question in the "Add a Prompt" accordion: tap the question to open its
+// answer box. The draft text survives collapsing.
 const PromptDraft = ({
   prompt,
+  expanded,
+  onToggle,
   onSave,
   colors,
   styles,
 }: {
   prompt: string;
+  expanded: boolean;
+  onToggle: () => void;
   onSave: (answer: string) => void;
   colors: ThemeColors;
   styles: any;
 }) => {
   const [text, setText] = useState('');
+  const hasDraft = text.trim().length > 0;
 
   return (
-    <View style={styles.promptPickerCard}>
-      <Text style={styles.promptQuestion}>{prompt}</Text>
-      <TextInput
-        style={[styles.textInput, styles.promptSheetInput]}
-        value={text}
-        onChangeText={setText}
-        placeholder={prompt}
-        placeholderTextColor={colors.textTertiary}
-        maxLength={140}
-        multiline
-      />
+    <View
+      style={[styles.promptPickerCard, expanded && styles.promptPickerCardOpen]}
+    >
       <Pressable
-        style={[styles.saveBtn, !text.trim() && styles.saveBtnDisabled]}
-        disabled={!text.trim()}
-        onPress={() => onSave(text)}
+        style={styles.promptPickerHeader}
+        onPress={onToggle}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
       >
-        <Text style={styles.saveBtnText}>Save Prompt</Text>
+        <Text
+          style={[
+            styles.promptPickerQuestion,
+            expanded && { color: colors.primary },
+          ]}
+        >
+          {prompt}
+        </Text>
+        {!expanded && hasDraft && <View style={styles.draftDot} />}
+        <IIcon
+          name={expanded ? 'chevron-up' : 'chevron-down'}
+          size={18}
+          color={expanded ? colors.primary : colors.textTertiary}
+        />
       </Pressable>
+      {expanded && (
+        <View style={{ gap: 10 }}>
+          <TextInput
+            style={[styles.textInput, styles.promptSheetInput]}
+            value={text}
+            onChangeText={setText}
+            placeholder="Write your answer..."
+            placeholderTextColor={colors.textTertiary}
+            maxLength={140}
+            multiline
+            autoFocus
+          />
+          <View style={styles.promptPickerFooter}>
+            <Text style={styles.charCount}>{text.length}/140</Text>
+            <Pressable
+              style={[styles.saveBtn, !hasDraft && styles.saveBtnDisabled]}
+              disabled={!hasDraft}
+              onPress={() => onSave(text)}
+            >
+              <Text style={styles.saveBtnText}>Add Prompt</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -311,10 +360,34 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.border,
-      padding: 12,
-      gap: 10,
-      marginBottom: 10,
+      padding: 14,
+      gap: 12,
     },
+    promptPickerCardOpen: { borderColor: colors.primary },
+    promptPickerHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    promptPickerQuestion: {
+      flex: 1,
+      fontSize: 15,
+      fontWeight: '800',
+      color: colors.text,
+      lineHeight: 20,
+    },
+    draftDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.primary,
+    },
+    promptPickerFooter: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    charCount: { fontSize: 12, fontWeight: '700', color: colors.textTertiary },
     promptSheetInput: {
       minHeight: 90,
       backgroundColor: colors.backgroundSecondary,

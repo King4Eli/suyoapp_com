@@ -8,7 +8,8 @@ const PENDING_TTL_HOURS = envInt("PENDING_PAYMENTS_TTL_HOURS", 24);
 
 async function expireStalePendingPayments() {
   try {
-    const [result] = await db
+    // routine cleanup -- only failures are logged
+    await db
       .update(payments)
       .set({ status: 4 })
       .where(
@@ -20,12 +21,6 @@ async function expireStalePendingPayments() {
           ),
         ),
       );
-    if (result?.affectedRows) {
-      tools.serverLog(
-        `Expired ${result.affectedRows} stale pending payment(s).`,
-        "expirePendingPayments-0",
-      );
-    }
   } catch (err) {
     tools.serverLog(
       `Error expiring stale pending payments: ${err}`,

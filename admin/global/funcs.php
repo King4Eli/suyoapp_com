@@ -72,3 +72,38 @@ function format_scalar_or_json($value): string
     }
     return nl2br(htmlspecialchars($str));
 }
+
+/** [label, bootstrap color] for users.user_active. */
+function render_user_active(?string $value): array
+{
+    switch ($value) {
+        case '1':
+            return ['Active', 'success'];
+        case '0':
+            return ['Inactive', 'secondary'];
+        case '2':
+            return ['Paused', 'warning'];
+        case '3':
+            return ['Banned', 'danger'];
+        case '-99':
+            return ['System', 'dark'];
+        default:
+            return ['Unknown', 'secondary'];
+    }
+}
+
+/**
+ * A stat tile: icon bubble + big number + label. Styles in statics/admin.css.
+ * @param int|float|string $value numbers are formatted with thousands separators
+ * @param string $icon Bootstrap Icons name (without the "bi-" prefix)
+ * @param string $tone primary|accent|success|warning|info|danger|secondary
+ */
+function stat_card($value, string $label, string $icon, string $tone = 'primary'): string
+{
+    $display = is_numeric($value) ? number_format((float) $value) : (string) $value;
+    return '<div class="card h-100"><div class="stat-tile">'
+        . '<span class="stat-tile-icon tone-' . htmlspecialchars($tone) . '"><i class="bi bi-' . htmlspecialchars($icon) . '"></i></span>'
+        . '<div><div class="stat-tile-value">' . htmlspecialchars($display) . '</div>'
+        . '<div class="stat-tile-label">' . htmlspecialchars($label) . '</div></div>'
+        . '</div></div>';
+}

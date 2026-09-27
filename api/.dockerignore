@@ -1,0 +1,7 @@
+# Keep the image to what `npm ci --omit=dev` + the source produce: a local
+# node_modules would otherwise be copied over it (dev tools and all).
+node_modules
+npm-debug.log*
+.git
+.vscode
+.env*

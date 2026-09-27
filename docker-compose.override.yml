@@ -11,6 +11,7 @@ services:
     command: npm run http-dev
     environment:
       - NODE_TLS_REJECT_UNAUTHORIZED=0
+      - NODE_ENV=development
     ports:
       - "9054:80"
 

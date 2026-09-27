@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { users, usersInterests, usersPrompt } from "../../db/schema.js";
-import { tools } from "../../global/functions.js";
+import { SEARCH_DISTANCE_MILES, tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
 import { hasFeature } from "../../global/entitlements.js";
 // Platforms the client offers a field for. Keep in sync with ProfileEdit.tsx's SOCIAL_PLATFORMS.
@@ -206,7 +206,19 @@ export default async function pushProfile(input = {}) {
     for (const [inputKey, dbField] of prefMapping) {
       const val = input[inputKey];
       if (onlyNumber(val)) {
-        profUpdates.push({ field: dbField, value: val });
+        profUpdates.push({
+          field: dbField,
+          // the search radius is capped -- no "no limit" (-99) or >max values
+          value:
+            inputKey === "pref_distance"
+              ? String(
+                  Math.min(
+                    Math.max(Number(val), SEARCH_DISTANCE_MILES.min),
+                    SEARCH_DISTANCE_MILES.max,
+                  ),
+                )
+              : val,
+        });
       }
     }
     const prefLanguageInput = hasKey(input, "pref_languages")

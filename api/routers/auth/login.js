@@ -79,7 +79,7 @@ login_router.post("/", async (req, res) => {
 
     let destination;
     let channel;
-    // remove on prod
+    // ## remove on prod: only usa
     // for only USA numbers
     if (countryCode === "1") {
       await communicateWith.sendSms(countryCode, phonenumber, smsMessage);

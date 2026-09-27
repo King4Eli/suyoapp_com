@@ -199,6 +199,7 @@ export const help = {
       freeRewind: f.freeRewind === true,
       readReceipts: f.readReceipts === true,
       viewSocialLinks: f.viewSocialLinks === true,
+      travelMode: f.travelMode === true,
       dailyRoses: Number(f.dailyRoses ?? 0),
       dailyDirectMessages: Number(f.dailyDirectMessages ?? 0),
     };
@@ -640,14 +641,19 @@ const LOCATION_GEOHASH_PRECISION = 6; // (~0.6km x 1.2km) or ( ~0.375mi x 0.75mi
  * push. Skips the round-trip otherwise -- pushLocation's handler does a reverse-geocode
  * call against a rate-limited third-party API plus a DB write, neither of which should
  * run on every single app launch just because the phone hasn't moved.
+ *
+ * `force` skips that check (the user tapped "refresh"). Resolves to the server's
+ * resolved place ({ city, state, country, ... }) when a push happened, else null.
  */
-export async function maybePushLocation(): Promise<void> {
+export async function maybePushLocation({
+  force = false,
+}: { force?: boolean } = {}): Promise<any | null> {
   const location: any = await getCurrentLocation().catch(() => null);
-  if (!location) return;
+  if (!location) return null;
 
   const latd = location?.coords?.latitude;
   const long = location?.coords?.longitude;
-  if (!Number.isFinite(latd) || !Number.isFinite(long)) return;
+  if (!Number.isFinite(latd) || !Number.isFinite(long)) return null;
 
   const geohash = ngeohash.encode(latd, long, LOCATION_GEOHASH_PRECISION);
 
@@ -658,7 +664,7 @@ export async function maybePushLocation(): Promise<void> {
       const isSameArea = last?.geohash === geohash;
       const isFresh =
         Date.now() - (last?.pushedAt ?? 0) < LOCATION_PUSH_MIN_INTERVAL_MS;
-      if (isSameArea && isFresh) return;
+      if (!force && isSameArea && isFresh) return null;
     }
   } catch (error) {
     console.error('Error reading last location push:', error);
@@ -687,7 +693,9 @@ export async function maybePushLocation(): Promise<void> {
       JSON.stringify({ geohash, pushedAt: Date.now() }),
     );
     await cacheStorage.getCurrentUserProfile(true);
+    return response?.data ?? null;
   }
+  return null;
 }
 
 export const parseCategoryProducts = (

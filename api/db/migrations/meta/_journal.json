@@ -57,6 +57,20 @@
       "when": 1790477334991,
       "tag": "0007_build_hash_on_logs",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1790564703917,
+      "tag": "0008_travel_mode_secondary_locations",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1790565267993,
+      "tag": "0009_users_locations_user_id_collation_match_users",
+      "breakpoints": true
     }
   ]
 }

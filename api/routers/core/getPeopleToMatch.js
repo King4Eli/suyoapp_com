@@ -18,11 +18,18 @@ import {
   matches,
   users,
   usersInterests,
+  usersLocations,
   usersPrompt,
 } from "../../db/schema.js";
-import { tools } from "../../global/functions.js";
+import { SEARCH_DISTANCE_MILES, tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
 import { getEntitlements } from "../../global/entitlements.js";
+import {
+  getSecondaryLocations,
+  sqlMilesTo,
+  sqlMilesToNearest,
+  sqlTravelModeActive,
+} from "../../global/travelMode.js";
 import ngeohash from "ngeohash";
 
 // Fields safe to hand back about ANOTHER user (a match candidate). Deliberately
@@ -76,17 +83,9 @@ const CANDIDATE_PROFILE_SELECT = Object.fromEntries(
  * @param {number} lat
  * @param {number} lng
  * @param {number} distanceMiles
- * @returns {string[] | null}
+ * @returns {string[]}
  */
 function getSearchHashes(lat, lng, distanceMiles) {
-  if (
-    !Number.isFinite(distanceMiles) ||
-    distanceMiles === -99 ||
-    distanceMiles > 100
-  ) {
-    return null;
-  }
-
   const precision = distanceMiles <= 5 ? 4 : distanceMiles <= 25 ? 3 : 2;
 
   const center = ngeohash.encode(lat, lng, precision);
@@ -265,6 +264,7 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
         geo_latd: users.geoLatd,
         geo_long: users.geoLong,
         user_preference_distance: users.userPreferenceDistance,
+        user_travel_mode: users.userTravelMode,
       })
       .from(users)
       .where(eq(users.userId, sessions.currentUserID));
@@ -275,35 +275,110 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
       return response;
     }
 
+    // Search radius around each of the viewer's points. There's no "no limit":
+    // older saved values (-99 or anything over the max) search the max.
     const prefDist = Number(currentUser.user_preference_distance);
-    const hasDistanceLimit =
-      Number.isFinite(prefDist) && prefDist !== -99 && prefDist <= 100;
-    const searchHashes = getSearchHashes(
-      currentUser.geo_latd,
-      currentUser.geo_long,
-      prefDist,
-    );
+    const searchRadius =
+      Number.isFinite(prefDist) && prefDist > 0
+        ? Math.min(prefDist, SEARCH_DISTANCE_MILES.max)
+        : SEARCH_DISTANCE_MILES.max;
+
+    // Where the viewer is searching from: their current location, plus their
+    // travel-mode locations while travel mode is on and their plan includes it.
+    /** @type {Array<{ latd: number; long: number }>} */
+    const viewerPoints = [
+      { latd: currentUser.geo_latd, long: currentUser.geo_long },
+    ];
+    // Parallel to viewerPoints: null for the current location, the place
+    // ({ city, state, country }) for each travel-mode location
+    /** @type {Array<{ city?: string; state?: string; country?: string } | null>} */
+    const viewerOrigins = [null];
+    if (currentUser.user_travel_mode === "1" && features.travelMode) {
+      const secondary = await getSecondaryLocations(sessions.currentUserID);
+      for (const loc of secondary) {
+        viewerPoints.push({ latd: loc.latd, long: loc.long });
+        const meta = /** @type {any} */ (loc.geo_meta ?? {});
+        viewerOrigins.push({
+          city: meta.city,
+          state: meta.state,
+          country: meta.country,
+        });
+      }
+    }
+    // Lets the Peoples screen say travel mode is widening the search, even when
+    // nobody turns up
+    response.travel_search = {
+      active: viewerOrigins.length > 1,
+      cities: viewerOrigins.slice(1),
+    };
+
+    const searchHashes = [
+      ...new Set(
+        viewerPoints.flatMap((p) =>
+          getSearchHashes(p.latd, p.long, searchRadius),
+        ),
+      ),
+    ];
 
     // ── Step 2: main match query ───────────────────────────────────────────
     const m1 = alias(matches, "m1");
     const m2 = alias(matches, "m2");
     const currentUserAlias = alias(users, "currentUser");
 
-    const distanceExpr = sql`(3959 * ACOS(
-          LEAST(1, GREATEST(-1,
-            SIN(RADIANS(${users.geoLatd})) * SIN(RADIANS(${currentUserAlias.geoLatd})) +
-            COS(RADIANS(${users.geoLatd})) * COS(RADIANS(${currentUserAlias.geoLatd})) *
-            COS(RADIANS(${users.geoLong} - ${currentUserAlias.geoLong}))
-          ))
-        ))`;
+    // A candidate's travel-mode locations count only while THEY have travel mode
+    // on and are still entitled to it (checked per row, see sqlTravelModeActive).
+    const candidateTravelActive = sqlTravelModeActive(
+      users.userTravelMode,
+      users.userId,
+    );
 
-    const geoHashCondition = searchHashes
-      ? or(...searchHashes.map((hash) => like(users.geoHash, `${hash}%`)))
-      : undefined;
+    // Distance = closest pair between any of the viewer's points and any of the
+    // candidate's active locations (their current one, plus travel-mode ones).
+    const primaryDistance = sqlMilesToNearest(
+      users.geoLatd,
+      users.geoLong,
+      viewerPoints,
+    );
+    // (Raw subqueries reference users_locations by its real name -- Drizzle
+    // renders an alias() inside sql`` as a bare, nonexistent table name.)
+    const secondaryDistance = sql`(
+      SELECT MIN(${sqlMilesToNearest(usersLocations.geoLatd, usersLocations.geoLong, viewerPoints)})
+      FROM ${usersLocations}
+      WHERE ${usersLocations.userId} = ${users.userId} AND ${candidateTravelActive}
+    )`;
+    const distanceExpr = sql`LEAST(${primaryDistance}, COALESCE(${secondaryDistance}, ${primaryDistance}))`;
 
-    const distanceCondition = hasDistanceLimit
-      ? sql`${distanceExpr} <= ${currentUserAlias.userPreferenceDistance}`
-      : undefined;
+    // With travel locations in play, the distance to each viewer point on its own
+    // -- the nearest one says whether this person showed up because of the
+    // viewer's current location or one of their travel cities.
+    /** @type {Record<string, import("drizzle-orm").SQL>} */
+    const originDistances = {};
+    if (viewerPoints.length > 1) {
+      viewerPoints.forEach((point, i) => {
+        const toPrimary = sqlMilesTo(users.geoLatd, users.geoLong, point);
+        const toSecondary = sql`(
+          SELECT MIN(${sqlMilesTo(usersLocations.geoLatd, usersLocations.geoLong, point)})
+          FROM ${usersLocations}
+          WHERE ${usersLocations.userId} = ${users.userId} AND ${candidateTravelActive}
+        )`;
+        originDistances[`origin_distance_${i}`] =
+          sql`LEAST(${toPrimary}, COALESCE(${toSecondary}, ${toPrimary}))`;
+      });
+    }
+
+    const geoHashCondition = or(
+      ...searchHashes.map((hash) => like(users.geoHash, `${hash}%`)),
+      and(
+        candidateTravelActive,
+        sql`EXISTS (
+              SELECT 1 FROM ${usersLocations}
+              WHERE ${usersLocations.userId} = ${users.userId}
+                AND (${or(...searchHashes.map((hash) => like(usersLocations.geoHash, `${hash}%`)))})
+            )`,
+      ),
+    );
+
+    const distanceCondition = sql`${distanceExpr} <= ${searchRadius}`;
 
     const rows = await db
       .select({
@@ -311,6 +386,7 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
         match_status: m1.matchStatus,
         match_id: m1.matchId,
         distance_miles: distanceExpr,
+        ...originDistances,
       })
       .from(users)
       .leftJoin(
@@ -436,6 +512,18 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
         u.user_image = JSON.parse(u.user_image ?? "[]");
         u.user_location = u.geo_meta ?? {};
         delete u.match_status;
+
+        // Nearest viewer point; index > 0 means one of the viewer's travel cities
+        if (viewerPoints.length > 1) {
+          const distances = viewerPoints.map((_, i) => {
+            const d = Number(u[`origin_distance_${i}`]);
+            delete u[`origin_distance_${i}`];
+            return Number.isFinite(d) ? d : Infinity;
+          });
+          const nearest = distances.indexOf(Math.min(...distances));
+          const origin = viewerOrigins[nearest];
+          if (origin) u.search_origin = { type: "travel", ...origin };
+        }
         if (u.user_privacy_show_age === "0") delete u.user_bio_dob;
         if (u.user_privacy_show_distance === "0") delete u.distance_miles;
         delete u.user_privacy_show_distance;

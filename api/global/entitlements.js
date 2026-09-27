@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, or, sql } from "drizzle-orm";
 import { db } from "../db/client.js";
 import {
   payments,
@@ -122,6 +122,7 @@ export const TIERS = /** @type {const} */ (["free", "plus", "vip"]);
  *   freeRewind: boolean;
  *   readReceipts: boolean;
  *   viewSocialLinks: boolean;
+ *   travelMode: boolean;
  *   dailyRoses: number;
  *   dailyDirectMessages: number;
  * }} PlanFeatures
@@ -137,6 +138,7 @@ export const PLAN_FEATURES = {
     freeRewind: false,
     readReceipts: false,
     viewSocialLinks: false,
+    travelMode: false,
     dailyRoses: 2,
     dailyDirectMessages: 3,
   },
@@ -147,6 +149,7 @@ export const PLAN_FEATURES = {
     freeRewind: true,
     readReceipts: false,
     viewSocialLinks: false,
+    travelMode: false,
     dailyRoses: 5,
     dailyDirectMessages: 10,
   },
@@ -157,6 +160,7 @@ export const PLAN_FEATURES = {
     freeRewind: true,
     readReceipts: true,
     viewSocialLinks: true,
+    travelMode: true,
     dailyRoses: 10,
     dailyDirectMessages: 20,
   },
@@ -212,6 +216,31 @@ export async function getEntitlements(userId) {
 export async function hasFeature(userId, feature) {
   const { features } = await getEntitlements(userId);
   return features[feature] === true;
+}
+
+/**
+ * SQL form of hasFeature, for gates that have to be checked per row inside a
+ * query (e.g. whether each discovery candidate is still VIP) -- one query instead
+ * of a getEntitlements call per candidate. Same "active subscription" conditions
+ * as getSubscriptionTier; the tiers come from PLAN_FEATURES, not a hardcoded list.
+ * @param {import("drizzle-orm").AnyColumn | import("drizzle-orm").SQL} userIdColumn
+ * @param {FeatureFlag} feature
+ */
+export function sqlHasFeature(userIdColumn, feature) {
+  const tiers = TIERS.filter((tier) => PLAN_FEATURES[tier][feature] === true);
+  if (tiers.length === 0) return sql`FALSE`;
+  return sql`EXISTS (
+    SELECT 1 FROM ${subscriptions}
+    INNER JOIN ${productListVariant}
+      ON ${subscriptions.variantIdRef} = ${productListVariant.idAi}
+    INNER JOIN ${productLists}
+      ON ${productListVariant.productListsIdRef} = ${productLists.plSku}
+    WHERE ${subscriptions.userId} = ${userIdColumn}
+      AND ${subscriptions.status} = 1
+      AND ${subscriptions.endDate} > NOW()
+      AND ${productLists.category} = 'mainsub'
+      AND ${inArray(productLists.tier, tiers)}
+  )`;
 }
 
 // ── Daily allowance + purchased balance ─────────────────────────────────────

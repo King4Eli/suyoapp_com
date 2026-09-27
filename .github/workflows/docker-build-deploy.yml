@@ -9,10 +9,64 @@ on:
       - "web/**"
       - "mobile/**"
       - ".github/workflows/docker-build-deploy.yml"
+  # Checks only -- build/deploy jobs skip pull requests (see their `if`).
+  pull_request:
+    branches: [main]
+    paths:
+      - "api/**"
+      - "web/**"
+      - "mobile/**"
+      - ".github/workflows/docker-build-deploy.yml"
   workflow_dispatch:
 
 jobs:
+  # Formatting, lint and type checks. Everything below waits for these, so a
+  # failing check never builds or deploys.
+  checks:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # api is plain JS run by Node -- no type check, just format + lint.
+          - project: api
+            typecheck: ""
+          - project: mobile
+            typecheck: npx tsc --noEmit -p .
+          - project: web
+            # solution-style tsconfig -- build mode checks the referenced projects
+            typecheck: npx tsc -b
+    name: checks (${{ matrix.project }})
+    defaults:
+      run:
+        working-directory: ${{ matrix.project }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ${{ matrix.project }}/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prettier
+        run: npx prettier --check .
+
+      - name: ESLint
+        run: npx eslint . --max-warnings=0
+
+      - name: TypeScript
+        if: matrix.typecheck != ''
+        run: ${{ matrix.typecheck }}
+
   build-and-push:
+    needs: checks
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -63,6 +117,8 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
   mobile-build-apk:
+    needs: checks
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -104,6 +160,7 @@ jobs:
 
   deploy:
     needs: build-and-push
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     concurrency:
       group: deploy

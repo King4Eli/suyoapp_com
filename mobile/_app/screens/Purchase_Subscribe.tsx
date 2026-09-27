@@ -19,9 +19,11 @@ import {
 import {
   Loaderx,
   bottomsheet_renderBackdrop,
+  bottomsheet_renderHandle,
 } from '../funcs/functions_stateful';
 import { purchaseNative } from '../funcs/iap';
 import {
+  leavePaymentScreens,
   openPaymentPage,
   presentCheckoutError,
 } from '../funcs/functions/paymentNotices';
@@ -175,6 +177,7 @@ export const Screen_PurchaseSubscribe = ({
       Loaderx.hide();
       if (result.code === 200) {
         paymentSheetRef.current?.close();
+        leavePaymentScreens();
         Dialogx.alert(
           'Welcome aboard!',
           'Your subscription is now active.',
@@ -337,10 +340,12 @@ export const Screen_PurchaseSubscribe = ({
         ref={paymentSheetRef}
         index={-1}
         enablePanDownToClose
-        snapPoints={[]}
         backdropComponent={bottomsheet_renderBackdrop}
+        handleComponent={bottomsheet_renderHandle}
       >
-        <BottomSheetView style={styles.container}>
+        <BottomSheetView
+          style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 }}
+        >
           <SafeAreaView edges={['bottom']}>
             <Text style={s.sheetTitle}>
               {selectedTier} · {priceLabel}

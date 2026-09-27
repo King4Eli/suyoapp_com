@@ -24,5 +24,6 @@ export const namer = {
     likes_daily: "ratelimit:likes:daily:",
     logs_ip: "ratelimit:logs:ip:",
     feed_post_daily: "ratelimit:feed:post:daily:",
+    places_geocode: "ratelimit:places:geocode:",
   },
 };

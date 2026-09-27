@@ -218,11 +218,11 @@ function build_logs_page_url(int $page): string
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="col-12 col-md-2 d-flex gap-2">
-                    <button class="btn btn-primary flex-fill" type="submit">Apply</button>
-                    <a class="btn btn-outline-secondary flex-fill" href="applogs.php">Reset</a>
+                <div class="col-12 col-md-3 d-flex gap-2">
+                    <button class="btn btn-primary flex-fill" type="submit"><i class="bi bi-funnel"></i> Apply</button>
+                    <a class="btn btn-outline-secondary flex-fill" href="applogs.php"><i class="bi bi-arrow-counterclockwise"></i> Reset</a>
                 </div>
-                <div class="col-12 col-md-6">
+                <div class="col-12 col-md-5">
                     <label class="form-label" for="client-filter">Quick filter (client)</label>
                     <input class="form-control" id="client-filter" type="text" placeholder="Filter visible rows">
                 </div>
@@ -232,7 +232,7 @@ function build_logs_page_url(int $page): string
 
     <div class="card shadow-sm">
         <div class="card-header d-flex align-items-center justify-content-between">
-            <span class="fw-semibold">Log Queue</span>
+            <span class="fw-semibold"><i class="bi bi-journal-text"></i>Log Queue</span>
             <span class="text-muted small">
                 <?php if ($view === 'group'): ?>
                     <?php echo count($reports); ?> rows
@@ -341,7 +341,7 @@ function build_logs_page_url(int $page): string
                                     </form>
                                     <?php if (!empty($report['report_currentuser'])): ?>
                                         <a class="btn btn-sm btn-outline-primary"
-                                            href="singleuser.php?id=<?php echo urlencode($report['report_currentuser']); ?>">User</a>
+                                            href="singleuser.php?id=<?php echo urlencode($report['report_currentuser']); ?>"><i class="bi bi-person"></i> User</a>
                                     <?php endif; ?>
                                     <?php if (!empty($report['device_id'])): ?>
                                         <a class="btn btn-sm btn-outline-secondary"

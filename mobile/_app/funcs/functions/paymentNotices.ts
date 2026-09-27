@@ -43,6 +43,45 @@ export function markNoticeAlreadyShown(kind: string, forMs = 2 * 60 * 1000) {
   alreadyToldUntil.set(kind, Date.now() + forMs);
 }
 
+// A purchase that just went through: the user is done with the payment screen.
+const COMPLETED_KINDS = new Set([
+  'subscription_activated',
+  'purchase_completed',
+  'rewind_completed',
+]);
+const PAYMENT_ROUTES = new Set<string>([
+  namer.navigation.subscription,
+  namer.navigation.consumables,
+]);
+
+/** Leaves the subscription / consumables screen, if that's where the user is. */
+export function leavePaymentScreens() {
+  if (!navigationRef.isReady()) return;
+  const current = navigationRef.getCurrentRoute()?.name ?? '';
+  if (PAYMENT_ROUTES.has(current) && navigationRef.canGoBack()) {
+    navigationRef.goBack();
+  }
+}
+
+// Screens that show plan-gated UI but only read the profile on mount (Settings,
+// preferences, ...) re-read it when a payment lands -- by then the cache is fresh.
+const refreshListeners = new Set<() => void>();
+export function onPaymentRefreshed(listener: () => void) {
+  refreshListeners.add(listener);
+  return () => {
+    refreshListeners.delete(listener);
+  };
+}
+export function notifyPaymentRefreshed() {
+  refreshListeners.forEach(listener => {
+    try {
+      listener();
+    } catch {
+      // one screen's failed refresh shouldn't stop the others
+    }
+  });
+}
+
 const openSettings = () => {
   if (navigationRef.isReady()) {
     navigationRef.navigate(namer.navigation.settings as never);
@@ -69,6 +108,7 @@ export function presentPaymentNotice(notice: PaymentNotice) {
     alreadyToldUntil.delete(notice.kind);
     return;
   }
+  if (COMPLETED_KINDS.has(notice.kind)) leavePaymentScreens();
   const isPlan = SUBSCRIPTION_KINDS.has(notice.kind);
   const needsAction = notice.tone === 'error' || notice.tone === 'warning';
 
@@ -100,6 +140,7 @@ async function refreshAfterPayment() {
     cacheStorage.getCurrentUserProfile(true).catch(() => {}),
     cacheStorage.getProducts(true).catch(() => {}),
   ]);
+  notifyPaymentRefreshed();
 }
 
 /**
@@ -162,6 +203,7 @@ export async function followCheckoutReturn(paymentId: string | null) {
   if (last?.notice) {
     presentPaymentNotice(last.notice);
   } else if (last?.status === 'completed') {
+    leavePaymentScreens();
     Dialogx.alert(
       'Payment received',
       'Your purchase is confirmed.',

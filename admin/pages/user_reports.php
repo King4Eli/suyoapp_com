@@ -145,8 +145,8 @@ try {
                     </select>
                 </div>
                 <div class="col-12 col-md-2 d-flex gap-2">
-                    <button class="btn btn-primary flex-fill" type="submit">Apply</button>
-                    <a class="btn btn-outline-secondary flex-fill" href="user_reports.php">Reset</a>
+                    <button class="btn btn-primary flex-fill" type="submit"><i class="bi bi-funnel"></i> Apply</button>
+                    <a class="btn btn-outline-secondary flex-fill" href="user_reports.php"><i class="bi bi-arrow-counterclockwise"></i> Reset</a>
                 </div>
                 <div class="col-12 col-md-6">
                     <label class="form-label" for="client-filter">Quick filter (client)</label>
@@ -158,7 +158,7 @@ try {
 
     <div class="card shadow-sm">
         <div class="card-header d-flex align-items-center justify-content-between">
-            <span class="fw-semibold">User Report Queue</span>
+            <span class="fw-semibold"><i class="bi bi-flag"></i>User Report Queue</span>
             <span class="text-muted small"><?php echo count($reports); ?> rows</span>
         </div>
         <div class="table-responsive">

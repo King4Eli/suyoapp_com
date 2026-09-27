@@ -11,6 +11,7 @@ import {
 } from 'react-native-iap';
 import { _http_request, cacheStorage } from './functions';
 import { __CONFIG__ } from './static';
+import { notifyPaymentRefreshed } from './functions/paymentNotices';
 
 // Lazily connects once per app session; every caller awaits the same in-flight promise so
 // concurrent purchase attempts don't race initConnection().
@@ -112,6 +113,7 @@ export async function purchaseNative({
               ? cacheStorage.getProducts(true)
               : Promise.resolve(),
           ]);
+          notifyPaymentRefreshed();
         }
 
         settle(

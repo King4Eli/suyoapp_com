@@ -1,0 +1,397 @@
+/* Admin console theme -- layered over Bootstrap 5.3. Brand colors match the app
+   (mobile/_app/funcs/theme/palette.ts: primary #E24862, accent #6E4B8E). */
+
+:root {
+    --admin-primary: #e24862;
+    --admin-primary-dark: #b23350;
+    --admin-primary-soft: #fbe7ec;
+    --admin-accent: #6e4b8e;
+    --admin-accent-soft: #efe7f4;
+    --admin-bg: #f5f6f8;
+    --admin-surface: #ffffff;
+    --admin-border: #e8eaee;
+    --admin-text: #1f2430;
+    --admin-muted: #6b7280;
+    --admin-sidebar: #15171e;
+    --admin-sidebar-text: #a3a8b4;
+    --admin-radius: 14px;
+
+    --bs-body-font-family: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --bs-body-color: var(--admin-text);
+    /* components (cards, inputs) read --bs-body-bg, so it stays white; the page
+       gray is set on body only */
+    --bs-body-bg: var(--admin-surface);
+    --bs-link-color: var(--admin-primary);
+    --bs-link-color-rgb: 226, 72, 98;
+    --bs-link-hover-color: var(--admin-primary-dark);
+    --bs-link-hover-color-rgb: 178, 51, 80;
+    --bs-primary: var(--admin-primary);
+    --bs-primary-rgb: 226, 72, 98;
+    --bs-border-color: var(--admin-border);
+}
+
+body {
+    background: var(--admin-bg);
+    font-feature-settings: "tnum" 1; /* aligned digits in stats and tables */
+}
+
+/* ── Shell ─────────────────────────────────────────────────────────────── */
+.admin-sidebar {
+    background: var(--admin-sidebar);
+    color: var(--admin-sidebar-text);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+}
+@media (max-width: 991.98px) {
+    .admin-sidebar {
+        position: static;
+        height: auto;
+    }
+}
+.admin-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.25rem 0.5rem 1.5rem;
+    color: #fff;
+    text-decoration: none;
+}
+.admin-brand-mark {
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, var(--admin-primary), var(--admin-accent));
+    color: #fff;
+    font-size: 1.1rem;
+}
+.admin-brand-name {
+    font-weight: 800;
+    font-size: 1.05rem;
+    line-height: 1.1;
+}
+.admin-brand-sub {
+    font-size: 0.75rem;
+    color: var(--admin-sidebar-text);
+}
+.admin-nav-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6b7080;
+    padding: 0 0.75rem;
+    margin: 0.5rem 0 0.4rem;
+}
+.admin-nav .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    color: var(--admin-sidebar-text);
+    border-radius: 10px;
+    padding: 0.55rem 0.75rem;
+    font-weight: 600;
+    font-size: 0.92rem;
+    transition: background 0.15s, color 0.15s;
+}
+.admin-nav .nav-link .bi {
+    font-size: 1.05rem;
+    width: 1.1rem;
+    text-align: center;
+}
+.admin-nav .nav-link:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.06);
+}
+.admin-nav .nav-link.active {
+    color: #fff;
+    background: rgba(226, 72, 98, 0.16);
+    box-shadow: inset 3px 0 0 var(--admin-primary);
+}
+.admin-nav .nav-link.active .bi {
+    color: var(--admin-primary);
+}
+.admin-nav .nav-link.nav-logout:hover {
+    background: rgba(226, 72, 98, 0.12);
+    color: #fff;
+}
+
+.admin-main {
+    padding: 1.75rem 2rem 3rem;
+}
+@media (max-width: 575.98px) {
+    .admin-main {
+        padding: 1.25rem 1rem 2rem;
+    }
+}
+.admin-page-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+}
+.admin-page-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 13px;
+    display: grid;
+    place-items: center;
+    font-size: 1.3rem;
+    color: var(--admin-primary);
+    background: var(--admin-primary-soft);
+    flex-shrink: 0;
+}
+.admin-page-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+.admin-page-subtitle {
+    color: var(--admin-muted);
+    font-size: 0.9rem;
+}
+.admin-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-border);
+    border-radius: 999px;
+    padding: 0.3rem 0.7rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--admin-muted);
+}
+
+/* ── Cards ─────────────────────────────────────────────────────────────── */
+.card {
+    --bs-card-border-color: var(--admin-border);
+    --bs-card-border-radius: var(--admin-radius);
+    --bs-card-inner-border-radius: calc(var(--admin-radius) - 1px);
+    --bs-card-cap-bg: var(--admin-surface);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+.card.shadow-sm,
+.card.shadow {
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04) !important;
+}
+.card-header {
+    font-weight: 700;
+    padding: 0.85rem 1.1rem;
+    border-bottom-color: var(--admin-border);
+}
+.card-header .bi {
+    color: var(--admin-primary);
+    margin-right: 0.4rem;
+}
+.card-footer {
+    background: var(--admin-surface);
+    border-top-color: var(--admin-border);
+}
+
+/* Stat tiles (stat_card() in global/funcs.php) */
+.stat-tile {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    height: 100%;
+    padding: 1rem 1.1rem;
+}
+.stat-tile-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+.stat-tile-value {
+    font-size: 1.45rem;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+}
+.stat-tile-label {
+    color: var(--admin-muted);
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+.tone-primary { color: var(--admin-primary); background: var(--admin-primary-soft); }
+.tone-accent { color: var(--admin-accent); background: var(--admin-accent-soft); }
+.tone-success { color: #15803d; background: #dcfce7; }
+.tone-warning { color: #b45309; background: #fef3c7; }
+.tone-info { color: #0369a1; background: #e0f2fe; }
+.tone-danger { color: #b91c1c; background: #fee2e2; }
+.tone-secondary { color: #475569; background: #eef1f5; }
+
+/* ── Tables ────────────────────────────────────────────────────────────── */
+.table {
+    --bs-table-striped-bg: #fafbfc;
+    --bs-table-hover-bg: #f5f7fa;
+    margin-bottom: 0;
+}
+.table > thead th,
+.table > thead.table-light th {
+    background: #f8f9fb;
+    color: var(--admin-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--admin-border);
+    white-space: nowrap;
+}
+.table > tbody > tr:hover > * {
+    background-color: var(--bs-table-hover-bg);
+}
+.table td,
+.table th {
+    padding: 0.7rem 0.9rem;
+    border-color: #f0f1f4;
+}
+
+/* ── Controls ──────────────────────────────────────────────────────────── */
+.btn {
+    border-radius: 10px;
+    font-weight: 600;
+}
+.btn-primary {
+    --bs-btn-bg: var(--admin-primary);
+    --bs-btn-border-color: var(--admin-primary);
+    --bs-btn-hover-bg: var(--admin-primary-dark);
+    --bs-btn-hover-border-color: var(--admin-primary-dark);
+    --bs-btn-active-bg: var(--admin-primary-dark);
+    --bs-btn-active-border-color: var(--admin-primary-dark);
+    --bs-btn-disabled-bg: var(--admin-primary);
+    --bs-btn-disabled-border-color: var(--admin-primary);
+}
+.btn-outline-primary {
+    --bs-btn-color: var(--admin-primary);
+    --bs-btn-border-color: #f1b5c0;
+    --bs-btn-hover-bg: var(--admin-primary);
+    --bs-btn-hover-border-color: var(--admin-primary);
+    --bs-btn-active-bg: var(--admin-primary-dark);
+    --bs-btn-active-border-color: var(--admin-primary-dark);
+}
+.btn-outline-secondary {
+    --bs-btn-color: #4b5563;
+    --bs-btn-border-color: #d7dbe2;
+    --bs-btn-hover-bg: #f1f3f6;
+    --bs-btn-hover-color: #1f2430;
+    --bs-btn-hover-border-color: #c9ced7;
+    --bs-btn-active-bg: #e7eaef;
+    --bs-btn-active-color: #1f2430;
+}
+.form-control,
+.form-select {
+    border-radius: 10px;
+    border-color: #dfe2e8;
+}
+.form-control:focus,
+.form-select:focus {
+    border-color: #efa0ae;
+    box-shadow: 0 0 0 0.2rem rgba(226, 72, 98, 0.15);
+}
+.form-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--admin-muted);
+    margin-bottom: 0.3rem;
+}
+.form-check-input:checked {
+    background-color: var(--admin-primary);
+    border-color: var(--admin-primary);
+}
+.badge {
+    font-weight: 700;
+    border-radius: 7px;
+    padding: 0.38em 0.6em;
+}
+.pagination {
+    --bs-pagination-active-bg: var(--admin-primary);
+    --bs-pagination-active-border-color: var(--admin-primary);
+    --bs-pagination-color: var(--admin-text);
+    --bs-pagination-hover-color: var(--admin-primary);
+    --bs-pagination-border-color: var(--admin-border);
+    --bs-pagination-border-radius: 10px;
+    --bs-pagination-focus-box-shadow: 0 0 0 0.2rem rgba(226, 72, 98, 0.15);
+}
+.nav-tabs .nav-link.active,
+.nav-pills .nav-link.active {
+    --bs-nav-pills-link-active-bg: var(--admin-primary);
+}
+
+/* ── Login ─────────────────────────────────────────────────────────────── */
+.admin-login-bg {
+    min-height: 100vh;
+    background:
+        radial-gradient(circle at 15% 20%, rgba(226, 72, 98, 0.18), transparent 45%),
+        radial-gradient(circle at 85% 80%, rgba(110, 75, 142, 0.18), transparent 45%),
+        var(--admin-bg);
+}
+
+/* Card titles written as headings (dashboard) */
+.card-header h5,
+.card-header h6 {
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+.admin-section-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--admin-muted);
+    margin-bottom: 0.9rem;
+}
+
+/* Buttons keep icon and label on one line */
+.btn {
+    white-space: nowrap;
+}
+
+/* Links inside tables (ids, emails, copy buttons): brand color, no underline until hover */
+.table a:not(.btn),
+.table .btn-link {
+    text-decoration: none;
+}
+.table a:not(.btn):hover,
+.table .btn-link:hover {
+    text-decoration: underline;
+}
+.table .btn-link {
+    font-weight: 500;
+    text-align: left;
+    font-size: inherit;
+    border-radius: 4px;
+}
+
+/* Empty states */
+.admin-empty {
+    text-align: center;
+    color: var(--admin-muted);
+    padding: 2.5rem 1rem;
+}
+.admin-empty .bi {
+    display: block;
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    color: #c3c8d2;
+}
+
+/* In-card section titles (user details) */
+.card-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+.card-title .bi {
+    color: var(--admin-primary);
+    margin-right: 0.45rem;
+}

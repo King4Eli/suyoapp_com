@@ -286,6 +286,7 @@ export const namer = {
     editprofile: 'Editprofile',
     editProfilePrompts: 'EditProfilePrompts',
     editProfileInterests: 'EditProfileInterests',
+    editLocation: 'EditLocation',
     editpreference: 'Editpreference',
     verifyProfile: 'VerifyProfile',
     signup: 'signup',
@@ -309,8 +310,6 @@ export const resourceMap = {
   },
 };
 
-//
-// remove for prod
 export const __CONFIG__ = {
   ...[
     {
@@ -321,7 +320,9 @@ export const __CONFIG__ = {
       HTTPS_DOMAIN: 'http://10.50.0.2:9052',
       HTTPS_API_DOMAIN: 'http://10.50.0.2:9051',
     },
-  ][DeviceInfo.isEmulatorSync() && Platform.OS === 'android' ? 1 : 0],
+  ][
+    __DEV__ && DeviceInfo.isEmulatorSync() && Platform.OS === 'android' ? 1 : 0
+  ],
 
   BRAND_NAME: 'SuyoApp',
   SUPPORT_EMAIL: 'support@suyoapp.com',
