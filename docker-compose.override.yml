@@ -20,3 +20,8 @@ services:
       context: ./web
       target: build
     command: npm run dev -- --host 0.0.0.0
+
+  suyoapp_com_llm:
+    # reachable from the host for trying prompts: curl localhost:11434/api/tags
+    ports:
+      - "127.0.0.1:11434:11434"

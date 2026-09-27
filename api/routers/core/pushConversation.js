@@ -182,7 +182,7 @@ export default async function pushConversation(
         if (recipientPresent) {
           await db
             .update(conversations)
-            .set({ convoStatus: "1" })
+            .set({ convoStatus: "1", convoDateUpdated: sql`UNIX_TIMESTAMP()` })
             .where(
               and(
                 inArray(conversations.convoId, insertedConvoIds),

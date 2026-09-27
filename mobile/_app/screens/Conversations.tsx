@@ -18,6 +18,7 @@ import {
   Linking,
   ImageBackground,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { Dialogx } from '../funcs/customDialog';
 import {
@@ -58,6 +59,12 @@ import FastImage from '@d11/react-native-fast-image';
 import { SafeImage } from '../funcs/customImage';
 import { SocketClient } from '../funcs/socket_realtimeData';
 import { chatsBadge } from '../funcs/tabBadges';
+import {
+  clearConversationCache,
+  mergeServerMessages,
+  readConversationCache,
+  writeConversationCache,
+} from '../funcs/functions/conversationCache';
 import ImageViewing from 'react-native-image-viewing';
 import { useTheme } from '../funcs/theme';
 
@@ -188,6 +195,10 @@ interface convoInterface {
   type: 'media' | 'text' | 'audio' | 'image' | 'video' | 'file' | 'deleted';
   message: string | null;
   src: any[] | null;
+  dateAdded?: number | null;
+  // Made on this device (optimistic send / socket preview), not yet confirmed by
+  // the server -- replaced on the next sync and never written to the cache.
+  local?: boolean;
   // Set on a direct message: the profile photo or About text it commented on.
   // The photo/About belongs to whoever received the message.
   replyTo?: { k: 'photo'; p: string } | { k: 'about'; str: string } | null;
@@ -611,6 +622,10 @@ export function Screen_conversation({
   const [getConversations, setConversations] = useState<convoInterface[]>([]);
   const [getUser2Deets, setUser2Deets] = useState<any>([]);
   const [getConvoStarter, setConvoStarter] = useState<any>([]);
+  // Opening-message ideas for an empty chat come from the local LLM
+  // (api getConversationStarters) -- it can take a few seconds the first time.
+  const [startersLoading, setStartersLoading] = useState(false);
+  const [hasSynced, setHasSynced] = useState(false);
   const [starterIndex, setStarterIndex] = useState<number>(0);
   const [inputText, setInputText] = useState<string>('');
   const [getInputImageVideo, setInputImageVideo] = useState<Asset[]>([]);
@@ -687,6 +702,7 @@ export function Screen_conversation({
           type: 'text',
           message: routeRetrivedData?.lastMessage,
           src: null,
+          local: true,
         },
         ...prev,
       ]);
@@ -1211,6 +1227,7 @@ export function Screen_conversation({
           return;
         }
         chatsBadge.refresh();
+        clearConversationCache(cacheUserIdRef.current, funt.matchId);
         bottomSheet_convotools?.ref?.current?.close();
         if (doneTitle) {
           Dialogx.alert(doneTitle, doneMessage, [{ text: 'OK' }], {
@@ -1408,52 +1425,123 @@ export function Screen_conversation({
     }
   };
 
+  // The thread is cached on the device (funcs/functions/conversationCache.ts):
+  // opening it shows the cached copy at once, then only what changed since the
+  // last sync is fetched and merged. Re-runs (a file arrived over the socket)
+  // are deltas too.
+  const cacheUserIdRef = useRef<string | null>(null);
+  const syncedAtRef = useRef<number>(0);
   useEffect(() => {
-    Loaderx.show();
-    // get convo
+    let cancelled = false;
     (async () => {
-      await _http_request({
+      if (!cacheUserIdRef.current) {
+        const me = await cacheStorage.getCurrentUserProfile().catch(() => null);
+        cacheUserIdRef.current = me?.profile?.id ?? null;
+      }
+      if (!syncedAtRef.current) {
+        const cached = await readConversationCache(
+          cacheUserIdRef.current,
+          funt.matchId,
+        );
+        if (cancelled) return;
+        if (cached) {
+          setConversations(prev => mergeServerMessages(prev, cached.messages));
+          setUser2Deets((prev: any) => cached.u2deets ?? prev);
+          syncedAtRef.current = cached.syncedAt;
+        } else {
+          Loaderx.show();
+        }
+      }
+
+      const response: any = await _http_request({
         customApiUrl:
           __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getConversation',
         reqType: 'POST',
         bodyArray: {
           matchID: funt.matchId,
+          // A couple of seconds of overlap covers clock edges; merging by id
+          // makes the repeats harmless.
+          ...(syncedAtRef.current ? { since: syncedAtRef.current - 2 } : {}),
         },
-      })
-        .then(response => {
-          if (response?.code === 200) {
-            setConversations(
-              prev => response?.chatsMessageListings?.reverse() ?? prev,
-            );
-            setUser2Deets((prev: any) => response?.u2deets ?? prev);
-            // getConversation just marked this thread read -- recount the Chat tab badge
-            chatsBadge.refresh();
-            setConvoStarter((prev: any) => response?.convostarter ?? prev);
+      }).finally(() => Loaderx.hide());
+      if (cancelled) return;
 
-            navigationRef.setParams({ matchId: funt.matchId });
-          } else if (response !== null) {
-            Dialogx.alert(
-              "Couldn't load this chat",
-              response?.message ?? 'Please try again.',
-              undefined,
-              { tone: 'error' },
-            );
-            logReport({
-              type: 'http -' + response.code,
-              useraction: 'getConversation',
-              logMessage: response?.message ?? 'Failed to fetch conversation',
-            });
-          }
-        })
-        .finally(() => {
-          setTimeout(() => {
-            Loaderx.hide();
-          }, 1000);
+      if (response?.code === 200) {
+        const incoming = Array.isArray(response?.chatsMessageListings)
+          ? response.chatsMessageListings
+          : [];
+        setConversations(prev => mergeServerMessages(prev, incoming));
+        setUser2Deets((prev: any) => response?.u2deets ?? prev);
+        if (Number(response?.syncedAt) > 0) {
+          syncedAtRef.current = Number(response.syncedAt);
+        }
+        setHasSynced(true);
+        // getConversation just marked this thread read -- recount the Chat tab badge
+        chatsBadge.refresh();
+        navigationRef.setParams({ matchId: funt.matchId });
+      } else if (response?.code === 404) {
+        // Match is gone (unmatched / blocked): drop the stale copy too.
+        clearConversationCache(cacheUserIdRef.current, funt.matchId);
+        Dialogx.alert(
+          "This chat isn't available",
+          response?.message ?? 'This match may have ended.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }],
+          { tone: 'info' },
+        );
+      } else if (response !== null && !syncedAtRef.current) {
+        // Only interrupt when there's nothing cached to show.
+        Dialogx.alert(
+          "Couldn't load this chat",
+          response?.message ?? 'Please try again.',
+          undefined,
+          { tone: 'error' },
+        );
+        logReport({
+          type: 'http -' + response?.code,
+          useraction: 'getConversation',
+          logMessage: response?.message ?? 'Failed to fetch conversation',
         });
+      }
     })();
 
-    return () => {};
-  }, [reloadIfRealtimeData_File, funt.matchId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadIfRealtimeData_File, funt.matchId, navigation]);
+
+  // Empty chat (confirmed by the server, not just the cache): fetch ideas once.
+  const isEmptyChat = hasSynced && getConversations.length === 0;
+  const startersRequested = useRef(false);
+  useEffect(() => {
+    if (!isEmptyChat || startersRequested.current) return;
+    startersRequested.current = true;
+    setStartersLoading(true);
+    _http_request({
+      customApiUrl:
+        __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getConversationStarters',
+      reqType: 'POST',
+      bodyArray: { matchId: funt.matchId },
+    })
+      .then((response: any) => {
+        if (Array.isArray(response?.starters)) {
+          setConvoStarter(response.starters);
+        }
+      })
+      .finally(() => setStartersLoading(false));
+  }, [isEmptyChat, funt.matchId]);
+
+  // Save the thread (server-confirmed messages only) shortly after it changes.
+  useEffect(() => {
+    if (!syncedAtRef.current) return;
+    const timer = setTimeout(() => {
+      writeConversationCache(cacheUserIdRef.current, funt.matchId, {
+        messages: getConversations,
+        u2deets: getUser2Deets,
+        syncedAt: syncedAtRef.current,
+      });
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [getConversations, getUser2Deets, funt.matchId]);
 
   // Update the useEffect cleanup:
   useEffect(() => {
@@ -2028,7 +2116,10 @@ export function Screen_conversation({
     }
 
     // Add optimistic messages to UI
-    setConversations(prev => [...outgoingMessages, ...prev]);
+    setConversations(prev => [
+      ...outgoingMessages.map(m => ({ ...m, local: true })),
+      ...prev,
+    ]);
     setIsUploadingMedia(true);
 
     try {
@@ -2640,6 +2731,38 @@ export function Screen_conversation({
                   width: '100%',
                 }}
               >
+                {startersLoading && getConvoStarter.length === 0 && (
+                  <View
+                    style={{
+                      width: screenWidth * 0.78,
+                      paddingVertical: 22,
+                      paddingHorizontal: 20,
+                      backgroundColor: colors.surface,
+                      borderWidth: 1,
+                      borderColor: colors.hairline,
+                      borderRadius: 20,
+                      alignItems: 'center',
+                      gap: 10,
+                    }}
+                  >
+                    <ActivityIndicator color={colors.primary} />
+                    <Text style={{ color: colors.textSecondary, fontSize: 14 }}>
+                      Thinking of ways to start the chat…
+                    </Text>
+                  </View>
+                )}
+                {getConvoStarter.length > 0 && (
+                  <Text
+                    style={{
+                      color: colors.textTertiary,
+                      fontSize: 12,
+                      fontWeight: '600',
+                      marginBottom: 10,
+                    }}
+                  >
+                    Ideas based on their profile
+                  </Text>
+                )}
                 <FlatList
                   ref={starterCarouselRef}
                   data={getConvoStarter}
