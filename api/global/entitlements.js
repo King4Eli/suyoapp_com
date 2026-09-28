@@ -6,6 +6,7 @@ import {
   productLists,
   subscriptions,
   userBoostUsage,
+  users,
   userDirectMessageUsage,
   userRoseUsage,
 } from "../db/schema.js";
@@ -147,7 +148,7 @@ export const PLAN_FEATURES = {
     seeWhoLikedYou: true,
     advancedFilters: true,
     freeRewind: true,
-    readReceipts: false,
+    readReceipts: true,
     viewSocialLinks: false,
     travelMode: false,
     dailyRoses: 5,
@@ -216,6 +217,29 @@ export async function getEntitlements(userId) {
 export async function hasFeature(userId, feature) {
   const { features } = await getEntitlements(userId);
   return features[feature] === true;
+}
+
+/**
+ * Read receipts are mutual, like WhatsApp: either person sees whether the other
+ * read their messages only when BOTH have the feature (Plus or VIP) and have it
+ * switched on in settings. Turning it off hides your reads from them and theirs
+ * from you. The setting is re-checked against the plan here because it stays
+ * "1" in the database after a subscription lapses.
+ * @param {string} userIdA
+ * @param {string} userIdB
+ */
+export async function canShareReadReceipts(userIdA, userIdB) {
+  if (!userIdA || !userIdB) return false;
+  const rows = await db
+    .select({ setting: users.userPrivacyReadReceipts })
+    .from(users)
+    .where(inArray(users.userId, [userIdA, userIdB]));
+  if (rows.length !== 2 || rows.some((r) => r.setting !== "1")) return false;
+  const [a, b] = await Promise.all([
+    hasFeature(userIdA, "readReceipts"),
+    hasFeature(userIdB, "readReceipts"),
+  ]);
+  return a && b;
 }
 
 /**

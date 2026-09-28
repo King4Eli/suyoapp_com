@@ -26,7 +26,10 @@ import { Screen_editProfileInterests } from './ProfileEditInterests';
 import { Screen_editProfileLocation } from './ProfileEditLocation';
 import { sessionManager, SessionTypes } from '../funcs/SessionContext';
 import { Screen_editpreference } from './PreferenceEdit';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import {
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { namer, resourceMap } from '../funcs/static';
 import { Screen_PurchaseSubscribe } from './Purchase_Subscribe';
 import {
@@ -39,6 +42,7 @@ import { SocketClient } from '../funcs/socket_realtimeData';
 import { chatsBadge, likesBadge, useBadgeCount } from '../funcs/tabBadges';
 import { Linking, StatusBar, View } from 'react-native';
 import { ThemeProvider, useTheme } from '../funcs/theme';
+import { HEADER_SIDE_INSET } from '../funcs/customHeader';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Toastx } from '../funcs/customNotification';
 import { Dialogx } from '../funcs/customDialog';
@@ -51,6 +55,7 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 // Type definitions for props if needed
 const Stack = createNativeStackNavigator<any>();
 const TabBottom = createBottomTabNavigator<any>();
+const TAB_HEADER_HEIGHT = 60;
 
 const MainApp: React.FC = () => {
   const [currentSession, setCurrentSession] = useState<SessionTypes | null>(
@@ -140,10 +145,28 @@ const MainApp: React.FC = () => {
   const BottomTabNavigator = () => {
     const likesCount = useBadgeCount(likesBadge);
     const chatsCount = useBadgeCount(chatsBadge);
+    const insets = useSafeAreaInsets();
     return (
       <TabBottom.Navigator
         initialRouteName={namer.navigation.peoples}
-        screenOptions={{ tabBarShowLabel: true }}
+        screenOptions={{
+          tabBarShowLabel: true,
+          // Same header on iOS and Android: the platform defaults differ in
+          // height (44 vs 64) and title size/alignment.
+          headerStyle: {
+            backgroundColor: colors.background,
+            height: insets.top + TAB_HEADER_HEIGHT,
+          },
+          headerShadowVisible: false,
+          headerLeftContainerStyle: { paddingLeft: HEADER_SIDE_INSET },
+          headerRightContainerStyle: { paddingRight: HEADER_SIDE_INSET },
+          headerTitleAlign: 'center',
+          headerTitleStyle: {
+            color: colors.text,
+            fontSize: 18,
+            fontWeight: '800',
+          },
+        }}
       >
         <TabBottom.Screen
           name={namer.navigation.likes}
@@ -171,7 +194,6 @@ const MainApp: React.FC = () => {
                 color="#4F8EF7"
               />
             ),
-            headerTitleAlign: 'center',
           }}
         />
         <TabBottom.Screen

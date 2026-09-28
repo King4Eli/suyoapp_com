@@ -10,7 +10,6 @@ $nav_groups = [
     ],
     'Community' => [
         'users' => ['Users', 'users.php', 'people'],
-        'locations' => ['Locations', 'locations.php', 'geo-alt'],
         'devices' => ['Devices', 'devices.php', 'phone'],
     ],
     'Trust & Safety' => [

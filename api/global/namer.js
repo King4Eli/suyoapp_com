@@ -8,6 +8,8 @@ export const namer = {
     streakReward: "streak:reward:",
     badgesLast: "badges:last:",
     verifyPose: "verify:pose:",
+    // SET NX markers: an email already sent / throttled (global/notifyEmail.js)
+    emailOnce: "email:once:",
   },
   ratelimit: {
     login_ip: "ratelimit:login:ip:",

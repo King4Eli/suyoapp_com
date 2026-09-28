@@ -304,7 +304,8 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
       ),
       headerRight: () => (
         <Pressable
-          style={{ gap: 3, paddingRight: 10 }}
+          style={{ paddingVertical: 6 }}
+          hitSlop={10}
           onPress={() => navigation.goBack()}
         >
           <Text

@@ -253,8 +253,8 @@ export default async function pushProfile(input = {}) {
         }
       }
 
-      // Read receipts is VIP-only. The client UI already hides this toggle from
-      // non-VIP users, but that's not an authorization boundary -- anyone could
+      // Read receipts needs Plus or VIP. The client UI already locks this toggle
+      // for free users, but that's not an authorization boundary -- anyone could
       // still hit this endpoint directly, so re-check the tier server-side
       // before honoring a request to turn it ON. Turning it off never needs the
       // tier check -- it's always allowed.
@@ -270,12 +270,30 @@ export default async function pushProfile(input = {}) {
       }
     }
 
+    // Notification toggles (Settings > Notifications)
+    if (
+      hasKey(input, "prof_notifications") &&
+      input.prof_notifications &&
+      typeof input.prof_notifications === "object"
+    ) {
+      const notificationMapping = [
+        ["email", "user_notify_email"],
+        ["push", "user_notify_push"],
+      ];
+      for (const [inputKey, dbField] of notificationMapping) {
+        const val = input.prof_notifications[inputKey];
+        if (typeof val === "boolean") {
+          profUpdates.push({ field: dbField, value: val ? "1" : "0" });
+        }
+      }
+    }
+
     let savedSomething = false;
 
     // Execute update. Field set varies per request (only the keys the caller
     // actually sent), so this stays a dynamically-built SET clause via
     // sql.raw() for column identifiers -- fieldMapping/prefMapping/
-    // privacyMapping above are a fixed, hardcoded list of column names (never
+    // privacyMapping/notificationMapping above are a fixed, hardcoded list of column names (never
     // user input), so raw-interpolating the identifier is safe; values still
     // go through normal parameterized placeholders.
     if (profUpdates.length > 0) {

@@ -9,6 +9,7 @@ import realtimedata_router, { setupRealtime } from "./routers/realtimedata.js";
 import webhook_router from "./routers/payments/router_hook.js";
 import status_check from "./routers/status.js";
 import { startExpirePendingPaymentsJob } from "./global/expirePendingPayments.js";
+import { startVerificationEmailJob } from "./global/notifyEmail.js";
 import { sessions } from "./global/sessions.js";
 import { tools } from "./global/functions.js";
 import { BUILD_HASH, BUILD_SHORT } from "./global/buildInfo.js";
@@ -78,6 +79,7 @@ setupRealtime(io);
 
 // Periodically expire checkout attempts that were never completed
 startExpirePendingPaymentsJob();
+startVerificationEmailJob();
 
 app.use("/s", status_check);
 app.use("/api/login", login_router);

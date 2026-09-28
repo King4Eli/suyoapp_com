@@ -53,6 +53,7 @@ import {
 import { ActionBurstOverlay } from '../funcs/customCelebration';
 import { Toastx } from '../funcs/customNotification';
 import { useTheme, ThemeColors } from '../funcs/theme';
+import { HeaderIconButton } from '../funcs/customHeader';
 
 type PickedMedia = {
   type: 'image' | 'video';
@@ -1201,20 +1202,14 @@ export function Screen_feed({
       headerRight: isMyTimeline
         ? undefined
         : () => (
-            <Pressable
-              style={stylesoy.headerButton}
+            <HeaderIconButton
+              name="person-circle-outline"
               onPress={() =>
                 navigation.navigate(namer.navigation.myTimeline, {
                   onlyMine: true,
                 })
               }
-            >
-              <IIcon
-                name="person-circle-outline"
-                size={26}
-                color={colors.text}
-              />
-            </Pressable>
+            />
           ),
     });
   }, [navigation, colors, stylesoy, isMyTimeline]);
@@ -1754,14 +1749,6 @@ const fullscreenStyles = StyleSheet.create({
 
 function createStylesoy(colors: ThemeColors) {
   return StyleSheet.create({
-    headerButton: {
-      width: 30,
-      height: 30,
-      borderRadius: 15,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: 8,
-    },
     fab: {
       position: 'absolute',
       right: 20,

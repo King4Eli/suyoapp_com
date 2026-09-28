@@ -76,6 +76,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   }, []);
   const profileDetails = getProfile?.profile ?? {};
   const profileEmail = profileDetails?.email ?? getProfile?.user_email ?? '';
+  const hasRealEmail = !!profileEmail;
   const profilePhone =
     profileDetails?.phonenumber ?? getProfile?.user_phonenumber ?? '';
 
@@ -94,7 +95,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   };
   const bottomSheetRef_privacy = { ref: useRef<BottomSheet>(null) };
 
-  const NOTIFICATION_STORAGE_KEY = 'notification_settings_v1';
   const privacyDefaults = {
     showDistance: true,
     showAge: true,
@@ -142,6 +142,13 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         setPrivacyReadReceipts(
           privacy?.readReceipts ?? privacyDefaults.readReceipts,
         );
+        const notifications = profile?.profile?.notifications;
+        setNotifyPushEnabled(
+          notifications?.push ?? notificationDefaults.pushEnabled,
+        );
+        setNotifyEmailEnabled(
+          notifications?.email ?? notificationDefaults.emailEnabled,
+        );
       } catch {
         if (mounted) setProfile(null);
       }
@@ -155,30 +162,9 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     privacyDefaults.readReceipts,
     privacyDefaults.showAge,
     privacyDefaults.showDistance,
+    notificationDefaults.emailEnabled,
+    notificationDefaults.pushEnabled,
   ]);
-
-  useEffect(() => {
-    const loadNotificationSettings = async () => {
-      try {
-        const raw = await AsyncStorage.getItem(NOTIFICATION_STORAGE_KEY);
-        if (!raw) return;
-        const parsed = JSON.parse(raw);
-        setNotifyPushEnabled(
-          parsed?.pushEnabled ?? notificationDefaults.pushEnabled,
-        );
-        setNotifyEmailEnabled(
-          parsed?.emailEnabled ?? notificationDefaults.emailEnabled,
-        );
-      } catch {
-        logReport({
-          type: 'function',
-          useraction: 'loadNotificationSettings',
-          logMessage: 'Failed to load notification settings',
-        });
-      }
-    };
-    loadNotificationSettings();
-  }, [notificationDefaults.emailEnabled, notificationDefaults.pushEnabled]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -188,15 +174,25 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     });
   }, [navigation, colors.background]);
 
+  // Stored on the account (users.user_notify_*) -- the server decides which
+  // emails to send from these.
+  const pushNotificationSettings = async (push: boolean, email: boolean) => {
+    const response = await _http_request({
+      customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/pushProfile',
+      reqType: 'POST',
+      bodyArray: { prof_notifications: { push, email } },
+    });
+    if (response?.code !== 200) {
+      throw new Error(
+        response?.message ?? 'Failed to save notification settings',
+      );
+    }
+    cacheStorage.getCurrentUserProfile(true);
+  };
+
   const saveNotificationSettings = async () => {
     try {
-      await AsyncStorage.setItem(
-        NOTIFICATION_STORAGE_KEY,
-        JSON.stringify({
-          pushEnabled: notifyPushEnabled,
-          emailEnabled: notifyEmailEnabled,
-        }),
-      );
+      await pushNotificationSettings(notifyPushEnabled, notifyEmailEnabled);
       Toastx.show({ type: 'success', message: 'Notification settings saved' });
       bottomSheetRef_push.ref.current?.close();
     } catch {
@@ -216,9 +212,9 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     setNotifyPushEnabled(notificationDefaults.pushEnabled);
     setNotifyEmailEnabled(notificationDefaults.emailEnabled);
     try {
-      await AsyncStorage.setItem(
-        NOTIFICATION_STORAGE_KEY,
-        JSON.stringify(notificationDefaults),
+      await pushNotificationSettings(
+        notificationDefaults.pushEnabled,
+        notificationDefaults.emailEnabled,
       );
       Toastx.show({ type: 'success', message: 'Notification settings reset' });
     } catch {
@@ -397,17 +393,17 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         onPress={() => {
           if (premiumLock && !subscriptionState.features.readReceipts) {
             Dialogx.alert(
-              'This is a VIP perk',
-              `Upgrade to VIP to turn on ${
+              'This is a Plus perk',
+              `Upgrade to Plus or VIP to turn on ${
                 title?.toLowerCase?.() ?? 'this feature'
               }.`,
               [
                 { text: 'Not now', style: 'cancel' },
                 {
-                  text: 'See VIP',
+                  text: 'See Plus',
                   onPress: () =>
                     navigation.navigate(namer.navigation.subscription, {
-                      tab: 'vip',
+                      tab: 'plus',
                     }),
                 },
               ],
@@ -553,7 +549,9 @@ export function Screen_settings({ navigation }: { navigation: any }) {
           <View style={{}}>
             <View style={modernStyles.currentInfo}>
               <Text style={modernStyles.currentLabel}>Current Email</Text>
-              <Text style={modernStyles.currentValue}>{currentEmail}</Text>
+              <Text style={modernStyles.currentValue}>
+                {currentEmail || 'None yet'}
+              </Text>
             </View>
 
             <View style={modernStyles.inputGroup}>
@@ -1250,8 +1248,8 @@ export function Screen_settings({ navigation }: { navigation: any }) {
             <ModernSection title="Notifications" icon="notifications-outline">
               <ModernOption
                 icon="notifications-outline"
-                title="Push Notifications"
-                subtitle="Manage alerts and preferences"
+                title="Notifications"
+                subtitle="Push and email updates"
                 onPress={() => {
                   bottomSheetRef_push.ref.current?.expand();
                 }}
@@ -1461,9 +1459,10 @@ export function Screen_settings({ navigation }: { navigation: any }) {
           style={{ padding: 23, paddingBottom: 23 + safeInsets.bottom }}
         >
           <View>
-            <Text style={modernStyles.sectionTitle}>Push Notifications</Text>
+            <Text style={modernStyles.sectionTitle}>Notifications</Text>
             <Text style={[modernStyles.optionSubtitle, { marginTop: 6 }]}>
-              Choose how you receive updates and alerts.
+              Choose how you receive updates and alerts. Codes, receipts and
+              security alerts are always emailed.
             </Text>
 
             <View style={{ marginTop: 16 }}>
@@ -1477,7 +1476,11 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               <ModernSwitch
                 icon="mail-outline"
                 title="Email notifications"
-                subtitle="Receive updates by email"
+                subtitle={
+                  hasRealEmail
+                    ? 'New likes, matches and messages while you are away'
+                    : 'Add an email address under Account to get these'
+                }
                 value={notifyEmailEnabled}
                 onValueChange={setNotifyEmailEnabled}
               />
@@ -1545,7 +1548,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
             <ModernSwitch
               icon="checkmark-done-outline"
               title="Read receipts"
-              subtitle="See when they've read your messages -- only works if they have it on too"
+              subtitle="See when they've read your messages. Works only when you both have it on, and turning it off hides your reads too"
               value={privacyReadReceipts}
               onValueChange={setPrivacyReadReceipts}
               premiumLock

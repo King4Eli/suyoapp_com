@@ -659,6 +659,7 @@ async function processWebhookEvent(event, io) {
       }
 
       const isRenewal = invoice.billing_reason !== "subscription_create";
+      const renewalPaymentId = `pay${tools.generateAlphanumeric(10, tools.randomInt(20, 50))}`;
       let recorded = false;
       await db.transaction(async (tx) => {
         await tx
@@ -677,7 +678,7 @@ async function processWebhookEvent(event, io) {
           .limit(1);
         if (existing) return;
         await tx.insert(payments).values({
-          paymentId: `pay${tools.generateAlphanumeric(10, tools.randomInt(20, 50))}`,
+          paymentId: renewalPaymentId,
           type: 1,
           userIdRef: local.userId,
           pAmount: String((invoice.amount_paid ?? 0) / 100),
@@ -691,14 +692,20 @@ async function processWebhookEvent(event, io) {
 
       if (recorded && (invoice.amount_paid ?? 0) > 0) {
         const described = await describeVariant(local.variantId);
-        await createPaymentNotice(io, local.userId, "subscription_renewed", {
-          plan: described.plan,
-          amount: formatMoney(
-            (invoice.amount_paid ?? 0) / 100,
-            invoice.currency,
-          ),
-          until: formatDate(periodEnd * 1000),
-        });
+        await createPaymentNotice(
+          io,
+          local.userId,
+          "subscription_renewed",
+          {
+            plan: described.plan,
+            amount: formatMoney(
+              (invoice.amount_paid ?? 0) / 100,
+              invoice.currency,
+            ),
+            until: formatDate(periodEnd * 1000),
+          },
+          renewalPaymentId,
+        );
       }
       return { success: true };
     }
@@ -743,6 +750,9 @@ async function processWebhookEvent(event, io) {
           : "subscription_renewal_failed",
         {
           plan: described.plan,
+          amount: invoice.amount_due
+            ? formatMoney(invoice.amount_due / 100, invoice.currency)
+            : undefined,
           retryOn: nextAttempt ? formatDate(nextAttempt * 1000) : undefined,
         },
       );

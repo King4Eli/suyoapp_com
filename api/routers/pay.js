@@ -16,6 +16,12 @@ import {
 } from "../db/schema.js";
 import { fulfillOnetimePurchase } from "./payments/router_hook.js";
 import {
+  describeVariant,
+  formatDate,
+  paymentNoticeText,
+} from "../global/paymentNotices.js";
+import { notifyEmail } from "../global/notifyEmail.js";
+import {
   verifyAppleTransaction,
   verifyGooglePurchase,
 } from "../global/iapVerify.js";
@@ -750,6 +756,8 @@ pay_router.post("/:division", async (req, res) => {
         }
 
         const genPaymentId = `pay${tools.generateAlphanumeric(10, tools.randomInt(15, 46))}`;
+        /** @type {number | null} */
+        let subscriptionEndsAtMs = null;
         try {
           await db.transaction(async (tx) => {
             await tx.insert(payments).values({
@@ -777,6 +785,7 @@ pay_router.post("/:division", async (req, res) => {
               if (!expiresAtMs) {
                 throw new Error("Unable to determine subscription expiry");
               }
+              subscriptionEndsAtMs = expiresAtMs;
 
               await tx.insert(subscriptions).values({
                 id: genSubId,
@@ -828,6 +837,35 @@ pay_router.post("/:division", async (req, res) => {
               "pay-iap-4",
             );
           }
+        }
+
+        // The app confirms store purchases on screen itself, so no in-app notice --
+        // just the emailed receipt.
+        try {
+          const described = await describeVariant(variantId);
+          const kind =
+            purchaseType === "subscribe"
+              ? "subscription_activated"
+              : variant.category === "rewind"
+                ? "rewind_completed"
+                : "purchase_completed";
+          const vars = {
+            plan: described.plan,
+            item: described.item,
+            until: formatDate(subscriptionEndsAtMs),
+          };
+          notifyEmail.payment(
+            sessions?.currentUserID,
+            kind,
+            paymentNoticeText(kind, vars),
+            vars,
+            genPaymentId,
+          );
+        } catch (emailError) {
+          tools.serverLog(
+            `Error emailing IAP receipt for payment ${genPaymentId}: ${emailError}`,
+            "pay-iap-6",
+          );
         }
 
         return res.json({

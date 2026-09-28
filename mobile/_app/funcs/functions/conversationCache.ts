@@ -16,6 +16,8 @@ export type CachedConversation = {
   messages: any[];
   u2deets: any;
   syncedAt: number; // server time of the last sync (unix seconds)
+  // Whether the cached `read` flags were fetched while receipts were shared
+  readReceipts?: boolean;
 };
 
 const keyFor = (userId: string, matchId: string) =>

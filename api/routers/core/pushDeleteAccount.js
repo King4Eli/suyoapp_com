@@ -3,6 +3,7 @@ import { db } from "../../db/client.js";
 import { subscriptions, users } from "../../db/schema.js";
 import { stripe_gateway, tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
+import { notifyEmail } from "../../global/notifyEmail.js";
 
 /**
  * Soft-deletes the current user: user_active = -99, stamps user_deleted_date
@@ -24,7 +25,11 @@ export default async function pushDeleteAccount(data) {
       .trim()
       .slice(0, 500);
     const rows = await db
-      .select({ user_phonenumber: users.userPhonenumber })
+      .select({
+        user_phonenumber: users.userPhonenumber,
+        user_email: users.userEmail,
+        user_fullname: users.userFullname,
+      })
       .from(users)
       .where(
         and(
@@ -90,6 +95,7 @@ export default async function pushDeleteAccount(data) {
     if (result.affectedRows > 0) {
       response.code = 200;
       response.message = "Account deleted.";
+      notifyEmail.accountDeleted(user.user_email, user.user_fullname);
     }
   } catch (err) {
     tools.serverLog(

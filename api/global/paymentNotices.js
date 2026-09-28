@@ -6,6 +6,7 @@ import {
   userPaymentNotices,
 } from "../db/schema.js";
 import { tools } from "./functions.js";
+import { notifyEmail } from "./notifyEmail.js";
 
 // User-facing wording for every payment / subscription event. The webhook and pay
 // routes never send a generic "payment updated" -- each event says what actually
@@ -130,6 +131,14 @@ const NOTICES = {
 };
 
 /**
+ * The wording for one event, for callers that email it without an in-app notice
+ * (App Store / Google Play purchases, which the app confirms itself).
+ * @param {keyof typeof NOTICES} kind
+ * @param {NoticeVars} vars
+ */
+export const paymentNoticeText = (kind, vars) => NOTICES[kind](vars);
+
+/**
  * What a product variant is, in words: the plan name for subscriptions, the pack
  * contents for one-time purchases.
  * @param {number | string} variantId
@@ -183,8 +192,8 @@ export async function describeVariant(variantId) {
 }
 
 /**
- * Records a payment event for the user and pings their socket room so an open app
- * can show it right away. Best-effort: a notice failing must never fail the
+ * Records a payment event for the user, pings their socket room so an open app
+ * can show it right away, and emails it (a receipt for completed purchases). Best-effort: a notice failing must never fail the
  * payment processing that triggered it.
  * @param {import("socket.io").Server | undefined} io
  * @param {string} userId
@@ -212,6 +221,7 @@ export async function createPaymentNotice(io, userId, kind, vars, paymentId) {
       ...text,
       paymentId: paymentId ?? null,
     });
+    notifyEmail.payment(userId, kind, text, vars, paymentId);
   } catch (err) {
     tools.serverLog(
       `Failed to create payment notice ${kind} for ${userId}: ${err}`,

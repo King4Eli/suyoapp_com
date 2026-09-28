@@ -79,7 +79,8 @@ export default async function getProfile() {
         user_preference_religion: users.userPreferenceReligion,
         user_preference_politicalview: users.userPreferencePoliticalview,
         user_preference_language: users.userPreferenceLanguage,
-        user_settings: users.userSettings,
+        user_notify_email: users.userNotifyEmail,
+        user_notify_push: users.userNotifyPush,
         user_privacy_show_distance: users.userPrivacyShowDistance,
         user_privacy_show_age: users.userPrivacyShowAge,
         user_privacy_incognito: users.userPrivacyIncognito,
@@ -181,7 +182,6 @@ export default async function getProfile() {
 
     // Parse JSON fields with error handling
     let userImage = [];
-    let userSettings = {};
     let userLocation = {};
 
     try {
@@ -196,17 +196,6 @@ export default async function getProfile() {
       userImage = [];
     }
 
-    try {
-      userSettings = userProfile.user_settings
-        ? JSON.parse(userProfile.user_settings)
-        : {};
-    } catch (e) {
-      tools.serverLog(
-        `Error parsing user_settings for user ${sessions.currentUserID}: ${e}`,
-        "getProfile-103",
-      );
-      userSettings = {};
-    }
     userLocation = userProfile.geo_meta ?? {};
 
     const [entitlements, roses, directMessages, boosts, streak] =
@@ -247,7 +236,10 @@ export default async function getProfile() {
           : null,
         images: userImage,
         location: userLocation,
-        settings: userSettings,
+        notifications: {
+          email: userProfile.user_notify_email === "1",
+          push: userProfile.user_notify_push === "1",
+        },
         privacy: {
           showDistance: userProfile.user_privacy_show_distance === "1",
           showAge: userProfile.user_privacy_show_age === "1",

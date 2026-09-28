@@ -158,12 +158,10 @@ signup_router.post("/", async (req, res) => {
   const drinking = String(onlyNumberOrDefault(req.body.drinking, 0));
   const children = String(onlyNumberOrDefault(req.body.children, 0));
   const hasPet = String(onlyNumberOrDefault(req.body.haspet, 0));
-  const email = `${phonenumber}@example.com`;
   const photos = Array.isArray(req.body.photos)
     ? req.body.photos.slice(0, 6)
     : [];
   const location = locationToDb(req.body.location);
-  const settings = JSON.stringify({ signup_complete: true });
 
   if (!firstName || birthday.length !== 8) {
     return res.json({
@@ -176,7 +174,6 @@ signup_router.post("/", async (req, res) => {
     await db.transaction(async (tx) => {
       await tx.insert(users).values({
         userId: genUserId,
-        userEmail: email,
         userPhonenumber: phonenumber,
         // user_phonenumber_meta is a native JSON column -- pass the object,
         // not a pre-stringified string (Drizzle's json() stringifies on write).
@@ -201,7 +198,6 @@ signup_router.post("/", async (req, res) => {
         userBioAbout: bio,
         userBioDob: birthday,
         userPreferenceGender: interestedIn,
-        userSettings: settings,
         userBioSmoking: smoking,
         userBioDrinking: drinking,
         userBioChildren: children,

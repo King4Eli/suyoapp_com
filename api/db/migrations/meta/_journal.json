@@ -71,6 +71,27 @@
       "when": 1790565267993,
       "tag": "0009_users_locations_user_id_collation_match_users",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1790582034230,
+      "tag": "0010_add_email_push_notification_toggles",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1790582035701,
+      "tag": "0011_drop_unused_user_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1790582481619,
+      "tag": "0012_user_email_optional_drop_placeholder_emails",
+      "breakpoints": true
     }
   ]
 }

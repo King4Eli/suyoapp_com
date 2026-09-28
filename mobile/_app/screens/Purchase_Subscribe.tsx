@@ -8,7 +8,7 @@ import {
   Platform,
 } from 'react-native';
 import { Dialogx } from '../funcs/customDialog';
-import LinearGradient from 'react-native-linear-gradient';
+import LinearGradient from '../funcs/customGradient';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import {
   _http_request,

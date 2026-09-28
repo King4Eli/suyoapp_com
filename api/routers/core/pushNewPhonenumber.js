@@ -5,6 +5,7 @@ import { namer, tools, envInt } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
 import { redisDo } from "../../global/redisClient.js";
 import { communicateWith } from "../../global/sendingCommunicate.js";
+import { notifyEmail } from "../../global/notifyEmail.js";
 import { checkRateLimit } from "../../global/rateLimit.js";
 /**
  * @param {any} oldPhoneNumber
@@ -114,6 +115,7 @@ export default async function pushNewPhoneNumber(
       if (result.affectedRows > 0) {
         response.code = 200;
         response.message = "Phone Number updated successfully.";
+        notifyEmail.phoneChanged(sessions.currentUserID, newPhoneNumber);
       } else {
         response.code = 400;
         response.message = "Error updating phone number.";

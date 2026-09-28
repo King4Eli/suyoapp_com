@@ -4,6 +4,8 @@ import { conversations, matches } from "../../db/schema.js";
 import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
 import { pushBadgeCounts } from "../../global/badges.js";
+import { notifyEmail } from "../../global/notifyEmail.js";
+import { canShareReadReceipts } from "../../global/entitlements.js";
 
 /**
  * `allowPending` is internal-only (pushDirectMessage): the router never passes it,
@@ -189,10 +191,13 @@ export default async function pushConversation(
                 eq(conversations.convoStatus, "0"),
               ),
             );
-          io.to(roomName).emit("messages-read", {
-            matchId,
-            readByUserId: recipientID,
-          });
+          // Only tell the sender when the two share read receipts
+          if (await canShareReadReceipts(sessions.currentUserID, recipientID)) {
+            io.to(roomName).emit("messages-read", {
+              matchId,
+              readByUserId: recipientID,
+            });
+          }
         }
       } catch (error) {
         tools.serverLog(
@@ -203,6 +208,10 @@ export default async function pushConversation(
       // The recipient's Chats badge (unless they read it live, above), and both
       // sides' chat lists (new last-message preview).
       pushBadgeCounts(io, recipientID, sessions.currentUserID);
+    }
+    // Messages sent with a like (pending match) are covered by the like email.
+    if (insertedConvoIds.length > 0 && String(matchRow.match_status) === "1") {
+      notifyEmail.newMessage(io, recipientID, sessions.currentUserID, matchId);
     }
   } catch (err) {
     tools.serverLog(

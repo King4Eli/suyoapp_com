@@ -42,6 +42,7 @@ import {
   type as typo,
   elevation,
 } from '../funcs/theme';
+import { HeaderActions, HeaderIconButton } from '../funcs/customHeader';
 import {
   _http_request,
   cacheStorage,
@@ -54,7 +55,7 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
-import { LinearGradient } from 'react-native-linear-gradient';
+import { LinearGradient } from '../funcs/customGradient';
 import { Toastx } from '../funcs/customNotification';
 import { SafeImage } from '../funcs/customImage';
 import FastImage from '@d11/react-native-fast-image';
@@ -319,8 +320,6 @@ export default function Peoples_Screen({
   // header options
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerShadowVisible: false,
-      headerStyle: { backgroundColor: colors.background },
       headerTitleAlign: 'left',
       headerTitle: () => (
         <View style={{ alignItems: 'center', flexDirection: 'row', gap: 2 }}>
@@ -350,61 +349,21 @@ export default function Peoples_Screen({
 
       headerRight: () =>
         !functs.onePersonProfile && (
-          <View
-            style={[
-              {
-                flexDirection: 'row',
-                gap: 6,
-                paddingHorizontal: 6,
-                paddingVertical: 6,
-                borderRadius: radius.pill,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: colors.surface,
-                borderWidth: 1,
-                borderColor: colors.hairline,
-                marginRight: 12,
-              },
-              elevation(colors.shadow, 1),
-            ]}
-          >
+          <HeaderActions>
             {getSkippedLastPerson !== null && (
-              <Pressable
+              <HeaderIconButton
+                family="mci"
+                name="backup-restore"
                 onPress={attemptRestore}
-                hitSlop={8}
-                style={({ pressed }) => [
-                  {
-                    width: 34,
-                    height: 34,
-                    borderRadius: 17,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  },
-                  pressed && { backgroundColor: colors.backgroundSecondary },
-                ]}
-              >
-                <MIcon name="backup-restore" size={22} color={colors.text} />
-              </Pressable>
+              />
             )}
-            <Pressable
-              onPress={() => {
-                navigation.navigate(namer.navigation.editpreference);
-              }}
-              hitSlop={8}
-              style={({ pressed }) => [
-                {
-                  width: 34,
-                  height: 34,
-                  borderRadius: 17,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                },
-                pressed && { backgroundColor: colors.backgroundSecondary },
-              ]}
-            >
-              <IIcon name="options-outline" size={22} color={colors.text} />
-            </Pressable>
-          </View>
+            <HeaderIconButton
+              name="options-outline"
+              onPress={() =>
+                navigation.navigate(namer.navigation.editpreference)
+              }
+            />
+          </HeaderActions>
         ),
     });
   }, [

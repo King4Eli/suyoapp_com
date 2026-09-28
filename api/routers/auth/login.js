@@ -5,6 +5,7 @@ import { sessions } from "../../global/sessions.js";
 import { db } from "../../db/client.js";
 import { users } from "../../db/schema.js";
 import { communicateWith } from "../../global/sendingCommunicate.js";
+import { emailTemplates } from "../../global/emailTemplates.js";
 import { redisDo } from "../../global/redisClient.js";
 import { checkRateLimit } from "../../global/rateLimit.js";
 
@@ -80,20 +81,26 @@ login_router.post("/", async (req, res) => {
     let destination;
     let channel;
     // ## remove on prod: only usa
-    // for only USA numbers
-    if (countryCode === "1") {
+    // for only USA numbers -- and anyone without an email on file, who has no
+    // other way to get the code
+    if (countryCode === "1" || !tools.validateIsEmail(user?.user_email ?? "")) {
       await communicateWith.sendSms(countryCode, phonenumber, smsMessage);
       destination = tools.maskPhone(countryCode, phonenumber);
       channel = "phone";
     } else {
+      const mail = emailTemplates.verificationCode({
+        code: genPin,
+        minutes: ttlMinutes,
+        purpose: "login",
+      });
       await communicateWith.sendEmail(
         null,
-        user?.user_email,
-        "Your Verification Code",
-        `<p>Your verification code is <strong>${genPin}</strong>. Do not share this code with anyone. It expires in ${ttlMinutes} minutes.</p>`,
-        smsMessage,
+        user.user_email,
+        mail.subject,
+        mail.html,
+        mail.text,
       );
-      destination = tools.maskEmail(user?.user_email);
+      destination = tools.maskEmail(user.user_email);
       channel = "email";
     }
 

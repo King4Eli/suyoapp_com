@@ -67,6 +67,7 @@ import {
 } from '../funcs/functions/conversationCache';
 import ImageViewing from 'react-native-image-viewing';
 import { useTheme } from '../funcs/theme';
+import { HeaderIconButton } from '../funcs/customHeader';
 
 const CONFIG = {
   imgSelectUploadLimit: 4,
@@ -207,8 +208,8 @@ interface convoInterface {
   // affordance -- `src`/`message` still hold the original local data needed to
   // retry, since a failed upload never gets overwritten with a server URL.
   status?: 'sending' | 'failed';
-  // Only ever present on fromMe messages, and only when the viewer is entitled
-  // to see it (VIP + mutual read-receipts privacy setting) -- see getConversation.js.
+  // Only ever present on fromMe messages, and only while both people share read
+  // receipts (Plus/VIP + the setting on for both) -- see getConversation.js.
   read?: boolean;
 }
 
@@ -621,6 +622,11 @@ export function Screen_conversation({
 
   const [getConversations, setConversations] = useState<convoInterface[]>([]);
   const [getUser2Deets, setUser2Deets] = useState<any>([]);
+  // Whether read ticks are shown in this chat: decided by the server on every
+  // getConversation (mutual setting + plan), mirrored in a ref for the socket.
+  const [canSeeReceipts, setCanSeeReceipts] = useState(false);
+  const canSeeReceiptsRef = useRef(false);
+  canSeeReceiptsRef.current = canSeeReceipts;
   const [inputText, setInputText] = useState<string>('');
   const [getInputImageVideo, setInputImageVideo] = useState<Asset[]>([]);
   const [getInputAudio, setInputAudio] = useState<string | null>(null);
@@ -732,15 +738,12 @@ export function Screen_conversation({
             data.matchId === matchId &&
             data.readByUserId !== myUserIdRef.current
           ) {
-            setConversations(prev => {
-              // Only flip messages if we already know (from the last real
-              // getConversation fetch) that we're entitled to see receipts at
-              // all -- otherwise this optimistic update would show checkmarks
-              // to a non-VIP/receipts-off viewer ahead of the server's own gate.
-              const entitled = prev.some(m => typeof m.read === 'boolean');
-              if (!entitled) return prev;
-              return prev.map(m => (m.fromMe ? { ...m, read: true } : m));
-            });
+            // The server only sends this when the two share receipts; the
+            // check here covers receipts being turned off since the last fetch.
+            if (!canSeeReceiptsRef.current) break;
+            setConversations(prev =>
+              prev.map(m => (m.fromMe ? { ...m, read: true } : m)),
+            );
           }
           break;
         case 'message-deleted':
@@ -1414,6 +1417,8 @@ export function Screen_conversation({
   // are deltas too.
   const cacheUserIdRef = useRef<string | null>(null);
   const syncedAtRef = useRef<number>(0);
+  // Whether the messages on screen came with read flags (see conversationCache)
+  const cachedReceiptsRef = useRef(false);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -1430,30 +1435,61 @@ export function Screen_conversation({
         if (cached) {
           setConversations(prev => mergeServerMessages(prev, cached.messages));
           setUser2Deets((prev: any) => cached.u2deets ?? prev);
+          setCanSeeReceipts(cached.readReceipts === true);
+          cachedReceiptsRef.current = cached.readReceipts === true;
           syncedAtRef.current = cached.syncedAt;
         } else {
           Loaderx.show();
         }
       }
 
-      const response: any = await _http_request({
-        customApiUrl:
-          __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getConversation',
-        reqType: 'POST',
-        bodyArray: {
-          matchID: funt.matchId,
-          // A couple of seconds of overlap covers clock edges; merging by id
-          // makes the repeats harmless.
-          ...(syncedAtRef.current ? { since: syncedAtRef.current - 2 } : {}),
-        },
-      }).finally(() => Loaderx.hide());
+      const fetchThread = (since: number) =>
+        _http_request({
+          customApiUrl:
+            __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getConversation',
+          reqType: 'POST',
+          bodyArray: {
+            matchID: funt.matchId,
+            // A couple of seconds of overlap covers clock edges; merging by id
+            // makes the repeats harmless.
+            ...(since ? { since: since - 2 } : {}),
+          },
+        });
+      let response: any = await fetchThread(syncedAtRef.current).finally(() =>
+        Loaderx.hide(),
+      );
       if (cancelled) return;
+
+      // Receipts just became shared: the cached messages have no `read` flags
+      // and a delta only returns changed ones, so fetch the whole thread once.
+      if (
+        response?.code === 200 &&
+        response?.delta &&
+        response?.readReceipts === true &&
+        !cachedReceiptsRef.current
+      ) {
+        response = (await fetchThread(0)) ?? response;
+        if (cancelled) return;
+      }
 
       if (response?.code === 200) {
         const incoming = Array.isArray(response?.chatsMessageListings)
           ? response.chatsMessageListings
           : [];
-        setConversations(prev => mergeServerMessages(prev, incoming));
+        const receiptsShared = response?.readReceipts === true;
+        cachedReceiptsRef.current = receiptsShared;
+        setCanSeeReceipts(receiptsShared);
+        setConversations(prev => {
+          const merged = mergeServerMessages(prev, incoming);
+          // Receipts no longer shared: drop the ticks cached from before.
+          return receiptsShared
+            ? merged
+            : merged.map(m => {
+                if (m?.read === undefined) return m;
+                const { read: _read, ...rest } = m;
+                return rest;
+              });
+        });
         setUser2Deets((prev: any) => response?.u2deets ?? prev);
         if (Number(response?.syncedAt) > 0) {
           syncedAtRef.current = Number(response.syncedAt);
@@ -1499,10 +1535,11 @@ export function Screen_conversation({
         messages: getConversations,
         u2deets: getUser2Deets,
         syncedAt: syncedAtRef.current,
+        readReceipts: canSeeReceipts,
       });
     }, 600);
     return () => clearTimeout(timer);
-  }, [getConversations, getUser2Deets, funt.matchId]);
+  }, [getConversations, getUser2Deets, canSeeReceipts, funt.matchId]);
 
   // Update the useEffect cleanup:
   useEffect(() => {
@@ -1668,53 +1705,32 @@ export function Screen_conversation({
       ),
 
       headerRight: () => (
-        <View
-          style={{
-            paddingRight: 5,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 18,
-          }}
-        >
-          {/* Voice Call */}
-          <Pressable
-            style={{ padding: 4 }}
-            onPress={() => {
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <HeaderIconButton
+            name="call-outline"
+            color={colors.accent}
+            onPress={() =>
               Toastx.show({
                 message: 'voice call coming soon',
                 type: 'success',
-              });
-            }}
-          >
-            <IonIcon name="call-outline" size={25} color={colors.accent} />
-          </Pressable>
-
-          {/* Video Call */}
-          <Pressable
-            style={{ padding: 4 }}
-            onPress={() => {
+              })
+            }
+          />
+          <HeaderIconButton
+            name="videocam-outline"
+            color={colors.accent}
+            onPress={() =>
               Toastx.show({
                 message: 'Video call coming soon',
                 type: 'success',
-              });
-            }}
-          >
-            <IonIcon name="videocam-outline" size={26} color={colors.accent} />
-          </Pressable>
-
-          {/* More Options */}
-          <Pressable
-            style={{ padding: 4 }}
-            onPress={() => {
-              bottomSheet_convotools.ref.current?.expand();
-            }}
-          >
-            <IonIcon
-              name="ellipsis-horizontal"
-              size={25}
-              color={colors.accent}
-            />
-          </Pressable>
+              })
+            }
+          />
+          <HeaderIconButton
+            name="ellipsis-horizontal"
+            color={colors.accent}
+            onPress={() => bottomSheet_convotools.ref.current?.expand()}
+          />
         </View>
       ),
     });
@@ -2529,24 +2545,22 @@ export function Screen_conversation({
             </Text>
           </Pressable>
         )}
-        {item.fromMe &&
-          !isDeleted &&
-          item.status !== 'failed' &&
-          typeof item.read === 'boolean' && (
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'flex-end',
-                marginTop: 2,
-              }}
-            >
-              <IonIcon
-                name={item.read ? 'checkmark-done' : 'checkmark'}
-                size={14}
-                color={item.read ? colors.accent : colors.textSecondary}
-              />
-            </View>
-          )}
+        {/* ✓ sent, ✓✓ read. A message just sent has no `read` yet: ✓ */}
+        {canSeeReceipts && item.fromMe && !isDeleted && !item.status && (
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'flex-end',
+              marginTop: 2,
+            }}
+          >
+            <IonIcon
+              name={item.read ? 'checkmark-done' : 'checkmark'}
+              size={14}
+              color={item.read ? colors.accent : colors.textSecondary}
+            />
+          </View>
+        )}
       </Pressable>
     );
   };
@@ -2589,6 +2603,7 @@ export function Screen_conversation({
           <FlatList
             ref={flatListRef}
             data={getConversations}
+            extraData={canSeeReceipts}
             style={{ flex: 1 }}
             inverted
             keyExtractor={item => item.messageId}

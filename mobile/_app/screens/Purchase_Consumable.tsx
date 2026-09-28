@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { Dialogx } from '../funcs/customDialog';
-import LinearGradient from 'react-native-linear-gradient';
+import LinearGradient from '../funcs/customGradient';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { cacheStorage, parseCategoryProducts } from '../funcs/functions';
 import { Loaderx } from '../funcs/functions_stateful';

@@ -425,7 +425,8 @@ export const users = mysqlTable("users", {
     .autoincrement()
     .unique(),
   userId: varchar("user_id", { length: 50 }).primaryKey().notNull(),
-  userEmail: varchar("user_email", { length: 250 }).notNull(),
+  // NULL until the user adds one in Settings (pushNewEmail).
+  userEmail: varchar("user_email", { length: 250 }),
   userPhonenumber: varchar("user_phonenumber", { length: 15 }).notNull(),
   userPhonenumberMeta: json("user_phonenumber_meta"),
   userFullname: text("user_fullname").notNull(),
@@ -532,7 +533,14 @@ export const users = mysqlTable("users", {
     .notNull()
     .default(-99),
   userPreferenceLanguage: longtext("user_preference_language"),
-  userSettings: longtext("user_settings").notNull(),
+  // Settings > Notifications. Email covers activity (likes, matches, messages);
+  // security codes, receipts and billing emails are always sent (global/notifyEmail.js).
+  userNotifyEmail: mysqlEnum("user_notify_email", ["0", "1"])
+    .notNull()
+    .default("1"),
+  userNotifyPush: mysqlEnum("user_notify_push", ["0", "1"])
+    .notNull()
+    .default("1"),
   userPrivacyShowDistance: mysqlEnum("user_privacy_show_distance", ["0", "1"])
     .notNull()
     .default("1"),

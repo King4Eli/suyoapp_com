@@ -123,9 +123,6 @@ export function Screen_likes({ navigation }: { navigation: any }) {
   }, []);
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerStyle: { backgroundColor: colors.background },
-      headerShadowVisible: false,
-      headerTitleAlign: 'center',
       headerTitle: () => (
         <View style={{ alignItems: 'center', flexDirection: 'row', gap: 5 }}>
           <Text
@@ -540,10 +537,15 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                     </View>
                     <View style={stylesoy.infoContainer}>
                       <Text style={stylesoy.name}>
-                        {canSeeLikes && item?.likedUserFullname
-                          ? item.likedUserFullname + ', '
-                          : '••••••, '}
-                        {help.getageFromDOB(item?.likedUserDob)}
+                        {[
+                          canSeeLikes && item?.likedUserFullname
+                            ? item.likedUserFullname
+                            : '••••••',
+                          // null when they've hidden their age
+                          help.getageFromDOB(item?.likedUserDob),
+                        ]
+                          .filter(part => part !== null && part !== undefined)
+                          .join(', ')}
                       </Text>
                       {item?.hasDirectMessage && (
                         <View style={stylesoy.dmRow}>

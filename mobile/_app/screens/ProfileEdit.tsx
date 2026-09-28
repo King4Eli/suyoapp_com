@@ -47,7 +47,7 @@ import {
 } from '../funcs/functions';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
-import LinearGradient from 'react-native-linear-gradient';
+import LinearGradient from '../funcs/customGradient';
 import { useTheme, ThemeColors } from '../funcs/theme';
 
 // ─── Constants ───────────────────────────────────────────────────────────────

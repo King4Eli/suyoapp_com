@@ -188,7 +188,6 @@ if (!empty($user['user_bio_dob']) && strlen((string) $user['user_bio_dob']) === 
 }
 
 $location = !empty($user['geo_meta']) ? json_decode((string) $user['geo_meta'], true) : [];
-$settings = !empty($user['user_settings']) ? json_decode((string) $user['user_settings'], true) : [];
 $phone_meta = !empty($user['user_phonenumber_meta']) ? json_decode((string) $user['user_phonenumber_meta'], true) : [];
 $device_stats = !empty($user['user_signedup_device_stats']) ? json_decode((string) $user['user_signedup_device_stats'], true) : null;
 $social_links = !empty($user['user_bio_social_links']) ? json_decode((string) $user['user_bio_social_links'], true) : [];

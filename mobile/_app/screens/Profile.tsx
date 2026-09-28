@@ -10,7 +10,7 @@ import {
 import { Dialogx } from '../funcs/customDialog';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeImage } from '../funcs/customImage';
-import LinearGradient from 'react-native-linear-gradient';
+import LinearGradient from '../funcs/customGradient';
 import LottieView from 'lottie-react-native';
 import Svg, { Circle } from 'react-native-svg';
 import IIcon from 'react-native-vector-icons/Ionicons';
@@ -26,7 +26,8 @@ import {
 import { Loaderx } from '../funcs/functions_stateful';
 import { ConsumableSheet } from '../funcs/customConsumableSheet';
 import { namer, resourceMap, styles, __CONFIG__ } from '../funcs/static';
-import { useTheme, ThemeColors } from '../funcs/theme';
+import { useTheme, ThemeColors, spacing } from '../funcs/theme';
+import { HeaderActions, HeaderIconButton } from '../funcs/customHeader';
 
 const PLAN_UI: Record<
   string,
@@ -259,16 +260,15 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerStyle: { backgroundColor: colors.background },
-      headerShadowVisible: false,
       headerTitle: '',
       headerRight: () => (
-        <Pressable
-          style={stylesx.headerButton}
-          onPress={() => navigation.navigate(namer.navigation.settings)}
-        >
-          <MIcon name="cog-outline" size={25} color={colors.text} />
-        </Pressable>
+        <HeaderActions>
+          <HeaderIconButton
+            family="mci"
+            name="cog-outline"
+            onPress={() => navigation.navigate(namer.navigation.settings)}
+          />
+        </HeaderActions>
       ),
     });
   }, [navigation, colors, stylesx]);
@@ -297,7 +297,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.conainerScrollView,
-          { gap: 14, paddingBottom: 10 },
+          { gap: 14, paddingTop: spacing.sm, paddingBottom: 10 },
         ]}
       >
         <View style={stylesx.profileCard}>
@@ -806,20 +806,6 @@ function createStylesx(colors: ThemeColors) {
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: colors.surface,
-    },
-    headerButton: {
-      width: 30,
-      height: 30,
-      borderRadius: 21,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.surface,
-      marginRight: 10,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.08,
-      shadowRadius: 14,
-      elevation: 3,
     },
 
     profileCard: {

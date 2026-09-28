@@ -12,6 +12,7 @@ import {
   FREE_LIKE_WINDOW_SECONDS,
 } from "../../global/entitlements.js";
 import { recordStreakActivity } from "../../global/streaks.js";
+import { notifyEmail } from "../../global/notifyEmail.js";
 
 /**
  * Tells the recipient's socket room about a new like/match so their app can toast it
@@ -235,6 +236,7 @@ export default async function pushPeopleToMatch(data, io) {
             matchId: genChatId,
             isSuperlike: nextStatus === "5",
           });
+          notifyEmail.newLike(io, secondUserId, nextStatus === "5");
         }
       }
     } else {
@@ -268,6 +270,7 @@ export default async function pushPeopleToMatch(data, io) {
         notifyUser(io, secondUserId, "new-match", {
           matchId: existing.matchId,
         });
+        notifyEmail.newMatch(io, secondUserId, me, existing.matchId);
       }
     }
     // Likes/Chats badges change for both sides on any match action (a new like,

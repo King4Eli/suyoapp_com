@@ -98,12 +98,8 @@ export class communicateWith {
       });
 
       const info = await transporter.sendMail({
-        from: smtpusername,
-        // if email is example.com, don't send email, just log it
-        // **
-        // ## remove on prod: toballz@yahoo.com
-        // **
-        to: toEmail.includes("@example.com") ? "toballz@yahoo.com" : toEmail,
+        from: { name: "SuyoApp", address: smtpusername },
+        to: toEmail,
         subject: subject,
         text: messageText,
         html: messageHtml,

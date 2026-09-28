@@ -1,10 +1,12 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { users } from "../../db/schema.js";
 import { namer, tools, envInt } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
 import { redisDo } from "../../global/redisClient.js";
 import { communicateWith } from "../../global/sendingCommunicate.js";
+import { emailTemplates } from "../../global/emailTemplates.js";
+import { notifyEmail } from "../../global/notifyEmail.js";
 import { checkRateLimit } from "../../global/rateLimit.js";
 /**
  * @param {any} oldEmail
@@ -56,11 +58,24 @@ export default async function pushNewEmail(
         const genPinCode = Math.floor(Math.random() * 900000) + 100000;
         const ttlSeconds = envInt("EMAILCHANGE_OTP_CODE_TTL_SECONDS", 300);
         const ttlMinutes = Math.round(ttlSeconds / 60);
-        await communicateWith.sendEmail(
-          "1",
+        const mail = emailTemplates.verificationCode({
+          code: genPinCode,
+          minutes: ttlMinutes,
+          purpose: "email_change",
+        });
+        const sent = await communicateWith.sendEmail(
+          null,
           newEmail,
-          `<p>Your verification code is <strong>${genPinCode}</strong>. Do not share this code with anyone. It expires in ${ttlMinutes} minutes.</p>`,
+          mail.subject,
+          mail.html,
+          mail.text,
         );
+        if (!sent || sent.code !== 200) {
+          response.code = 502;
+          response.message =
+            "Could not send verification code. Please try again.";
+          return response;
+        }
         await redisDo(async (client) => {
           await client.set(
             `${namer.redis.verifyCode}email:${sessions.currentUserID}`,
@@ -111,13 +126,15 @@ export default async function pushNewEmail(
         .where(
           and(
             eq(users.userId, sessions.currentUserID),
-            eq(users.userEmail, oldEmail),
+            // first email on the account: there's no old one to match
+            oldEmail ? eq(users.userEmail, oldEmail) : isNull(users.userEmail),
           ),
         );
 
       if (result.affectedRows > 0) {
         response.code = 200;
         response.message = "Email updated successfully.";
+        notifyEmail.emailChanged(oldEmail, newEmail);
       } else {
         response.code = 400;
         response.message = "Error updating email.";

@@ -177,7 +177,7 @@ function createStyles(colors: ThemeColors) {
       paddingTop: 12,
     },
     headerTitle: { fontSize: 18, fontWeight: '900', color: colors.text },
-    headerButton: { paddingHorizontal: 12, paddingVertical: 6 },
+    headerButton: { paddingVertical: 6 },
     doneText: { fontSize: 15, fontWeight: '900', color: colors.primary },
     countBadge: { color: colors.textTertiary, fontSize: 12, fontWeight: '800' },
     scrollContent: { padding: 18, gap: 12, paddingBottom: 40 },

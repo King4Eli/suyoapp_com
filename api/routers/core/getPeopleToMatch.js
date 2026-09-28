@@ -33,7 +33,7 @@ import {
 import ngeohash from "ngeohash";
 
 // Fields safe to hand back about ANOTHER user (a match candidate). Deliberately
-// excludes contact/account info (user_email, user_phonenumber(_meta), user_settings,
+// excludes contact/account info (user_email, user_phonenumber(_meta), user_notify_*,
 // user_signedup_device_stats, user_datecreated/last_accessed, geo_hash/lat/long) --
 // `SELECT users.*`/`SELECT *` here used to leak all of that to any authenticated
 // caller, including strangers who just supply a guessed/enumerated user_id.
@@ -66,6 +66,42 @@ const CANDIDATE_PROFILE_COLUMNS = [
   "user_privacy_incognito",
   "user_bio_social_links",
 ];
+
+// geo_meta holds the full reverse-geocode (exact coordinates, street,
+// postcode), so other people only ever get the city-level part of it.
+const publicLocation = (/** @type {any} */ geo) => ({
+  city: geo?.city ?? null,
+  state: geo?.state ?? null,
+  country: geo?.country ?? null,
+});
+
+/**
+ * Incognito ("only people you liked can see you"): an incognito profile opened
+ * by id is only shown to someone they liked or matched with.
+ * @param {string} personId
+ */
+async function canViewIncognito(personId) {
+  if (personId === sessions.currentUserID) return true;
+  const [link] = await db
+    .select({ id: matches.matchId })
+    .from(matches)
+    .where(
+      or(
+        and(
+          eq(matches.matchUserIdFrom, personId),
+          eq(matches.matchUserIdTo, sessions.currentUserID),
+          inArray(matches.matchStatus, ["0", "1", "5"]),
+        ),
+        and(
+          eq(matches.matchUserIdFrom, sessions.currentUserID),
+          eq(matches.matchUserIdTo, personId),
+          eq(matches.matchStatus, "1"),
+        ),
+      ),
+    )
+    .limit(1);
+  return Boolean(link);
+}
 
 const toCamel = (s) => s.replace(/_([a-zA-Z])/g, (_, c) => c.toUpperCase());
 
@@ -238,10 +274,18 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
         .from(users)
         .where(eq(users.userId, getOnePersons_id2));
 
+      if (
+        rows[0]?.user_privacy_incognito === "1" &&
+        !(await canViewIncognito(getOnePersons_id2))
+      ) {
+        response.message = "This profile isn't available.";
+        return response;
+      }
+
       if (Array.isArray(rows) && rows.length > 0) {
         rows.forEach((u) => {
           u.user_image = JSON.parse(u.user_image ?? "[]");
-          u.geo_meta = u.geo_meta ?? {};
+          u.geo_meta = publicLocation(u.geo_meta);
           if (u.user_privacy_show_age === "0") delete u.user_bio_dob;
           delete u.user_privacy_show_distance;
           delete u.user_privacy_show_age;
@@ -510,7 +554,8 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
       rows.forEach((u) => {
         u.user_verified = Number(u.user_verified);
         u.user_image = JSON.parse(u.user_image ?? "[]");
-        u.user_location = u.geo_meta ?? {};
+        u.user_location = publicLocation(u.geo_meta);
+        delete u.geo_meta;
         delete u.match_status;
 
         // Nearest viewer point; index > 0 means one of the viewer's travel cities

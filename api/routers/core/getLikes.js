@@ -22,6 +22,7 @@ export default async function getLikes() {
         user_image: users.userImage,
         user_fullname: users.userFullname,
         user_bio_dob: users.userBioDob,
+        user_privacy_show_age: users.userPrivacyShowAge,
         user_verified: users.userVerified,
         // A direct message (pushDirectMessage) is the only way a pending like has one.
         direct_message: conversations.convoMessage,
@@ -46,6 +47,11 @@ export default async function getLikes() {
      * @param {string | null} raw
      * @returns {{ text: string; on: "photo" | "about" | null } | null}
      */
+    // "Show age" off: their date of birth never leaves the server
+    for (const row of rows) {
+      if (row.user_privacy_show_age === "0") row.user_bio_dob = null;
+    }
+
     const parseDirectMessage = (raw) => {
       if (!raw) return null;
       try {

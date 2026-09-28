@@ -311,7 +311,7 @@ function createStyles(colors: ThemeColors) {
     screen: { flex: 1, backgroundColor: colors.backgroundSecondary },
     scrollContent: { padding: 18, gap: 18, paddingBottom: 40 },
     headerTitle: { fontSize: 18, fontWeight: '900', color: colors.text },
-    headerButton: { paddingHorizontal: 12, paddingVertical: 6 },
+    headerButton: { paddingVertical: 6 },
     doneText: { fontSize: 15, fontWeight: '900', color: colors.primary },
     section: { gap: 10 },
     sectionLabel: {

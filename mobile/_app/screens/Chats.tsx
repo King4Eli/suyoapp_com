@@ -3,7 +3,6 @@ import React, {
   useState,
   useCallback,
   useMemo,
-  useLayoutEffect,
   useRef,
 } from 'react';
 import {
@@ -36,7 +35,7 @@ import IIcon from 'react-native-vector-icons/Ionicons';
 import FastImage from '@d11/react-native-fast-image';
 import { SafeImage } from '../funcs/customImage';
 import LottieView from 'lottie-react-native';
-import { LinearGradient } from 'react-native-linear-gradient';
+import { LinearGradient } from '../funcs/customGradient';
 import { useTheme, spacing, radius, elevation } from '../funcs/theme';
 
 const filtersList = [
@@ -73,13 +72,6 @@ export function Screen_chat({ navigation }: { navigation: any }) {
   const hasLikes = getCountLikes > 0;
   const hasNewMatches =
     Array.isArray(getNewMatches) && getNewMatches.length > 0;
-
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerStyle: { backgroundColor: colors.background },
-      headerShadowVisible: false,
-    });
-  });
 
   useFocusEffect(
     React.useCallback(() => {
@@ -192,7 +184,6 @@ export function Screen_chat({ navigation }: { navigation: any }) {
         style={{
           borderRadius: radius.lg,
           padding: spacing.lg,
-          overflow: 'hidden',
           ...elevation(colors.shadow, 2),
         }}
       >
@@ -1022,7 +1013,11 @@ export function Screen_chat({ navigation }: { navigation: any }) {
           ) : null
         }
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ gap: 6, paddingBottom: 20 }}
+        contentContainerStyle={{
+          gap: 6,
+          paddingTop: spacing.sm,
+          paddingBottom: 20,
+        }}
         initialNumToRender={4}
         maxToRenderPerBatch={4}
         windowSize={5}

@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Dialogx } from './customDialog';
-import LinearGradient from 'react-native-linear-gradient';
+import LinearGradient from './customGradient';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import { _http_request, cacheStorage, help } from './functions';
 import { namer, __CONFIG__ } from './static';

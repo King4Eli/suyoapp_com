@@ -63,6 +63,7 @@ export default async function getChatsListings() {
         other_user_image: otherUser.userImage,
         other_user_verified: otherUser.userVerified,
         other_user_dob: otherUser.userBioDob,
+        other_user_show_age: otherUser.userPrivacyShowAge,
         convo_id: latest.convoId,
         convo_message: latest.convoMessage,
         convo_date_added: latest.convoDateAdded,
@@ -114,7 +115,9 @@ export default async function getChatsListings() {
         match_id: row.match_id,
         chat_with_user_id: row.other_user_id,
         user_fullname: row.other_user_fullname || "",
-        user_dob: row.other_user_dob || null,
+        // "Show age" off: their date of birth never leaves the server
+        user_dob:
+          row.other_user_show_age === "0" ? null : row.other_user_dob || null,
         user_verified: Number(row.other_user_verified) === 1,
         match_date: row.match_dateAdded,
         last_message_id: row.last_message_id || null,

@@ -1,5 +1,7 @@
 {
   "site": {
+    "home": "https://suyoapp.com",
+    "support_email": "support@suyoapp.com",
     "hotlink_payment_200": "https://suyoapp.com/payment/success",
     "hotlink_payment_400": "https://suyoapp.com/payment/cancelled"
   }

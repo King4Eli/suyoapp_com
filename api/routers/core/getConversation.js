@@ -4,7 +4,7 @@ import { conversations, matches, users } from "../../db/schema.js";
 import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
 import { pushBadgeCounts } from "../../global/badges.js";
-import { hasFeature } from "../../global/entitlements.js";
+import { canShareReadReceipts } from "../../global/entitlements.js";
 
 /**
  * With `since` (unix seconds, the `syncedAt` of the caller's last sync), only
@@ -96,10 +96,8 @@ export default async function getConversation(matchId, io, since) {
   const messages = [];
   let user2Details = null;
   let fromMe;
-  // Whether the viewer gets to see "did they read the messages I sent" -- gated on
-  // the viewer's own VIP status and their own read-receipts setting only (not the
-  // other party's setting; this is a single-sided "I get to see" feature, not a
-  // mutual WhatsApp-style handshake).
+  // Whether the viewer gets to see "did they read the messages I sent": mutual,
+  // both people need the feature and the setting on (see canShareReadReceipts).
   let canSeeReadReceipts = false;
 
   // Get user details from the first row (will exist even if no conversations)
@@ -132,16 +130,10 @@ export default async function getConversation(matchId, io, since) {
       };
     }
 
-    const [viewerRow] = await db
-      .select({ user_privacy_read_receipts: users.userPrivacyReadReceipts })
-      .from(users)
-      .where(eq(users.userId, sessions.currentUserID));
-    if (viewerRow?.user_privacy_read_receipts === "1") {
-      canSeeReadReceipts = await hasFeature(
-        sessions.currentUserID,
-        "readReceipts",
-      );
-    }
+    canSeeReadReceipts = await canShareReadReceipts(
+      sessions.currentUserID,
+      row.other_user_id,
+    );
   }
 
   // Process conversations (if any)
@@ -212,18 +204,21 @@ export default async function getConversation(matchId, io, since) {
         ),
       );
     if (updateResult?.affectedRows > 0 && io) {
-      // Thin "something changed" ping, no read-status payload -- the sender's
-      // next getConversation() call re-derives `read` under the same privacy
-      // gate above, so this can't leak receipt data to someone not entitled to it.
+      // Tells the sender their messages were just read, so only sent when the
+      // two share receipts (the check is mutual, so the viewer's result above
+      // is the sender's too). Otherwise the sender's app would still learn when
+      // they were read, whatever it chose to show.
       // readByUserId matters: both participants' sockets are in this room (each
       // joins on opening the conversation), so without it the READER's own client
       // would also receive this and could mistake it for "MY sent messages just
       // got read", flipping their own outgoing messages to read=true regardless
       // of the other side's actual read state.
-      io.to(`match-${matchId}`).emit("messages-read", {
-        matchId,
-        readByUserId: sessions.currentUserID,
-      });
+      if (canSeeReadReceipts) {
+        io.to(`match-${matchId}`).emit("messages-read", {
+          matchId,
+          readByUserId: sessions.currentUserID,
+        });
+      }
       // Reading clears this chat from the reader's Chats badge (other devices too).
       pushBadgeCounts(io, sessions.currentUserID);
     }
@@ -238,6 +233,8 @@ export default async function getConversation(matchId, io, since) {
   response.message = messages.length > 0 ? "ok" : "No messages yet";
   response.u2deets = user2Details;
   response.chatsMessageListings = messages;
+  // Lets the app drop read ticks it cached while receipts were still shared.
+  response.readReceipts = canSeeReadReceipts;
   response.delta = isDelta;
   response.syncedAt = syncedAt;
 
