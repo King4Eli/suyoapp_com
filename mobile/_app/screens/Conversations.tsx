@@ -18,7 +18,6 @@ import {
   Linking,
   ImageBackground,
   Animated,
-  ActivityIndicator,
 } from 'react-native';
 import { Dialogx } from '../funcs/customDialog';
 import {
@@ -622,12 +621,6 @@ export function Screen_conversation({
 
   const [getConversations, setConversations] = useState<convoInterface[]>([]);
   const [getUser2Deets, setUser2Deets] = useState<any>([]);
-  const [getConvoStarter, setConvoStarter] = useState<any>([]);
-  // Opening-message ideas for an empty chat come from the local LLM
-  // (api getConversationStarters) -- it can take a few seconds the first time.
-  const [startersLoading, setStartersLoading] = useState(false);
-  const [hasSynced, setHasSynced] = useState(false);
-  const [starterIndex, setStarterIndex] = useState<number>(0);
   const [inputText, setInputText] = useState<string>('');
   const [getInputImageVideo, setInputImageVideo] = useState<Asset[]>([]);
   const [getInputAudio, setInputAudio] = useState<string | null>(null);
@@ -666,17 +659,6 @@ export function Screen_conversation({
   const autoStopRecordingRef = useRef(false);
   const isRecordingRef = useRef(false);
   const audioPlayingRef = useRef(false);
-  const starterCarouselRef = useRef<FlatList<string>>(null);
-  const starterViewConfig = useRef({
-    viewAreaCoveragePercentThreshold: 60,
-  }).current;
-  const starterViewable = useRef(
-    ({ viewableItems }: { viewableItems: any[] }) => {
-      if (viewableItems?.[0]?.index != null) {
-        setStarterIndex(viewableItems[0].index);
-      }
-    },
-  ).current;
 
   useEffect(() => {
     isRecordingRef.current = isRecording;
@@ -1476,7 +1458,6 @@ export function Screen_conversation({
         if (Number(response?.syncedAt) > 0) {
           syncedAtRef.current = Number(response.syncedAt);
         }
-        setHasSynced(true);
         // getConversation just marked this thread read -- recount the Chat tab badge
         chatsBadge.refresh();
         navigationRef.setParams({ matchId: funt.matchId });
@@ -1509,27 +1490,6 @@ export function Screen_conversation({
       cancelled = true;
     };
   }, [reloadIfRealtimeData_File, funt.matchId, navigation]);
-
-  // Empty chat (confirmed by the server, not just the cache): fetch ideas once.
-  const isEmptyChat = hasSynced && getConversations.length === 0;
-  const startersRequested = useRef(false);
-  useEffect(() => {
-    if (!isEmptyChat || startersRequested.current) return;
-    startersRequested.current = true;
-    setStartersLoading(true);
-    _http_request({
-      customApiUrl:
-        __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/getConversationStarters',
-      reqType: 'POST',
-      bodyArray: { matchId: funt.matchId },
-    })
-      .then((response: any) => {
-        if (Array.isArray(response?.starters)) {
-          setConvoStarter(response.starters);
-        }
-      })
-      .finally(() => setStartersLoading(false));
-  }, [isEmptyChat, funt.matchId]);
 
   // Save the thread (server-confirmed messages only) shortly after it changes.
   useEffect(() => {
@@ -2722,128 +2682,6 @@ export function Screen_conversation({
                     color={colors.accent}
                   />
                 </Pressable>
-              </View>
-            }
-            ListEmptyComponent={
-              <View
-                style={{
-                  paddingVertical: 20,
-                  alignItems: 'center',
-                  width: '100%',
-                }}
-              >
-                {startersLoading && getConvoStarter.length === 0 && (
-                  <View
-                    style={{
-                      width: screenWidth * 0.78,
-                      paddingVertical: 22,
-                      paddingHorizontal: 20,
-                      backgroundColor: colors.surface,
-                      borderWidth: 1,
-                      borderColor: colors.hairline,
-                      borderRadius: 20,
-                      alignItems: 'center',
-                      gap: 10,
-                    }}
-                  >
-                    <ActivityIndicator color={colors.primary} />
-                    <Text style={{ color: colors.textSecondary, fontSize: 14 }}>
-                      Thinking of ways to start the chat…
-                    </Text>
-                  </View>
-                )}
-                {getConvoStarter.length > 0 && (
-                  <Text
-                    style={{
-                      color: colors.textTertiary,
-                      fontSize: 12,
-                      fontWeight: '600',
-                      marginBottom: 10,
-                    }}
-                  >
-                    Ideas based on their profile
-                  </Text>
-                )}
-                <FlatList
-                  ref={starterCarouselRef}
-                  data={getConvoStarter}
-                  keyExtractor={(item, index) => `${item}-${index}`}
-                  renderItem={({ item }) => (
-                    <Pressable
-                      onPress={() => handleInsertPrompt(item)}
-                      style={{
-                        width: screenWidth * 0.78,
-                        paddingVertical: 18,
-                        paddingHorizontal: 20,
-                        backgroundColor: colors.surface,
-                        borderWidth: 1,
-                        borderColor: colors.hairline,
-                        borderRadius: 20,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        shadowColor: colors.shadow,
-                        shadowOpacity: 0.1,
-                        shadowRadius: 12,
-                        shadowOffset: { width: 0, height: 6 },
-                        elevation: 3,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          color: colors.text,
-                          fontSize: 15.5,
-                          fontWeight: '600',
-                          textAlign: 'center',
-                          lineHeight: 22,
-                        }}
-                      >
-                        {item}
-                      </Text>
-                      <Text
-                        style={{
-                          color: colors.primary,
-                          fontSize: 12,
-                          fontWeight: '700',
-                          marginTop: 10,
-                        }}
-                      >
-                        Tap to use this prompt
-                      </Text>
-                    </Pressable>
-                  )}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  pagingEnabled
-                  snapToAlignment="center"
-                  decelerationRate="fast"
-                  onViewableItemsChanged={starterViewable}
-                  viewabilityConfig={starterViewConfig}
-                  contentContainerStyle={{
-                    paddingHorizontal: (screenWidth * 0.1) / 2,
-                    gap: 10,
-                  }}
-                />
-                {Array.isArray(getConvoStarter) &&
-                  getConvoStarter.length > 1 && (
-                    <View
-                      style={{ flexDirection: 'row', gap: 6, marginTop: 10 }}
-                    >
-                      {getConvoStarter.map((_: any, idx: number) => (
-                        <View
-                          key={idx}
-                          style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: 4,
-                            backgroundColor:
-                              idx === starterIndex
-                                ? colors.primary
-                                : colors.border,
-                          }}
-                        />
-                      ))}
-                    </View>
-                  )}
               </View>
             }
             onLayout={() => {

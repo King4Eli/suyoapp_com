@@ -29,7 +29,6 @@ import getPaymentHistory from "./core/getPaymentHistory.js";
 import getPaymentStatus from "./core/getPaymentStatus.js";
 import getPaymentNotices from "./core/getPaymentNotices.js";
 import getBadgeCounts from "./core/getBadgeCounts.js";
-import getConversationStarters from "./core/getConversationStarters.js";
 import getVerification from "./core/getVerification.js";
 import pushVerification from "./core/pushVerification.js";
 import getInterests from "./core/getInterests.js";
@@ -228,12 +227,6 @@ core_router.post("/:action", async (req, res) => {
         pose: req.body?.pose,
       });
       return res.json(submitted);
-    }
-    case "getConversationStarters": {
-      const starters = await getConversationStarters({
-        matchId: req.body?.matchId,
-      });
-      return res.json(starters);
     }
     case "getBadgeCounts": {
       const badges = await getBadgeCounts();

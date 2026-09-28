@@ -8,7 +8,6 @@ export const namer = {
     streakReward: "streak:reward:",
     badgesLast: "badges:last:",
     verifyPose: "verify:pose:",
-    starters: "starters:",
   },
   ratelimit: {
     login_ip: "ratelimit:login:ip:",

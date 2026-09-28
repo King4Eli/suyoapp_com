@@ -84,7 +84,6 @@ export default async function getConversation(matchId, io, since) {
     message: "No conversation found.",
     chatsMessageListings: [],
     u2deets: null,
-    convostarter: [],
   };
 
   // If no rows returned, either match doesn't exist or user doesn't have access
@@ -96,8 +95,6 @@ export default async function getConversation(matchId, io, since) {
 
   const messages = [];
   let user2Details = null;
-  /** @type {string[]} */
-  const randomConvoStarter = [];
   let fromMe;
   // Whether the viewer gets to see "did they read the messages I sent" -- gated on
   // the viewer's own VIP status and their own read-receipts setting only (not the
@@ -241,7 +238,6 @@ export default async function getConversation(matchId, io, since) {
   response.message = messages.length > 0 ? "ok" : "No messages yet";
   response.u2deets = user2Details;
   response.chatsMessageListings = messages;
-  response.convostarter = randomConvoStarter;
   response.delta = isDelta;
   response.syncedAt = syncedAt;
 
