@@ -116,14 +116,6 @@ function build_device_page_url(int $page, string $query, string $os_filter, int 
 
 <head>
     <?php include "../global/head.php"; ?>
-    <style>
-        .stat-card {
-            transition: transform 0.2s;
-        }
-        .stat-card:hover {
-            transform: translateY(-2px);
-        }
-    </style>
 </head>
 
 <body>
@@ -131,58 +123,28 @@ function build_device_page_url(int $page, string $query, string $os_filter, int 
 
     <div class="row mb-4">
         <div class="col-6 col-md-4 col-lg-2 mb-3">
-            <div class="card stat-card h-100">
-                <div class="card-body">
-                    <div class="h4 mb-1"><?php echo number_format($stats['total_devices']); ?></div>
-                    <div class="text-muted small">Total Devices</div>
-                </div>
-            </div>
+            <?php echo stat_card($stats['total_devices'], 'Total Devices', 'phone', 'primary'); ?>
         </div>
         <div class="col-6 col-md-4 col-lg-2 mb-3">
-            <div class="card stat-card h-100">
-                <div class="card-body">
-                    <div class="h4 mb-1"><?php echo number_format($stats['unique_users']); ?></div>
-                    <div class="text-muted small">Unique Users</div>
-                </div>
-            </div>
+            <?php echo stat_card($stats['unique_users'], 'Unique Users', 'people', 'accent'); ?>
         </div>
         <div class="col-6 col-md-4 col-lg-2 mb-3">
-            <div class="card stat-card h-100">
-                <div class="card-body">
-                    <div class="h4 mb-1"><?php echo number_format($stats['ios_count']); ?></div>
-                    <div class="text-muted small">iOS</div>
-                </div>
-            </div>
+            <?php echo stat_card($stats['ios_count'], 'iOS', 'apple', 'secondary'); ?>
         </div>
         <div class="col-6 col-md-4 col-lg-2 mb-3">
-            <div class="card stat-card h-100">
-                <div class="card-body">
-                    <div class="h4 mb-1"><?php echo number_format($stats['android_count']); ?></div>
-                    <div class="text-muted small">Android</div>
-                </div>
-            </div>
+            <?php echo stat_card($stats['android_count'], 'Android', 'android2', 'success'); ?>
         </div>
         <div class="col-6 col-md-4 col-lg-2 mb-3">
-            <div class="card stat-card h-100">
-                <div class="card-body">
-                    <div class="h4 mb-1"><?php echo number_format($stats['other_os_count']); ?></div>
-                    <div class="text-muted small">Other OS</div>
-                </div>
-            </div>
+            <?php echo stat_card($stats['other_os_count'], 'Other OS', 'question-circle', 'warning'); ?>
         </div>
         <div class="col-6 col-md-4 col-lg-2 mb-3">
-            <div class="card stat-card h-100">
-                <div class="card-body">
-                    <div class="h4 mb-1"><?php echo number_format($stats['emulator_count']); ?></div>
-                    <div class="text-muted small">Emulators</div>
-                </div>
-            </div>
+            <?php echo stat_card($stats['emulator_count'], 'Emulators', 'pc-display', 'info'); ?>
         </div>
     </div>
 
     <?php if ($top_brands): ?>
     <div class="card shadow-sm mb-4">
-        <div class="card-header fw-semibold">Top Brands</div>
+        <div class="card-header fw-semibold"><i class="bi bi-tags"></i>Top Brands</div>
         <div class="card-body d-flex flex-wrap gap-2">
             <?php foreach ($top_brands as $brand_row): ?>
                 <span class="badge text-bg-light border">
@@ -220,8 +182,8 @@ function build_device_page_url(int $page, string $query, string $os_filter, int 
                     </select>
                 </div>
                 <div class="col-12 col-md-3 d-flex gap-2">
-                    <button class="btn btn-primary flex-fill" type="submit">Apply</button>
-                    <a class="btn btn-outline-secondary flex-fill" href="devices.php">Reset</a>
+                    <button class="btn btn-primary flex-fill" type="submit"><i class="bi bi-funnel"></i> Apply</button>
+                    <a class="btn btn-outline-secondary flex-fill" href="devices.php"><i class="bi bi-arrow-counterclockwise"></i> Reset</a>
                 </div>
                 <div class="col-12">
                     <label class="form-label" for="client-filter">Quick filter (client)</label>
@@ -233,7 +195,7 @@ function build_device_page_url(int $page, string $query, string $os_filter, int 
 
     <div class="card shadow-sm">
         <div class="card-header d-flex align-items-center justify-content-between">
-            <span class="fw-semibold">Device List</span>
+            <span class="fw-semibold"><i class="bi bi-phone"></i>Device List</span>
             <span class="text-muted small"><?php echo number_format($total_rows); ?> total</span>
         </div>
         <div class="table-responsive">
@@ -292,7 +254,7 @@ function build_device_page_url(int $page, string $query, string $os_filter, int 
                             <td class="text-end">
                                 <?php if (!empty($device['user_id'])): ?>
                                     <a class="btn btn-sm btn-outline-secondary"
-                                        href="singleuser.php?id=<?php echo urlencode($device['user_id']); ?>">User</a>
+                                        href="singleuser.php?id=<?php echo urlencode($device['user_id']); ?>"><i class="bi bi-person"></i> User</a>
                                 <?php endif; ?>
                             </td>
                         </tr>

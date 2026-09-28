@@ -6,18 +6,15 @@ import {
   StyleSheet,
   Pressable,
   Linking,
-  Clipboard,
 } from 'react-native';
 import { Toastx } from '../funcs/customNotification';
 import { __init__app, cacheStorage, logReport } from '../funcs/functions';
 import RNRestart from 'react-native-restart';
-import { sessionManager } from '../funcs/SessionContext';
 import { __CONFIG__ } from '../funcs/static';
 
-export function Zz_devv({ navigation }: { route: any; navigation: any }) {
+export function Zz_devv() {
   const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
   const [_getProfile, setProfile] = useState<any>(null);
-  const getSession = sessionManager.getCurrentSession();
 
   useEffect(() => {
     let mounted = true;

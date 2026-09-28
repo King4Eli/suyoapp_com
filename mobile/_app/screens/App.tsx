@@ -23,6 +23,7 @@ import { Screen_editprofile } from './ProfileEdit';
 import { Screen_profileVerify } from './ProfileVerify';
 import { Screen_editProfilePrompts } from './ProfileEditPrompts';
 import { Screen_editProfileInterests } from './ProfileEditInterests';
+import { Screen_editProfileLocation } from './ProfileEditLocation';
 import { sessionManager, SessionTypes } from '../funcs/SessionContext';
 import { Screen_editpreference } from './PreferenceEdit';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -282,6 +283,11 @@ const MainApp: React.FC = () => {
               <Stack.Screen
                 name={namer.navigation.editProfileInterests}
                 component={Screen_editProfileInterests}
+                options={{ headerBackTitle: '' }}
+              />
+              <Stack.Screen
+                name={namer.navigation.editLocation}
+                component={Screen_editProfileLocation}
                 options={{ headerBackTitle: '' }}
               />
               <Stack.Screen

@@ -5,6 +5,11 @@ import getConversation from "./core/getConversation.js";
 import getProfile from "./core/getProfile.js";
 import getLikes from "./core/getLikes.js";
 import pushLocation from "./core/pushLocation.js";
+import getLocations from "./core/getLocations.js";
+import pushTravelMode from "./core/pushTravelMode.js";
+import pushSecondaryLocation from "./core/pushSecondaryLocation.js";
+import pushDeleteSecondaryLocation from "./core/pushDeleteSecondaryLocation.js";
+import getPlaceSearch from "./core/getPlaceSearch.js";
 import pushNewPhoneNumber from "./core/pushNewPhonenumber.js";
 import pushProfile from "./core/pushProfile.js";
 import getPeopleToMatch from "./core/getPeopleToMatch.js";
@@ -318,6 +323,26 @@ core_router.post("/:action", async (req, res) => {
       const location_coords = req.body?.longlatd;
       const location = await pushLocation(location_coords);
       return res.json(location);
+    }
+    case "getLocations": {
+      return res.json(await getLocations());
+    }
+    case "pushTravelMode": {
+      return res.json(await pushTravelMode(req.body?.enabled));
+    }
+    case "pushSecondaryLocation": {
+      return res.json(
+        await pushSecondaryLocation({
+          latd: req.body?.latd,
+          long: req.body?.long,
+        }),
+      );
+    }
+    case "pushDeleteSecondaryLocation": {
+      return res.json(await pushDeleteSecondaryLocation(req.body?.id));
+    }
+    case "getPlaceSearch": {
+      return res.json(await getPlaceSearch(req.body?.q));
     }
     case "pushNewPhonenumber": {
       const old_number = req.body?.oldpnumber;

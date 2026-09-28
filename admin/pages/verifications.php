@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 include "../main_config.php";
+include "../global/funcs.php";
 
 $page_title = 'Verifications';
 $page_subtitle = 'Selfie checks: does the person in the selfie match the profile and copy the pose?';
@@ -111,7 +112,7 @@ $status_labels = [0 => ['Pending', 'warning'], 1 => ['Approved', 'success'], 2 =
 
     <?php if (!$requests): ?>
         <div class="card shadow-sm">
-            <div class="card-body text-center text-muted py-5">Nothing here.</div>
+            <div class="card-body admin-empty"><i class="bi bi-patch-check"></i>No verification requests here.</div>
         </div>
     <?php endif; ?>
 

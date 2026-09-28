@@ -16,12 +16,12 @@ import {
   Platform,
   TouchableOpacity,
   StyleSheet,
-  LayoutAnimation,
 } from 'react-native';
 import RNFS from 'react-native-fs';
 import {
   Loaderx,
   bottomsheet_renderBackdrop,
+  bottomsheet_renderHandle,
 } from '../funcs/functions_stateful';
 import { ScrollView } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -30,12 +30,14 @@ import Animated, {
   useAnimatedStyle,
   runOnJS,
   withSpring,
-  withTiming,
 } from 'react-native-reanimated';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import MIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { namer, __CONFIG__, SOCIAL_PLATFORMS, styles } from '../funcs/static';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import {
   _http_request,
   cacheStorage,
@@ -43,10 +45,7 @@ import {
   mediaHandler,
   uploadHandler,
 } from '../funcs/functions';
-import BottomSheet, {
-  BottomSheetScrollView,
-  BottomSheetView,
-} from '@gorhom/bottom-sheet';
+import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
 import LinearGradient from 'react-native-linear-gradient';
 import { useTheme, ThemeColors } from '../funcs/theme';
@@ -118,6 +117,8 @@ type PickerSheetConfig = {
   selectedId?: string | null;
   sections: PickerSection[];
   onSelect: (id: string) => void;
+  // Long lists open fully expanded; everything else opens at the small snap point
+  expanded?: boolean;
 };
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
@@ -135,21 +136,6 @@ function getCellDims(containerWidth: number): CellDim[] {
     { w: thirdColW, h: bottomH, x: thirdColW + GAP, y: bigH + GAP },
     { w: thirdColW, h: bottomH, x: (thirdColW + GAP) * 2, y: bigH + GAP },
   ];
-}
-
-/** Returns the cell index whose bounding rect contains (px, py), or -1. */
-function hitTestCell(cells: CellDim[], px: number, py: number): number {
-  for (let i = 0; i < cells.length; i++) {
-    const c = cells[i];
-    if (px >= c.x && px <= c.x + c.w && py >= c.y && py <= c.y + c.h) return i;
-  }
-  return -1;
-}
-
-function padImages(images: PhotoItem[]): PhotoItem[] {
-  const arr = [...images];
-  while (arr.length < MAX_PHOTOS) arr.push({});
-  return arr.slice(0, MAX_PHOTOS);
 }
 
 function isEmptySlot(img: PhotoItem): boolean {
@@ -176,164 +162,184 @@ function getMimeTypeFromExt(ext: string): string {
   return map[ext] ?? 'application/octet-stream';
 }
 
-// ─── DraggablePhoto ───────────────────────────────────────────────────────────
-// Defined at module level so React's Rules of Hooks are never violated.
+// ─── Photo grid (drag to reorder) ─────────────────────────────────────────────
+// Photos are always packed at the front (slot 0 is the main photo) and empty
+// slots only add. Hold a photo to lift it; while it moves, the others slide to
+// where they'd end up if it were dropped there -- a move, not a swap. Hit-testing
+// runs on the UI thread and only calls into JS when the hovered slot changes.
+
+const LIFT_DELAY_MS = 220;
+const SLIDE_SPRING = { damping: 20, stiffness: 220, mass: 0.8 };
+
+/** `arr` with the item at `from` moved to `to`; the ones in between shift over. */
+function moveItem<T>(arr: T[], from: number, to: number): T[] {
+  const next = [...arr];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
+}
+
+/** Filled photos only, in order -- the grid never has gaps. */
+function compactImages(images: PhotoItem[]): PhotoItem[] {
+  return (images ?? [])
+    .filter(img => img && !isEmptySlot(img))
+    .slice(0, MAX_PHOTOS);
+}
 
 interface DraggablePhotoProps {
-  image: PhotoItem;
-  slotIndex: number;
-  cellWidth: number;
-  cellHeight: number;
-  x: number;
-  y: number;
+  photoIndex: number;
+  cell: CellDim;
+  cells: CellDim[];
+  filledCount: number;
   imageUri: string;
-  isDropTarget: boolean;
+  isMain: boolean;
   onPress: (index: number) => void;
   onRemove: (index: number) => void;
-  onDragStart: (index: number) => void;
-  onDragMove: (index: number, tx: number, ty: number) => void;
-  onDragEnd: (index: number, tx: number, ty: number) => void;
+  onLift: (index: number) => void;
+  onHover: (index: number, slot: number) => void;
+  onDrop: (index: number) => void;
   colors: ThemeColors;
   photoStyles: any;
 }
 
 const DraggablePhoto = React.memo(
   ({
-    image,
-    slotIndex,
-    cellWidth,
-    cellHeight,
-    x,
-    y,
+    photoIndex,
+    cell,
+    cells,
+    filledCount,
     imageUri,
-    isDropTarget,
+    isMain,
     onPress,
     onRemove,
-    onDragStart,
-    onDragMove,
-    onDragEnd,
+    onLift,
+    onHover,
+    onDrop,
     colors,
     photoStyles,
   }: DraggablePhotoProps) => {
-    const empty = isEmptySlot(image);
-
-    const translateX = useSharedValue(0);
-    const translateY = useSharedValue(0);
+    // Position/size live in shared values so reordering animates on the UI thread
+    const posX = useSharedValue(cell.x);
+    const posY = useSharedValue(cell.y);
+    const width = useSharedValue(cell.w);
+    const height = useSharedValue(cell.h);
+    const target = useSharedValue(cell);
+    const start = useSharedValue({ x: 0, y: 0 });
+    const lifted = useSharedValue(false);
+    const hover = useSharedValue(-1);
     const scale = useSharedValue(1);
-    const zIdx = useSharedValue(1);
-    const shadowOpacity = useSharedValue(0);
 
-    const gesture = Gesture.Pan()
-      .minDistance(8)
-      .enabled(!empty)
-      .onStart(() => {
-        scale.value = withSpring(1.07, { damping: 14, stiffness: 200 });
-        shadowOpacity.value = withTiming(0.4, { duration: 150 });
-        zIdx.value = 100;
-        runOnJS(onDragStart)(slotIndex);
-      })
-      .onUpdate(e => {
-        translateX.value = e.translationX;
-        translateY.value = e.translationY;
-        runOnJS(onDragMove)(slotIndex, e.translationX, e.translationY);
-      })
-      .onEnd(e => {
-        translateX.value = withSpring(0, { damping: 18, stiffness: 220 });
-        translateY.value = withSpring(0, { damping: 18, stiffness: 220 });
-        scale.value = withSpring(1);
-        shadowOpacity.value = withTiming(0, { duration: 200 });
-        zIdx.value = 1;
-        runOnJS(onDragEnd)(slotIndex, e.translationX, e.translationY);
-      })
-      .onFinalize(() => {
-        translateX.value = withSpring(0);
-        translateY.value = withSpring(0);
-        scale.value = withSpring(1);
-        shadowOpacity.value = withTiming(0);
-        zIdx.value = 1;
-      });
+    // Slide to a new slot when the order (or preview order) changes. The lifted
+    // photo stays under the finger and settles on drop instead.
+    useEffect(() => {
+      target.value = cell;
+      if (lifted.value) return;
+      posX.value = withSpring(cell.x, SLIDE_SPRING);
+      posY.value = withSpring(cell.y, SLIDE_SPRING);
+      width.value = withSpring(cell.w, SLIDE_SPRING);
+      height.value = withSpring(cell.h, SLIDE_SPRING);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [cell.x, cell.y, cell.w, cell.h]);
+
+    // Stable across renders: hovering re-renders the lifted photo mid-gesture
+    const gesture = useMemo(
+      () =>
+        Gesture.Pan()
+          .activateAfterLongPress(LIFT_DELAY_MS)
+          .onStart(() => {
+            lifted.value = true;
+            hover.value = photoIndex;
+            start.value = { x: posX.value, y: posY.value };
+            scale.value = withSpring(1.05, SLIDE_SPRING);
+            runOnJS(onLift)(photoIndex);
+          })
+          .onUpdate(e => {
+            posX.value = start.value.x + e.translationX;
+            posY.value = start.value.y + e.translationY;
+            const cx = posX.value + width.value / 2;
+            const cy = posY.value + height.value / 2;
+            let hit = -1;
+            for (let i = 0; i < cells.length; i++) {
+              const c = cells[i];
+              if (
+                cx >= c.x &&
+                cx <= c.x + c.w &&
+                cy >= c.y &&
+                cy <= c.y + c.h
+              ) {
+                hit = i;
+                break;
+              }
+            }
+            if (hit === -1) return;
+            // past the last photo = "move to the end"
+            const slot = Math.min(hit, filledCount - 1);
+            if (slot !== hover.value) {
+              hover.value = slot;
+              runOnJS(onHover)(photoIndex, slot);
+            }
+          })
+          .onFinalize(() => {
+            if (!lifted.value) return;
+            lifted.value = false;
+            scale.value = withSpring(1, SLIDE_SPRING);
+            posX.value = withSpring(target.value.x, SLIDE_SPRING);
+            posY.value = withSpring(target.value.y, SLIDE_SPRING);
+            width.value = withSpring(target.value.w, SLIDE_SPRING);
+            height.value = withSpring(target.value.h, SLIDE_SPRING);
+            runOnJS(onDrop)(photoIndex);
+          }),
+      // shared values are stable refs
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [photoIndex, cells, filledCount, onLift, onHover, onDrop],
+    );
 
     const animStyle = useAnimatedStyle(() => ({
-      transform: [
-        { translateX: translateX.value },
-        { translateY: translateY.value },
-        { scale: scale.value },
-      ],
-      zIndex: zIdx.value,
-      shadowOpacity: shadowOpacity.value,
-      elevation: shadowOpacity.value > 0.1 ? 10 : 0,
+      left: posX.value,
+      top: posY.value,
+      width: width.value,
+      height: height.value,
+      transform: [{ scale: scale.value }],
+      zIndex: lifted.value ? 100 : 1,
+      shadowOpacity: lifted.value ? 0.35 : 0,
+      elevation: lifted.value ? 12 : 0,
     }));
 
     return (
-      <Animated.View
-        style={[
-          photoStyles.wrapper,
-          { left: x, top: y, width: cellWidth, height: cellHeight },
-          animStyle,
-        ]}
-      >
+      <Animated.View style={[photoStyles.wrapper, animStyle]}>
         <GestureDetector gesture={gesture}>
           <Animated.View style={{ flex: 1 }}>
             <Pressable
-              style={[
-                photoStyles.cell,
-                empty && photoStyles.emptyCell,
-                isDropTarget &&
-                  (empty
-                    ? photoStyles.dropTargetEmpty
-                    : photoStyles.dropTargetFilled),
-              ]}
-              onPress={() => onPress(slotIndex)}
+              style={photoStyles.cell}
+              onPress={() => onPress(photoIndex)}
+              accessibilityLabel={`Photo ${
+                photoIndex + 1
+              }. Tap to replace, hold and drag to reorder.`}
             >
-              {!empty ? (
-                <>
-                  <Image
-                    key={imageUri || `empty-${slotIndex}`}
-                    source={{ uri: imageUri }}
-                    style={photoStyles.img}
-                    resizeMode="cover"
-                  />
-
-                  {/* Drop-target tint overlay */}
-                  {isDropTarget && <View style={photoStyles.dropOverlay} />}
-
-                  {/* Remove button */}
-                  <Pressable
-                    style={photoStyles.removeBtn}
-                    onPress={() => onRemove(slotIndex)}
-                    hitSlop={6}
-                  >
-                    <View style={photoStyles.removeBtnInner}>
-                      <IIcon name="close" size={12} color={colors.danger} />
-                    </View>
-                  </Pressable>
-
-                  {/* Drag handle dots */}
-                  <View style={photoStyles.dragHandle} pointerEvents="none">
-                    {[...Array(6)].map((_, i) => (
-                      <View key={i} style={photoStyles.dragDot} />
-                    ))}
-                  </View>
-
-                  {/* Main badge */}
-                  {slotIndex === 0 && (
-                    <View style={photoStyles.mainBadge}>
-                      <MIcons name="star" size={10} color="#fff" />
-                      <Text style={photoStyles.mainBadgeText}>Main</Text>
-                    </View>
-                  )}
-                </>
-              ) : (
-                <View style={photoStyles.emptyContent}>
-                  {isDropTarget ? (
-                    <IIcon
-                      name="swap-horizontal-outline"
-                      size={24}
-                      color={colors.accent}
-                    />
-                  ) : (
-                    <IIcon name="add" size={26} color={colors.textTertiary} />
-                  )}
+              <Image
+                source={{ uri: imageUri }}
+                style={photoStyles.img}
+                resizeMode="cover"
+              />
+              <Pressable
+                style={photoStyles.removeBtn}
+                onPress={() => onRemove(photoIndex)}
+                hitSlop={6}
+                accessibilityLabel={`Remove photo ${photoIndex + 1}`}
+              >
+                <View style={photoStyles.removeBtnInner}>
+                  <IIcon name="close" size={12} color={colors.danger} />
+                </View>
+              </Pressable>
+              <View style={photoStyles.dragHandle} pointerEvents="none">
+                {[...Array(6)].map((_, i) => (
+                  <View key={i} style={photoStyles.dragDot} />
+                ))}
+              </View>
+              {isMain && (
+                <View style={photoStyles.mainBadge}>
+                  <MIcons name="star" size={10} color="#fff" />
+                  <Text style={photoStyles.mainBadgeText}>Main</Text>
                 </View>
               )}
             </Pressable>
@@ -349,8 +355,8 @@ function createPhotoStyles(colors: ThemeColors) {
     wrapper: {
       position: 'absolute',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 6 },
-      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 8 },
+      shadowRadius: 14,
     },
     cell: {
       flex: 1,
@@ -359,27 +365,16 @@ function createPhotoStyles(colors: ThemeColors) {
       backgroundColor: colors.backgroundSecondary,
     },
     emptyCell: {
+      position: 'absolute',
+      borderRadius: 18,
       borderWidth: 1.4,
       borderColor: colors.border,
       borderStyle: 'dashed',
       backgroundColor: colors.backgroundSecondary,
-    },
-    dropTargetFilled: {
-      borderWidth: 2.5,
-      borderColor: colors.accent,
-    },
-    dropTargetEmpty: {
-      borderWidth: 2.5,
-      borderColor: colors.accent,
-      borderStyle: 'solid',
-      backgroundColor: colors.backgroundSecondary,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     img: { width: '100%', height: '100%' },
-    dropOverlay: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(79,142,247,0.22)',
-    },
-    emptyContent: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     removeBtn: {
       position: 'absolute',
       top: 5,
@@ -431,18 +426,15 @@ function createPhotoStyles(colors: ThemeColors) {
   });
 }
 
-// ─── Photo Grid ───────────────────────────────────────────────────────────────
-
 interface PhotoGridProps {
   images: PhotoItem[];
   containerWidth: number;
-  dropTargetIndex: number | null;
   getImageUri: (index: number) => string;
   onPress: (index: number) => void;
+  onAdd: () => void;
   onRemove: (index: number) => void;
-  onDragStart: (index: number) => void;
-  onDragMove: (index: number, tx: number, ty: number) => void;
-  onDragEnd: (index: number, tx: number, ty: number) => void;
+  onReorder: (from: number, to: number) => void;
+  onDragActiveChange: (active: boolean) => void;
   onLayout: (width: number) => void;
   colors: ThemeColors;
   photoStyles: any;
@@ -452,17 +444,59 @@ const PhotoGrid = React.memo(
   ({
     images,
     containerWidth,
-    dropTargetIndex,
     getImageUri,
     onPress,
+    onAdd,
     onRemove,
-    onDragStart,
-    onDragMove,
-    onDragEnd,
+    onReorder,
+    onDragActiveChange,
     onLayout,
     colors,
     photoStyles,
   }: PhotoGridProps) => {
+    const cells = useMemo(
+      () => (containerWidth > 0 ? getCellDims(containerWidth) : []),
+      [containerWidth],
+    );
+    // The photo being dragged and the slot it's over; drives the preview order
+    const [drag, setDrag] = useState<{ from: number; over: number } | null>(
+      null,
+    );
+    const dragRef = useRef(drag);
+    dragRef.current = drag;
+
+    const onLift = useCallback(
+      (index: number) => {
+        setDrag({ from: index, over: index });
+        onDragActiveChange(true);
+      },
+      [onDragActiveChange],
+    );
+    const onHover = useCallback((index: number, slot: number) => {
+      setDrag(prev =>
+        prev && prev.from === index ? { from: index, over: slot } : prev,
+      );
+    }, []);
+    const onDrop = useCallback(
+      (index: number) => {
+        const current = dragRef.current;
+        setDrag(null);
+        onDragActiveChange(false);
+        if (current && current.from === index && current.over !== index) {
+          onReorder(index, current.over);
+        }
+      },
+      [onReorder, onDragActiveChange],
+    );
+    // A press that ends a drag isn't a tap
+    const onPhotoPress = useCallback(
+      (index: number) => {
+        if (dragRef.current) return;
+        onPress(index);
+      },
+      [onPress],
+    );
+
     if (containerWidth === 0) {
       return (
         <View
@@ -472,11 +506,17 @@ const PhotoGrid = React.memo(
       );
     }
 
-    const cells = getCellDims(containerWidth);
-    const bigH = cells[0].h;
-    const botH = cells[3].h;
-    const total = bigH + GAP + botH;
-    const padded = padImages(images);
+    const total = cells[0].h + GAP + cells[3].h;
+    const filled = compactImages(images);
+    const filledCount = filled.length;
+
+    // slotOf[i] = where photo i shows right now (its preview spot while dragging)
+    const order = filled.map((_, i) => i);
+    const previewOrder = drag ? moveItem(order, drag.from, drag.over) : order;
+    const slotOf: number[] = [];
+    previewOrder.forEach((photoIndex, slot) => {
+      slotOf[photoIndex] = slot;
+    });
 
     return (
       <View
@@ -486,22 +526,34 @@ const PhotoGrid = React.memo(
         }}
         style={{ width: '100%', height: total }}
       >
-        {cells.map((cell, idx) => (
+        {cells.slice(filledCount).map((cell, i) => (
+          <Pressable
+            key={`empty-${filledCount + i}`}
+            style={[
+              photoStyles.emptyCell,
+              { left: cell.x, top: cell.y, width: cell.w, height: cell.h },
+            ]}
+            onPress={onAdd}
+            accessibilityLabel="Add a photo"
+          >
+            <IIcon name="add" size={26} color={colors.textTertiary} />
+          </Pressable>
+        ))}
+        {filled.map((image, i) => (
           <DraggablePhoto
-            key={`${idx}-${padded[idx]?.p ?? padded[idx]?.uri ?? 'empty'}`}
-            image={padded[idx]}
-            slotIndex={idx}
-            cellWidth={cell.w}
-            cellHeight={cell.h}
-            x={cell.x}
-            y={cell.y}
-            imageUri={getImageUri(idx)}
-            isDropTarget={dropTargetIndex === idx}
-            onPress={onPress}
+            // keyed by the photo, not the slot, so it keeps its identity as it moves
+            key={image.p ?? image.uri ?? `photo-${i}`}
+            photoIndex={i}
+            cell={cells[slotOf[i]]}
+            cells={cells}
+            filledCount={filledCount}
+            imageUri={getImageUri(i)}
+            isMain={slotOf[i] === 0}
+            onPress={onPhotoPress}
             onRemove={onRemove}
-            onDragStart={onDragStart}
-            onDragMove={onDragMove}
-            onDragEnd={onDragEnd}
+            onLift={onLift}
+            onHover={onHover}
+            onDrop={onDrop}
             colors={colors}
             photoStyles={photoStyles}
           />
@@ -658,7 +710,7 @@ export function Screen_editprofile({
           setProfile(profile);
           setProfileEdit({
             // Photos
-            images: profile?.profile?.images ?? [],
+            images: compactImages(profile?.profile?.images ?? []),
 
             // Basic info
             id: profile?.profile?.id ?? null,
@@ -751,14 +803,16 @@ export function Screen_editprofile({
 
   // ── Drag state ─────────────────────────────────────────────────────────
   const [containerWidth, setContainerWidth] = useState(0);
-  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+  // page scrolling is off while a photo is being dragged
+  const [isDraggingPhoto, setIsDraggingPhoto] = useState(false);
 
   // ── Bottom sheet refs ───────────────────────────────────────────────────
   const pickerSheet_ref = useRef<BottomSheet>(null);
   const [pickerSheet, setPickerSheet] = useState<PickerSheetConfig | null>(
     null,
   );
-  const pickerSnapPoints = useMemo(() => ['58%', '82%'], []);
+  const pickerSnapPoints = useMemo(() => ['45%', '80%'], []);
+  const safeInsets = useSafeAreaInsets();
 
   // ── Header ─────────────────────────────────────────────────────────────
   useLayoutEffect(() => {
@@ -827,7 +881,7 @@ export function Screen_editprofile({
 
     Loaderx.show();
     try {
-      const orderedImageMeta = padImages(getProfileEdit?.images)
+      const orderedImageMeta = compactImages(getProfileEdit?.images)
         .map((img, index) => {
           const path = img?.p ?? img?.uri ?? '';
           if (!path) return null;
@@ -954,10 +1008,13 @@ export function Screen_editprofile({
         const uploadedPath = uploadHandler.resolveObjectPath(presigned);
         // console.log(uploadedPath);
         updateProfileEdit(prev => {
-          const updated = [...prev.images];
-          while (updated.length <= index) updated.push({});
-          updated[index] = {
-            ...updated[index],
+          // replacing an existing photo keeps its spot; a new one goes after the
+          // last photo (the grid never has gaps)
+          const updated = compactImages(prev.images);
+          const at = Math.min(index, updated.length);
+          if (at === updated.length) updated.push({});
+          updated[at] = {
+            ...updated[at],
             p: uploadedPath,
             uri: uploadedPath,
             local: false,
@@ -982,56 +1039,26 @@ export function Screen_editprofile({
 
   const handleRemoveImage = useCallback(
     (index: number) => {
-      updateProfileEdit(prev => {
-        const updated = [...prev.images];
-        updated[index] = {};
-        return { images: updated };
-      });
+      updateProfileEdit(prev => ({
+        images: compactImages(prev.images).filter((_, i) => i !== index),
+      }));
     },
     [updateProfileEdit],
   );
 
-  // ── Drag callbacks ─────────────────────────────────────────────────────
-  const handleDragStart = useCallback((_index: number) => {
-    // placeholder — extend if you need global drag state
-  }, []);
-
-  const handleDragMove = useCallback(
-    (fromIndex: number, tx: number, ty: number) => {
-      if (containerWidth === 0) return;
-      const cells = getCellDims(containerWidth);
-      const from = cells[fromIndex];
-      const cx = from.x + from.w / 2 + tx;
-      const cy = from.y + from.h / 2 + ty;
-      const hit = hitTestCell(cells, cx, cy);
-      setDropTargetIndex(hit !== -1 && hit !== fromIndex ? hit : null);
+  // The grid already animated the photos into place during the drag
+  const handleReorderImages = useCallback(
+    (from: number, to: number) => {
+      updateProfileEdit(prev => ({
+        images: moveItem(compactImages(prev.images), from, to),
+      }));
     },
-    [containerWidth],
+    [updateProfileEdit],
   );
 
-  const handleDragEnd = useCallback(
-    (fromIndex: number, tx: number, ty: number) => {
-      setDropTargetIndex(null);
-      if (containerWidth === 0) return;
-      const cells = getCellDims(containerWidth);
-      const from = cells[fromIndex];
-      const cx = from.x + from.w / 2 + tx;
-      const cy = from.y + from.h / 2 + ty;
-      const toIndex = hitTestCell(cells, cx, cy);
-      if (toIndex !== -1 && toIndex !== fromIndex) {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        updateProfileEdit(prev => {
-          const updated = [...prev.images];
-          [updated[fromIndex], updated[toIndex]] = [
-            updated[toIndex],
-            updated[fromIndex],
-          ];
-          return { images: updated };
-        });
-      }
-    },
-    [containerWidth, updateProfileEdit],
-  );
+  const handleAddImage = useCallback(() => {
+    handlePress(compactImages(getProfileEdit.images).length);
+  }, [handlePress, getProfileEdit.images]);
 
   const handleGridLayout = useCallback((w: number) => {
     setContainerWidth(w);
@@ -1076,683 +1103,699 @@ export function Screen_editprofile({
 
   // ─────────────────────────────────────────────────────────────────────
   return (
-    <SafeAreaView style={[pgStyles.screen, {}]} edges={['bottom']}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 1 : 0}
-        style={{ flex: 1 }}
-      >
-        <ScrollView
-          ref={scrollRef}
+    <>
+      <SafeAreaView style={[pgStyles.screen, {}]} edges={['bottom']}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 1 : 0}
           style={{ flex: 1 }}
-          contentContainerStyle={styles.conainerScrollView}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode={
-            Platform.OS === 'ios' ? 'interactive' : 'on-drag'
-          }
-          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-          showsVerticalScrollIndicator={false}
         >
-          <View
-            style={pgStyles.formStack}
-            onLayout={e => {
-              formStackY.current = e.nativeEvent.layout.y;
-            }}
+          <ScrollView
+            ref={scrollRef}
+            style={{ flex: 1 }}
+            scrollEnabled={!isDraggingPhoto}
+            contentContainerStyle={styles.conainerScrollView}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={
+              Platform.OS === 'ios' ? 'interactive' : 'on-drag'
+            }
+            automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+            showsVerticalScrollIndicator={false}
           >
-            {/* ── Photo Grid ───────────────────────────────── */}
             <View
-              style={pgStyles.sectionCard}
-              onLayout={trackSection('photos')}
+              style={pgStyles.formStack}
+              onLayout={e => {
+                formStackY.current = e.nativeEvent.layout.y;
+              }}
             >
-              <View style={pgStyles.sectionHeader}>
-                <View style={pgStyles.sectionIcon}>
-                  <MIcons
-                    name="image-multiple-outline"
-                    size={18}
-                    color={colors.primary}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={pgStyles.sectionLabel}>Profile Photos</Text>
-                  <Text style={pgStyles.sectionHint}>
-                    Tap to replace. Drag to reorder.
-                  </Text>
-                </View>
-              </View>
-
-              <PhotoGrid
-                images={getProfileEdit.images}
-                containerWidth={containerWidth}
-                dropTargetIndex={dropTargetIndex}
-                getImageUri={getImageUri}
-                onPress={handlePress}
-                onRemove={handleRemoveImage}
-                onDragStart={handleDragStart}
-                onDragMove={handleDragMove}
-                onDragEnd={handleDragEnd}
-                onLayout={handleGridLayout}
-                colors={colors}
-                photoStyles={photoStyles}
-              />
-            </View>
-
-            {/* ── Vibes Banner ──────────────────────────────── */}
-            <LinearGradient
-              colors={[colors.primary, '#f27a9c']}
-              style={pgStyles.bannerCard}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <View style={pgStyles.bannerRow}>
-                <View style={{ gap: 6, flex: 1 }}>
-                  <View style={pgStyles.bannerBadge}>
-                    <MIcons
-                      name="heart-multiple-outline"
-                      color={colors.primary}
-                      size={14}
-                    />
-                    <Text style={pgStyles.bannerBadgeText}>
-                      Vibes &amp; Energy
-                    </Text>
-                  </View>
-                  <Text style={pgStyles.bannerTitle}>
-                    Show your best self today
-                  </Text>
-                  <Text style={pgStyles.bannerSubtitle}>
-                    Update a prompt and write a bio to make it easy for others
-                    to start a conversation with you.
-                  </Text>
-                </View>
-                <MIcons
-                  name="flower-tulip-outline"
-                  size={78}
-                  color="rgba(255,255,255,0.75)"
-                />
-              </View>
-            </LinearGradient>
-
-            {/* ── Full Name (locked) ───────────────────────── */}
-            <View style={pgStyles.formField}>
-              <View style={pgStyles.inputHeader}>
-                <Text style={pgStyles.fieldLabel}>Full Name</Text>
-                <IIcon
-                  name="lock-closed"
-                  size={15}
-                  color={colors.textTertiary}
-                />
-              </View>
-              <TextInput
-                style={[pgStyles.textInput, pgStyles.readOnlyInput]}
-                value={getProfileEdit.fullname}
-                readOnly
-              />
-            </View>
-
-            {/* ── Age (locked) ─────────────────────────────── */}
-            <View style={pgStyles.formField}>
-              <View style={pgStyles.inputHeader}>
-                <Text style={pgStyles.fieldLabel}>Age</Text>
-                <IIcon
-                  name="lock-closed"
-                  size={15}
-                  color={colors.textTertiary}
-                />
-              </View>
-              <TextInput
-                style={[pgStyles.textInput, pgStyles.readOnlyInput]}
-                value={
-                  help.getageFromDOB(getProfileEdit?.age?.toString() ?? '') ??
-                  '—'
-                }
-                readOnly
-              />
-            </View>
-
-            {/* ── About ────────────────────────────────────── */}
-            <View style={pgStyles.formField} onLayout={trackSection('about')}>
-              <View style={pgStyles.inputHeader}>
-                <Text style={pgStyles.fieldLabel}>About you</Text>
-                <IIcon
-                  name="create-outline"
-                  size={17}
-                  color={colors.textSecondary}
-                />
-              </View>
-              <TextInput
-                style={[pgStyles.textInput, pgStyles.textArea]}
-                multiline
-                numberOfLines={8}
-                value={getProfileEdit.about}
-                onChangeText={e => updateProfileEdit({ about: e })}
-                placeholder="Write something about yourself…"
-                placeholderTextColor={colors.textTertiary}
-                maxLength={400}
-              />
-              <Text style={pgStyles.charCounter}>
-                {getProfileEdit.about?.length ?? 0}/400 characters
-              </Text>
-            </View>
-
-            <FormGroup
-              onLayout={trackSection('basics')}
-              title="Core Details"
-              hint="These help people understand who you are looking for."
-              pgStyles={pgStyles}
-            >
-              <PickerField
-                label="Intentions"
-                value={
-                  __MAPPER?.bio_intent?.[getProfileEdit.relationshipgoal ?? '']
-                }
-                icon="heart-outline"
-                onPress={() =>
-                  openPicker({
-                    title: 'What are your intentions?',
-                    selectedId: getProfileEdit.relationshipgoal,
-                    sections: [
-                      {
-                        title: 'Dating goals',
-                        options: buildOptions(__MAPPER?.bio_intent),
-                      },
-                    ],
-                    onSelect: id => updateProfileEdit({ relationshipgoal: id }),
-                  })
-                }
-                colors={colors}
-                pgStyles={pgStyles}
-              />
-              <PickerField
-                label="Gender"
-                value={__MAPPER?.bio_gender?.[getProfileEdit.gender ?? '']}
-                icon="account-outline"
-                onPress={() =>
-                  openPicker({
-                    title: 'What is your gender?',
-                    selectedId: getProfileEdit.gender,
-                    sections: [
-                      {
-                        title: 'Gender',
-                        options: buildOptions(__MAPPER?.bio_gender),
-                      },
-                    ],
-                    onSelect: id => updateProfileEdit({ gender: id }),
-                  })
-                }
-                colors={colors}
-                pgStyles={pgStyles}
-              />
-              <PickerField
-                label="Height"
-                value={heightLabel(getProfileEdit.height)}
-                icon="human-male-height"
-                onPress={() =>
-                  openPicker({
-                    title: 'How tall are you?',
-                    selectedId: getProfileEdit.height,
-                    sections: [{ title: 'Height', options: HEIGHT_OPTIONS }],
-                    onSelect: id => updateProfileEdit({ height: id }),
-                  })
-                }
-                colors={colors}
-                pgStyles={pgStyles}
-              />
-            </FormGroup>
-
-            {/* ── Interests ────────────────────────────────── */}
-            <View style={pgStyles.formField}>
-              <Pressable
-                style={{ gap: 8 }}
-                onPress={() =>
-                  navigation.navigate(namer.navigation.editProfileInterests, {
-                    existingInterests: getInterests,
-                    onSave: (updated: InterestEntry[]) => setInterests(updated),
-                  })
-                }
+              {/* ── Photo Grid ───────────────────────────────── */}
+              <View
+                style={pgStyles.sectionCard}
+                onLayout={trackSection('photos')}
               >
-                <View style={pgStyles.inputHeader}>
-                  <Text style={pgStyles.fieldLabel}>
-                    Interests
-                    <Text style={pgStyles.countBadge}>
-                      {' '}
-                      {getInterests.length}/{MAX_INTERESTS}
-                    </Text>
-                  </Text>
-                  <MIcons
-                    name="cursor-default-click-outline"
-                    size={17}
-                    color={colors.textSecondary}
-                  />
-                </View>
-
-                {getInterests.length === 0 ? (
-                  <Text style={pgStyles.placeholder}>
-                    Tap to select your interests
-                  </Text>
-                ) : (
-                  <View style={pgStyles.chipRow}>
-                    {getInterests.map(interest => (
-                      <View key={interest.id_ai} style={pgStyles.chip}>
-                        <Text style={pgStyles.chipText}>
-                          {interest.interested_in}
-                        </Text>
-                        <Pressable
-                          hitSlop={6}
-                          onPress={() => removeInterest(interest.id_ai)}
-                          style={pgStyles.chipRemove}
-                        >
-                          <Text style={pgStyles.chipRemoveText}>×</Text>
-                        </Pressable>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </Pressable>
-            </View>
-
-            <FormGroup
-              title="Social Links"
-              hint="Only VIP members can open these on your profile."
-              pgStyles={pgStyles}
-            >
-              {SOCIAL_PLATFORMS.map(platform => (
-                <View key={platform.key} style={pgStyles.inlineField}>
-                  <View style={pgStyles.pickerFieldIcon}>
-                    <IIcon
-                      name={platform.icon}
+                <View style={pgStyles.sectionHeader}>
+                  <View style={pgStyles.sectionIcon}>
+                    <MIcons
+                      name="image-multiple-outline"
                       size={18}
                       color={colors.primary}
                     />
                   </View>
-                  <View style={{ flex: 1, gap: 6 }}>
-                    <Text style={pgStyles.fieldLabel}>{platform.label}</Text>
-                    <TextInput
-                      style={pgStyles.inlineInput}
-                      value={getSocialHandles[platform.key] ?? ''}
-                      onChangeText={text =>
-                        setSocialHandles(prev => ({
-                          ...prev,
-                          [platform.key]: text,
-                        }))
-                      }
-                      placeholder="username"
-                      placeholderTextColor={colors.textTertiary}
-                      autoCapitalize="none"
-                      maxLength={200}
-                    />
+                  <View style={{ flex: 1 }}>
+                    <Text style={pgStyles.sectionLabel}>Profile Photos</Text>
+                    <Text style={pgStyles.sectionHint}>
+                      Tap to replace. Hold and drag to reorder.
+                    </Text>
                   </View>
                 </View>
-              ))}
-            </FormGroup>
 
-            <FormGroup
-              onLayout={trackSection('work')}
-              title="Background"
-              hint="A few real-world details for better context."
-              pgStyles={pgStyles}
-            >
-              <StaticField
-                label="Location"
-                value={getProfileEdit.city || '—'}
-                icon="map-marker-outline"
-                colors={colors}
-                pgStyles={pgStyles}
-              />
-              <InlineTextField
-                label="Hometown"
-                value={getProfileEdit.hometown}
-                icon="home-heart"
-                placeholder="Where are you from?"
-                maxLength={45}
-                onChangeText={text => updateProfileEdit({ hometown: text })}
-                colors={colors}
-                pgStyles={pgStyles}
-              />
-              <PickerField
-                label="Highest Education"
-                value={
-                  __MAPPER?.bio_education?.[getProfileEdit.highEducation ?? '']
-                }
-                icon="school-outline"
-                onPress={() =>
-                  openPicker({
-                    title: 'Highest education achieved?',
-                    selectedId: getProfileEdit.highEducation,
-                    sections: [
-                      {
-                        title: 'Education',
-                        options: buildOptions(__MAPPER?.bio_education),
-                      },
-                    ],
-                    onSelect: id => updateProfileEdit({ highEducation: id }),
-                  })
-                }
-                colors={colors}
-                pgStyles={pgStyles}
-              />
-              <InlineTextField
-                label="Languages"
-                value={getProfileEdit.languagesText}
-                icon="translate"
-                placeholder="Languages you speak (comma separated)"
-                maxLength={200}
-                onChangeText={text =>
-                  updateProfileEdit({ languagesText: text })
-                }
-                colors={colors}
-                pgStyles={pgStyles}
-              />
-              <InlineTextField
-                label="School Attended"
-                value={getProfileEdit.schoolattended}
-                icon="school"
-                placeholder="What school did you attend?"
-                maxLength={45}
-                onChangeText={text =>
-                  updateProfileEdit({ schoolattended: text })
-                }
-                colors={colors}
-                pgStyles={pgStyles}
-              />
-              <InlineTextField
-                label="Job Title"
-                value={getProfileEdit.jobrole}
-                icon="briefcase-outline"
-                placeholder="What do you do?"
-                maxLength={20}
-                onChangeText={text => updateProfileEdit({ jobrole: text })}
-                colors={colors}
-                pgStyles={pgStyles}
-              />
-              <InlineTextField
-                label="Company"
-                value={getProfileEdit.company}
-                icon="office-building-outline"
-                placeholder="Where do you work?"
-                maxLength={30}
-                onChangeText={text => updateProfileEdit({ company: text })}
-                colors={colors}
-                pgStyles={pgStyles}
-              />
-            </FormGroup>
+                <PhotoGrid
+                  images={getProfileEdit.images}
+                  containerWidth={containerWidth}
+                  getImageUri={getImageUri}
+                  onPress={handlePress}
+                  onRemove={handleRemoveImage}
+                  onAdd={handleAddImage}
+                  onReorder={handleReorderImages}
+                  onDragActiveChange={setIsDraggingPhoto}
+                  onLayout={handleGridLayout}
+                  colors={colors}
+                  photoStyles={photoStyles}
+                />
+              </View>
 
-            {/* ── Prompts ──────────────────────────────────── */}
-            <View style={pgStyles.formField}>
-              <Text style={pgStyles.fieldLabel}>
-                Prompts
-                <Text style={pgStyles.countBadge}>
-                  {' '}
-                  {getPrompts.length}/{MAX_PROMPTS}
-                </Text>
-              </Text>
-
-              {getPrompts.map((item, index) => (
-                <View key={item.id_ai} style={pgStyles.promptCard}>
-                  <Pressable
-                    style={pgStyles.promptRemove}
-                    onPress={() => removePrompt(index)}
-                    hitSlop={6}
-                  >
-                    <IIcon
-                      name="close-circle"
-                      size={20}
-                      color={colors.danger}
-                    />
-                  </Pressable>
-                  <Text style={pgStyles.promptQuestion}>{item?.question}</Text>
-                  <TextInput
-                    style={[
-                      pgStyles.textInput,
-                      pgStyles.promptAnswer,
-                      promptErrors[index] && pgStyles.inputError,
-                    ]}
-                    value={item?.answer}
-                    placeholder={item?.question}
-                    placeholderTextColor={colors.textTertiary}
-                    multiline
-                    maxLength={140}
-                    onChangeText={text => {
-                      setPrompts(prev => {
-                        const updated = [...prev];
-                        updated[index] = { ...updated[index], answer: text };
-                        return updated;
-                      });
-                      if (promptErrors[index]) {
-                        setPromptErrors(prev => {
-                          const next = { ...prev };
-                          delete next[index];
-                          return next;
-                        });
-                      }
-                    }}
-                  />
-                  {promptErrors[index] && (
-                    <Text style={pgStyles.fieldError}>
-                      {promptErrors[index]}
+              {/* ── Vibes Banner ──────────────────────────────── */}
+              <LinearGradient
+                colors={[colors.primary, '#f27a9c']}
+                style={pgStyles.bannerCard}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <View style={pgStyles.bannerRow}>
+                  <View style={{ gap: 6, flex: 1 }}>
+                    <View style={pgStyles.bannerBadge}>
+                      <MIcons
+                        name="heart-multiple-outline"
+                        color={colors.primary}
+                        size={14}
+                      />
+                      <Text style={pgStyles.bannerBadgeText}>
+                        Vibes &amp; Energy
+                      </Text>
+                    </View>
+                    <Text style={pgStyles.bannerTitle}>
+                      Show your best self today
                     </Text>
-                  )}
+                    <Text style={pgStyles.bannerSubtitle}>
+                      Update a prompt and write a bio to make it easy for others
+                      to start a conversation with you.
+                    </Text>
+                  </View>
+                  <MIcons
+                    name="flower-tulip-outline"
+                    size={78}
+                    color="rgba(255,255,255,0.75)"
+                  />
                 </View>
-              ))}
+              </LinearGradient>
 
-              {getPrompts.length < MAX_PROMPTS && (
-                <Pressable
-                  style={pgStyles.addPromptBtn}
+              {/* ── Full Name (locked) ───────────────────────── */}
+              <View style={pgStyles.formField}>
+                <View style={pgStyles.inputHeader}>
+                  <Text style={pgStyles.fieldLabel}>Full Name</Text>
+                  <IIcon
+                    name="lock-closed"
+                    size={15}
+                    color={colors.textTertiary}
+                  />
+                </View>
+                <TextInput
+                  style={[pgStyles.textInput, pgStyles.readOnlyInput]}
+                  value={getProfileEdit.fullname}
+                  readOnly
+                />
+              </View>
+
+              {/* ── Age (locked) ─────────────────────────────── */}
+              <View style={pgStyles.formField}>
+                <View style={pgStyles.inputHeader}>
+                  <Text style={pgStyles.fieldLabel}>Age</Text>
+                  <IIcon
+                    name="lock-closed"
+                    size={15}
+                    color={colors.textTertiary}
+                  />
+                </View>
+                <TextInput
+                  style={[pgStyles.textInput, pgStyles.readOnlyInput]}
+                  value={
+                    help.getageFromDOB(getProfileEdit?.age?.toString() ?? '') ??
+                    '—'
+                  }
+                  readOnly
+                />
+              </View>
+
+              {/* ── About ────────────────────────────────────── */}
+              <View style={pgStyles.formField} onLayout={trackSection('about')}>
+                <View style={pgStyles.inputHeader}>
+                  <Text style={pgStyles.fieldLabel}>About you</Text>
+                  <IIcon
+                    name="create-outline"
+                    size={17}
+                    color={colors.textSecondary}
+                  />
+                </View>
+                <TextInput
+                  style={[pgStyles.textInput, pgStyles.textArea]}
+                  multiline
+                  numberOfLines={8}
+                  value={getProfileEdit.about}
+                  onChangeText={e => updateProfileEdit({ about: e })}
+                  placeholder="Write something about yourself…"
+                  placeholderTextColor={colors.textTertiary}
+                  maxLength={400}
+                />
+                <Text style={pgStyles.charCounter}>
+                  {getProfileEdit.about?.length ?? 0}/400 characters
+                </Text>
+              </View>
+
+              <FormGroup
+                onLayout={trackSection('basics')}
+                title="Core Details"
+                hint="These help people understand who you are looking for."
+                pgStyles={pgStyles}
+              >
+                <PickerField
+                  label="Intentions"
+                  value={
+                    __MAPPER?.bio_intent?.[
+                      getProfileEdit.relationshipgoal ?? ''
+                    ]
+                  }
+                  icon="heart-outline"
                   onPress={() =>
-                    navigation.navigate(namer.navigation.editProfilePrompts, {
-                      existingPrompts: getPrompts,
-                      onSave: (updated: PromptEntry[]) => setPrompts(updated),
+                    openPicker({
+                      title: 'What are your intentions?',
+                      selectedId: getProfileEdit.relationshipgoal,
+                      sections: [
+                        {
+                          title: 'Dating goals',
+                          options: buildOptions(__MAPPER?.bio_intent),
+                        },
+                      ],
+                      onSelect: id =>
+                        updateProfileEdit({ relationshipgoal: id }),
+                    })
+                  }
+                  colors={colors}
+                  pgStyles={pgStyles}
+                />
+                <PickerField
+                  label="Gender"
+                  value={__MAPPER?.bio_gender?.[getProfileEdit.gender ?? '']}
+                  icon="account-outline"
+                  onPress={() =>
+                    openPicker({
+                      title: 'What is your gender?',
+                      selectedId: getProfileEdit.gender,
+                      sections: [
+                        {
+                          title: 'Gender',
+                          options: buildOptions(__MAPPER?.bio_gender),
+                        },
+                      ],
+                      onSelect: id => updateProfileEdit({ gender: id }),
+                    })
+                  }
+                  colors={colors}
+                  pgStyles={pgStyles}
+                />
+                <PickerField
+                  label="Height"
+                  value={heightLabel(getProfileEdit.height)}
+                  icon="human-male-height"
+                  onPress={() =>
+                    openPicker({
+                      expanded: true,
+                      title: 'How tall are you?',
+                      selectedId: getProfileEdit.height,
+                      sections: [{ title: 'Height', options: HEIGHT_OPTIONS }],
+                      onSelect: id => updateProfileEdit({ height: id }),
+                    })
+                  }
+                  colors={colors}
+                  pgStyles={pgStyles}
+                />
+              </FormGroup>
+
+              {/* ── Interests ────────────────────────────────── */}
+              <View style={pgStyles.formField}>
+                <Pressable
+                  style={{ gap: 8 }}
+                  onPress={() =>
+                    navigation.navigate(namer.navigation.editProfileInterests, {
+                      existingInterests: getInterests,
+                      onSave: (updated: InterestEntry[]) =>
+                        setInterests(updated),
                     })
                   }
                 >
-                  <MIcons
-                    name="plus-circle-outline"
-                    size={18}
-                    color={colors.primary}
-                  />
-                  <Text style={pgStyles.addPromptText}>Add a Prompt</Text>
+                  <View style={pgStyles.inputHeader}>
+                    <Text style={pgStyles.fieldLabel}>
+                      Interests
+                      <Text style={pgStyles.countBadge}>
+                        {' '}
+                        {getInterests.length}/{MAX_INTERESTS}
+                      </Text>
+                    </Text>
+                    <MIcons
+                      name="cursor-default-click-outline"
+                      size={17}
+                      color={colors.textSecondary}
+                    />
+                  </View>
+
+                  {getInterests.length === 0 ? (
+                    <Text style={pgStyles.placeholder}>
+                      Tap to select your interests
+                    </Text>
+                  ) : (
+                    <View style={pgStyles.chipRow}>
+                      {getInterests.map(interest => (
+                        <View key={interest.id_ai} style={pgStyles.chip}>
+                          <Text style={pgStyles.chipText}>
+                            {interest.interested_in}
+                          </Text>
+                          <Pressable
+                            hitSlop={6}
+                            onPress={() => removeInterest(interest.id_ai)}
+                            style={pgStyles.chipRemove}
+                          >
+                            <Text style={pgStyles.chipRemoveText}>×</Text>
+                          </Pressable>
+                        </View>
+                      ))}
+                    </View>
+                  )}
                 </Pressable>
-              )}
+              </View>
+
+              <FormGroup
+                title="Social Links"
+                hint="Only VIP members can open these on your profile."
+                pgStyles={pgStyles}
+              >
+                {SOCIAL_PLATFORMS.map(platform => (
+                  <View key={platform.key} style={pgStyles.inlineField}>
+                    <View style={pgStyles.pickerFieldIcon}>
+                      <IIcon
+                        name={platform.icon}
+                        size={18}
+                        color={colors.primary}
+                      />
+                    </View>
+                    <View style={{ flex: 1, gap: 6 }}>
+                      <Text style={pgStyles.fieldLabel}>{platform.label}</Text>
+                      <TextInput
+                        style={pgStyles.inlineInput}
+                        value={getSocialHandles[platform.key] ?? ''}
+                        onChangeText={text =>
+                          setSocialHandles(prev => ({
+                            ...prev,
+                            [platform.key]: text,
+                          }))
+                        }
+                        placeholder="username"
+                        placeholderTextColor={colors.textTertiary}
+                        autoCapitalize="none"
+                        maxLength={200}
+                      />
+                    </View>
+                  </View>
+                ))}
+              </FormGroup>
+
+              <FormGroup
+                onLayout={trackSection('work')}
+                title="Background"
+                hint="A few real-world details for better context."
+                pgStyles={pgStyles}
+              >
+                <PickerField
+                  label="Location"
+                  value={getProfileEdit.city}
+                  icon="map-marker-outline"
+                  onPress={() =>
+                    navigation.navigate(namer.navigation.editLocation, {
+                      onPrimaryChange: (city: string) =>
+                        updateProfileEdit({ city }),
+                    })
+                  }
+                  colors={colors}
+                  pgStyles={pgStyles}
+                />
+                <InlineTextField
+                  label="Hometown"
+                  value={getProfileEdit.hometown}
+                  icon="home-heart"
+                  placeholder="Where are you from?"
+                  maxLength={45}
+                  onChangeText={text => updateProfileEdit({ hometown: text })}
+                  colors={colors}
+                  pgStyles={pgStyles}
+                />
+                <PickerField
+                  label="Highest Education"
+                  value={
+                    __MAPPER?.bio_education?.[
+                      getProfileEdit.highEducation ?? ''
+                    ]
+                  }
+                  icon="school-outline"
+                  onPress={() =>
+                    openPicker({
+                      expanded: true,
+                      title: 'Highest education achieved?',
+                      selectedId: getProfileEdit.highEducation,
+                      sections: [
+                        {
+                          title: 'Education',
+                          options: buildOptions(__MAPPER?.bio_education),
+                        },
+                      ],
+                      onSelect: id => updateProfileEdit({ highEducation: id }),
+                    })
+                  }
+                  colors={colors}
+                  pgStyles={pgStyles}
+                />
+                <InlineTextField
+                  label="Languages"
+                  value={getProfileEdit.languagesText}
+                  icon="translate"
+                  placeholder="Languages you speak (comma separated)"
+                  maxLength={200}
+                  onChangeText={text =>
+                    updateProfileEdit({ languagesText: text })
+                  }
+                  colors={colors}
+                  pgStyles={pgStyles}
+                />
+                <InlineTextField
+                  label="School Attended"
+                  value={getProfileEdit.schoolattended}
+                  icon="school"
+                  placeholder="What school did you attend?"
+                  maxLength={45}
+                  onChangeText={text =>
+                    updateProfileEdit({ schoolattended: text })
+                  }
+                  colors={colors}
+                  pgStyles={pgStyles}
+                />
+                <InlineTextField
+                  label="Job Title"
+                  value={getProfileEdit.jobrole}
+                  icon="briefcase-outline"
+                  placeholder="What do you do?"
+                  maxLength={20}
+                  onChangeText={text => updateProfileEdit({ jobrole: text })}
+                  colors={colors}
+                  pgStyles={pgStyles}
+                />
+                <InlineTextField
+                  label="Company"
+                  value={getProfileEdit.company}
+                  icon="office-building-outline"
+                  placeholder="Where do you work?"
+                  maxLength={30}
+                  onChangeText={text => updateProfileEdit({ company: text })}
+                  colors={colors}
+                  pgStyles={pgStyles}
+                />
+              </FormGroup>
+
+              {/* ── Prompts ──────────────────────────────────── */}
+              <View style={pgStyles.formField}>
+                <Text style={pgStyles.fieldLabel}>
+                  Prompts
+                  <Text style={pgStyles.countBadge}>
+                    {' '}
+                    {getPrompts.length}/{MAX_PROMPTS}
+                  </Text>
+                </Text>
+
+                {getPrompts.map((item, index) => (
+                  <View key={item.id_ai} style={pgStyles.promptCard}>
+                    <Pressable
+                      style={pgStyles.promptRemove}
+                      onPress={() => removePrompt(index)}
+                      hitSlop={6}
+                    >
+                      <IIcon
+                        name="close-circle"
+                        size={20}
+                        color={colors.danger}
+                      />
+                    </Pressable>
+                    <Text style={pgStyles.promptQuestion}>
+                      {item?.question}
+                    </Text>
+                    <TextInput
+                      style={[
+                        pgStyles.textInput,
+                        pgStyles.promptAnswer,
+                        promptErrors[index] && pgStyles.inputError,
+                      ]}
+                      value={item?.answer}
+                      placeholder={item?.question}
+                      placeholderTextColor={colors.textTertiary}
+                      multiline
+                      maxLength={140}
+                      onChangeText={text => {
+                        setPrompts(prev => {
+                          const updated = [...prev];
+                          updated[index] = { ...updated[index], answer: text };
+                          return updated;
+                        });
+                        if (promptErrors[index]) {
+                          setPromptErrors(prev => {
+                            const next = { ...prev };
+                            delete next[index];
+                            return next;
+                          });
+                        }
+                      }}
+                    />
+                    {promptErrors[index] && (
+                      <Text style={pgStyles.fieldError}>
+                        {promptErrors[index]}
+                      </Text>
+                    )}
+                  </View>
+                ))}
+
+                {getPrompts.length < MAX_PROMPTS && (
+                  <Pressable
+                    style={pgStyles.addPromptBtn}
+                    onPress={() =>
+                      navigation.navigate(namer.navigation.editProfilePrompts, {
+                        existingPrompts: getPrompts,
+                        onSave: (updated: PromptEntry[]) => setPrompts(updated),
+                      })
+                    }
+                  >
+                    <MIcons
+                      name="plus-circle-outline"
+                      size={18}
+                      color={colors.primary}
+                    />
+                    <Text style={pgStyles.addPromptText}>Add a Prompt</Text>
+                  </Pressable>
+                )}
+              </View>
+
+              <FormGroup
+                title="Lifestyle"
+                hint="Optional details that make matching more thoughtful."
+                pgStyles={pgStyles}
+              >
+                {[
+                  {
+                    label: 'Children',
+                    title: 'Do you have children?',
+                    icon: 'human-male-child',
+                    map: __MAPPER?.bio_children,
+                    state: getProfileEdit.children,
+                    set: (id: string) => updateProfileEdit({ children: id }),
+                  },
+                  {
+                    label: 'Smoking',
+                    title: 'Do you smoke?',
+                    icon: 'smoking-off',
+                    map: __MAPPER?.bio_smoking,
+                    state: getProfileEdit.smoking,
+                    set: (id: string) => updateProfileEdit({ smoking: id }),
+                  },
+                  {
+                    label: 'Drinking',
+                    title: 'Do you drink?',
+                    icon: 'glass-cocktail',
+                    map: __MAPPER?.bio_drinking,
+                    state: getProfileEdit.drinking,
+                    set: (id: string) => updateProfileEdit({ drinking: id }),
+                  },
+                  {
+                    label: 'Pets',
+                    title: 'Do you have a pet?',
+                    icon: 'paw-outline',
+                    map: __MAPPER?.bio_pets,
+                    state: getProfileEdit.pets,
+                    set: (id: string) => updateProfileEdit({ pets: id }),
+                  },
+                ].map(({ label, title, icon, map, state, set }) => (
+                  <PickerField
+                    key={title}
+                    label={label}
+                    value={(map as Record<string, string>)?.[state ?? '']}
+                    icon={icon}
+                    onPress={() =>
+                      openPicker({
+                        title,
+                        selectedId: state,
+                        sections: [
+                          {
+                            title: 'Lifestyle',
+                            options: buildOptions(
+                              map as Record<string, string>,
+                            ),
+                          },
+                        ],
+                        onSelect: set,
+                      })
+                    }
+                    colors={colors}
+                    pgStyles={pgStyles}
+                  />
+                ))}
+              </FormGroup>
+
+              <FormGroup
+                onLayout={trackSection('background')}
+                title="Identity"
+                hint="Share as much or as little as feels right."
+                pgStyles={pgStyles}
+              >
+                {[
+                  {
+                    label: 'Religion',
+                    title: 'What is your religion?',
+                    icon: 'hands-pray',
+                    map: religionOptions,
+                    state: getProfileEdit.religion,
+                    set: (id: string) => updateProfileEdit({ religion: id }),
+                  },
+                  {
+                    label: 'Ethnicity',
+                    title: 'What is your ethnicity?',
+                    icon: 'account-group-outline',
+                    map: __MAPPER?.bio_ethnicity,
+                    state: getProfileEdit.ethnicity,
+                    set: (id: string) => updateProfileEdit({ ethnicity: id }),
+                  },
+                  {
+                    label: 'Political Views',
+                    title: 'Political views?',
+                    icon: 'scale-balance',
+                    map: __MAPPER?.bio_politicalview,
+                    state: getProfileEdit.politicalview,
+                    set: (id: string) =>
+                      updateProfileEdit({ politicalview: id }),
+                  },
+                ].map(({ label, title, icon, map, state, set }) => (
+                  <PickerField
+                    key={title}
+                    label={label}
+                    value={(map as Record<string, string>)?.[state ?? '']}
+                    icon={icon}
+                    onPress={() =>
+                      openPicker({
+                        expanded: true,
+                        title,
+                        selectedId: state,
+                        sections: [
+                          {
+                            title: 'Identity',
+                            options: buildOptions(
+                              map as Record<string, string>,
+                            ),
+                          },
+                        ],
+                        onSelect: set,
+                      })
+                    }
+                    colors={colors}
+                    pgStyles={pgStyles}
+                  />
+                ))}
+              </FormGroup>
             </View>
-
-            <FormGroup
-              title="Lifestyle"
-              hint="Optional details that make matching more thoughtful."
-              pgStyles={pgStyles}
-            >
-              {[
-                {
-                  label: 'Children',
-                  title: 'Do you have children?',
-                  icon: 'human-male-child',
-                  map: __MAPPER?.bio_children,
-                  state: getProfileEdit.children,
-                  set: (id: string) => updateProfileEdit({ children: id }),
-                },
-                {
-                  label: 'Smoking',
-                  title: 'Do you smoke?',
-                  icon: 'smoking-off',
-                  map: __MAPPER?.bio_smoking,
-                  state: getProfileEdit.smoking,
-                  set: (id: string) => updateProfileEdit({ smoking: id }),
-                },
-                {
-                  label: 'Drinking',
-                  title: 'Do you drink?',
-                  icon: 'glass-cocktail',
-                  map: __MAPPER?.bio_drinking,
-                  state: getProfileEdit.drinking,
-                  set: (id: string) => updateProfileEdit({ drinking: id }),
-                },
-                {
-                  label: 'Pets',
-                  title: 'Do you have a pet?',
-                  icon: 'paw-outline',
-                  map: __MAPPER?.bio_pets,
-                  state: getProfileEdit.pets,
-                  set: (id: string) => updateProfileEdit({ pets: id }),
-                },
-              ].map(({ label, title, icon, map, state, set }) => (
-                <PickerField
-                  key={title}
-                  label={label}
-                  value={(map as Record<string, string>)?.[state ?? '']}
-                  icon={icon}
-                  onPress={() =>
-                    openPicker({
-                      title,
-                      selectedId: state,
-                      sections: [
-                        {
-                          title: 'Lifestyle',
-                          options: buildOptions(map as Record<string, string>),
-                        },
-                      ],
-                      onSelect: set,
-                    })
-                  }
-                  colors={colors}
-                  pgStyles={pgStyles}
-                />
-              ))}
-            </FormGroup>
-
-            <FormGroup
-              onLayout={trackSection('background')}
-              title="Identity"
-              hint="Share as much or as little as feels right."
-              pgStyles={pgStyles}
-            >
-              {[
-                {
-                  label: 'Religion',
-                  title: 'What is your religion?',
-                  icon: 'hands-pray',
-                  map: religionOptions,
-                  state: getProfileEdit.religion,
-                  set: (id: string) => updateProfileEdit({ religion: id }),
-                },
-                {
-                  label: 'Ethnicity',
-                  title: 'What is your ethnicity?',
-                  icon: 'account-group-outline',
-                  map: __MAPPER?.bio_ethnicity,
-                  state: getProfileEdit.ethnicity,
-                  set: (id: string) => updateProfileEdit({ ethnicity: id }),
-                },
-                {
-                  label: 'Political Views',
-                  title: 'Political views?',
-                  icon: 'scale-balance',
-                  map: __MAPPER?.bio_politicalview,
-                  state: getProfileEdit.politicalview,
-                  set: (id: string) => updateProfileEdit({ politicalview: id }),
-                },
-              ].map(({ label, title, icon, map, state, set }) => (
-                <PickerField
-                  key={title}
-                  label={label}
-                  value={(map as Record<string, string>)?.[state ?? '']}
-                  icon={icon}
-                  onPress={() =>
-                    openPicker({
-                      title,
-                      selectedId: state,
-                      sections: [
-                        {
-                          title: 'Identity',
-                          options: buildOptions(map as Record<string, string>),
-                        },
-                      ],
-                      onSelect: set,
-                    })
-                  }
-                  colors={colors}
-                  pgStyles={pgStyles}
-                />
-              ))}
-            </FormGroup>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
 
       {pickerSheet && (
         <BottomSheet
           ref={pickerSheet_ref}
-          index={0}
+          index={pickerSheet.expanded ? pickerSnapPoints.length - 1 : 0}
           enablePanDownToClose
           snapPoints={pickerSnapPoints}
+          enableDynamicSizing={false}
           backdropComponent={bottomsheet_renderBackdrop}
+          handleComponent={bottomsheet_renderHandle}
           onClose={() => setPickerSheet(null)}
         >
-          <BottomSheetView style={pgStyles.sheetBody}>
-            <View style={pgStyles.sheetHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={pgStyles.sheetTitle}>{pickerSheet.title}</Text>
-                {!!pickerSheet.subtitle && (
-                  <Text style={pgStyles.sectionHint}>
-                    {pickerSheet.subtitle}
-                  </Text>
-                )}
-              </View>
-              <Pressable
-                style={pgStyles.sheetCloseButton}
-                onPress={closePicker}
-              >
-                <IIcon name="close" size={18} color={colors.textSecondary} />
-              </Pressable>
+          <View style={pgStyles.sheetHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={pgStyles.sheetTitle}>{pickerSheet.title}</Text>
+              {!!pickerSheet.subtitle && (
+                <Text style={pgStyles.sectionHint}>{pickerSheet.subtitle}</Text>
+              )}
             </View>
-            <BottomSheetScrollView
-              contentContainerStyle={pgStyles.sheetScrollContent}
-              showsVerticalScrollIndicator={false}
-            >
-              {pickerSheet.sections.map(section => (
-                <View key={section.title} style={pgStyles.pickerSectionCard}>
-                  <Text style={pgStyles.pickerSectionTitle}>
-                    {section.title}
-                  </Text>
-                  <View style={pgStyles.pickerOptions}>
-                    {section.options.map(option => {
-                      const selected =
-                        String(pickerSheet.selectedId ?? '') === option.id;
-                      return (
-                        <TouchableOpacity
-                          key={option.id}
+          </View>
+          <BottomSheetScrollView
+            contentContainerStyle={pgStyles.sheetScrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {pickerSheet.sections.map(section => (
+              <View key={section.title} style={pgStyles.pickerSectionCard}>
+                <Text style={pgStyles.pickerSectionTitle}>{section.title}</Text>
+                <View style={pgStyles.pickerOptions}>
+                  {section.options.map(option => {
+                    const selected =
+                      String(pickerSheet.selectedId ?? '') === option.id;
+                    return (
+                      <TouchableOpacity
+                        key={option.id}
+                        style={[
+                          pgStyles.pickerOption,
+                          selected && pgStyles.pickerOptionSelected,
+                        ]}
+                        activeOpacity={0.82}
+                        onPress={() => {
+                          pickerSheet.onSelect(option.id);
+                          closePicker();
+                        }}
+                      >
+                        <Text
                           style={[
-                            pgStyles.pickerOption,
-                            selected && pgStyles.pickerOptionSelected,
+                            pgStyles.pickerOptionText,
+                            selected && pgStyles.pickerOptionTextSelected,
                           ]}
-                          activeOpacity={0.82}
-                          onPress={() => {
-                            pickerSheet.onSelect(option.id);
-                            closePicker();
-                          }}
                         >
-                          <Text
-                            style={[
-                              pgStyles.pickerOptionText,
-                              selected && pgStyles.pickerOptionTextSelected,
-                            ]}
-                          >
-                            {option.label}
-                          </Text>
-                          {selected && (
-                            <IIcon
-                              name="checkmark-circle"
-                              size={20}
-                              color={colors.primary}
-                            />
-                          )}
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+                          {option.label}
+                        </Text>
+                        {selected && (
+                          <IIcon
+                            name="checkmark-circle"
+                            size={20}
+                            color={colors.primary}
+                          />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
-              ))}
-            </BottomSheetScrollView>
-          </BottomSheetView>
+              </View>
+            ))}
+          </BottomSheetScrollView>
+          {/* Keeps the scroll area above the home indicator / nav bar */}
+          <View style={{ height: safeInsets.bottom }} />
         </BottomSheet>
       )}
-    </SafeAreaView>
+    </>
   );
 }
 
@@ -1810,30 +1853,6 @@ const PickerField = ({
     </View>
     <MIcons name="chevron-right" size={22} color={colors.textTertiary} />
   </Pressable>
-);
-
-const StaticField = ({
-  label,
-  value,
-  icon,
-  colors,
-  pgStyles,
-}: {
-  label: string;
-  value: string;
-  icon: string;
-  colors: ThemeColors;
-  pgStyles: any;
-}) => (
-  <View style={pgStyles.inlineField}>
-    <View style={pgStyles.pickerFieldIcon}>
-      <MIcons name={icon} size={18} color={colors.primary} />
-    </View>
-    <View style={{ flex: 1 }}>
-      <Text style={pgStyles.fieldLabel}>{label}</Text>
-      <Text style={pgStyles.inlineFieldValue}>{value}</Text>
-    </View>
-  </View>
 );
 
 const InlineTextField = ({
@@ -2218,27 +2237,17 @@ function createPgStyles(colors: ThemeColors) {
     },
     addPromptText: { fontSize: 14, fontWeight: '900', color: colors.primary },
 
-    sheetBody: {
-      flex: 1,
+    sheetHeader: {
       paddingHorizontal: 18,
       paddingTop: 12,
-    },
-    sheetHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       marginBottom: 12,
       gap: 12,
     },
-    sheetCloseButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.backgroundSecondary,
-    },
     sheetScrollContent: {
+      paddingHorizontal: 18,
       gap: 10,
       paddingBottom: 22,
     },

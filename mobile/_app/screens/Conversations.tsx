@@ -24,6 +24,7 @@ import { Dialogx } from '../funcs/customDialog';
 import {
   Loaderx,
   bottomsheet_renderBackdrop,
+  bottomsheet_renderHandle,
 } from '../funcs/functions_stateful';
 import IonIcon from 'react-native-vector-icons/Ionicons';
 import { namer, styles, __CONFIG__ } from '../funcs/static';
@@ -51,7 +52,7 @@ import Sound, {
 import RNFS from 'react-native-fs';
 import Icon from 'react-native-vector-icons/Ionicons';
 import BottomSheet, {
-  BottomSheetView,
+  BottomSheetScrollView,
   BottomSheetTextInput,
 } from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
@@ -1589,7 +1590,7 @@ export function Screen_conversation({
       Sound.removeRecordBackListener();
       Sound.removePlayBackListener();
       Sound.removePlaybackEndListener();
-    } catch (error) {
+    } catch {
       logReport({
         type: 'function -convo',
         useraction: 'safeStopAllAudio',
@@ -1614,7 +1615,7 @@ export function Screen_conversation({
       try {
         await Sound.pausePlayer();
         setAudioPlayback(prev => ({ ...prev, isPlaying: false }));
-      } catch (error) {
+      } catch {
         logReport({
           type: 'function -convo',
           useraction: 'handleAudioPress',
@@ -1659,7 +1660,7 @@ export function Screen_conversation({
           isPlaying: false,
         });
       });
-    } catch (error) {
+    } catch {
       logReport({
         type: 'function -convo',
         useraction: 'handleAudioPress',
@@ -1809,7 +1810,7 @@ export function Screen_conversation({
           ),
         );
       }
-    } catch (error) {
+    } catch {
       logReport({
         type: 'function -convo',
         useraction: 'attemptSendText',
@@ -1913,7 +1914,7 @@ export function Screen_conversation({
           ),
         );
       }
-    } catch (error) {
+    } catch {
       logReport({
         type: 'function -convo',
         useraction: 'attemptSendMedia',
@@ -1974,7 +1975,7 @@ export function Screen_conversation({
                 message: response?.message ?? 'Unable to delete message.',
               });
             }
-          } catch (error) {
+          } catch {
             logReport({
               type: 'function -convo',
               useraction: 'deleteMessage',
@@ -3213,6 +3214,7 @@ export function Screen_conversation({
         keyboardBlurBehavior="restore"
         android_keyboardInputMode="adjustResize"
         backdropComponent={ajjj}
+        handleComponent={bottomsheet_renderHandle}
         onChange={index => {
           if (index === -1) setConvoToolsView('menu');
         }}
@@ -3223,7 +3225,10 @@ export function Screen_conversation({
         }}
         handleIndicatorStyle={{ backgroundColor: colors.border, width: 40 }}
       >
-        <BottomSheetView>
+        <BottomSheetScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <SafeAreaView edges={['bottom']}>
             <ConvoToolsSheet
               user={getUser2Deets}
@@ -3249,7 +3254,7 @@ export function Screen_conversation({
               onReport={funt.report}
             />
           </SafeAreaView>
-        </BottomSheetView>
+        </BottomSheetScrollView>
       </BottomSheet>
 
       <ImageViewing

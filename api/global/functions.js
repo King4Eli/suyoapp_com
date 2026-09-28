@@ -12,6 +12,10 @@ import { BUILD_HASH } from "./buildInfo.js";
  * @param {string} name
  * @param {number} fallback
  */
+// Discovery search radius the user can pick, in miles. There's no "no limit" --
+// the max is a hard cap (getPeopleToMatch clamps older saved values to it).
+export const SEARCH_DISTANCE_MILES = { min: 5, max: 100 };
+
 export function envInt(name, fallback) {
   const value = Number(process.env[name]);
   return Number.isFinite(value) && value > 0 ? value : fallback;

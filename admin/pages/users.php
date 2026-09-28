@@ -9,24 +9,6 @@ $active_page = 'users';
 
 $db = $DB_STMT ;
 
-function render_user_active(?string $value): array
-{
-    switch ($value) {
-        case '1':
-            return ['Active', 'success'];
-        case '0':
-            return ['Inactive', 'secondary'];
-        case '2':
-            return ['Paused', 'warning'];
-        case '3':
-            return ['Banned', 'danger'];
-        case '-99':
-            return ['System', 'dark'];
-        default:
-            return ['Unknown', 'secondary'];
-    }
-}
-
 function render_verified(?string $value): array
 {
     return $value === '1' ? ['Verified', 'success'] : ['Unverified', 'secondary'];
@@ -105,8 +87,8 @@ function build_page_url(int $page, string $query, int $limit): string
                     </select>
                 </div>
                 <div class="col-6 col-md-3 d-flex gap-2">
-                    <button class="btn btn-primary flex-fill" type="submit">Apply</button>
-                    <a class="btn btn-outline-secondary flex-fill" href="users.php">Reset</a>
+                    <button class="btn btn-primary flex-fill" type="submit"><i class="bi bi-funnel"></i> Apply</button>
+                    <a class="btn btn-outline-secondary flex-fill" href="users.php"><i class="bi bi-arrow-counterclockwise"></i> Reset</a>
                 </div>
                 <div class="col-12 col-md-6">
                     <label class="form-label" for="client-filter">Quick filter (client)</label>
@@ -118,7 +100,7 @@ function build_page_url(int $page, string $query, int $limit): string
 
     <div class="card shadow-sm">
         <div class="card-header d-flex align-items-center justify-content-between">
-            <span class="fw-semibold">User List</span>
+            <span class="fw-semibold"><i class="bi bi-people"></i>User List</span>
             <span class="text-muted small"><?php echo number_format($total_rows); ?> total</span>
         </div>
         <div class="table-responsive">

@@ -1,11 +1,22 @@
 // https://ionic.io/ionicons
 // https://static.enapter.com/rn/icons/material-community.html
 // https://oblador.github.io/react-native-vector-icons/
-import { ActivityIndicator, View, Text, Animated } from 'react-native';
+import {
+  ActivityIndicator,
+  View,
+  Text,
+  Animated,
+  Pressable,
+} from 'react-native';
+import IIcon from 'react-native-vector-icons/Ionicons';
 import { useEffect, useRef, useState } from 'react';
 import React from 'react';
 
-import { BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import {
+  BottomSheetBackdrop,
+  BottomSheetHandle,
+  useBottomSheet,
+} from '@gorhom/bottom-sheet';
 import { useTheme } from './theme';
 
 //****************************
@@ -61,6 +72,51 @@ Loaderx.hide = () => {
 export const bottomsheet_renderBackdrop = (props: any) => (
   <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-0.9} />
 );
+
+type BottomSheetDefaultHandleProps = React.ComponentProps<
+  typeof BottomSheetHandle
+>;
+
+// Drag handle with a close (X) button on the right. Rendered inside the sheet,
+// so it closes whichever sheet it belongs to via the sheet context.
+export const bottomsheet_renderHandle = (
+  props: BottomSheetDefaultHandleProps,
+) => <BottomSheetCloseHandle {...props} />;
+
+const BottomSheetCloseHandle = (props: BottomSheetDefaultHandleProps) => {
+  const { colors } = useTheme();
+  const { close } = useBottomSheet();
+  return (
+    <BottomSheetHandle
+      {...props}
+      style={[{ minHeight: 44, justifyContent: 'center' }, props.style]}
+      indicatorStyle={[
+        { backgroundColor: colors.border, width: 40 },
+        props.indicatorStyle,
+      ]}
+    >
+      <Pressable
+        onPress={() => close()}
+        hitSlop={10}
+        accessibilityRole="button"
+        accessibilityLabel="Close"
+        style={{
+          position: 'absolute',
+          right: 12,
+          top: 8,
+          width: 30,
+          height: 30,
+          borderRadius: 15,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.backgroundSecondary,
+        }}
+      >
+        <IIcon name="close" size={18} color={colors.textSecondary} />
+      </Pressable>
+    </BottomSheetHandle>
+  );
+};
 //*****************************
 //
 //

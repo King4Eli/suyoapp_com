@@ -9,32 +9,14 @@ export class communicateWith {
       tools.serverLog("Missing parameters for sendSms", "sms_error_3g6");
       return { code: 400, message: "Missing parameters for sendSms" };
     }
-    // remove on prod
-    // **
-    // remove on prod
-    // **
-    // remove on prod
-    // **
-    // remove on prod
-    // **
-    // remove on prod
-    // **
-    // remove on prod
-    // **
-    // remove on prod
-    // **
-    // remove on prod
-    // **
+
+    // ## remove on prod: numberIsTesting
     const numberIsTesting = /^0+/.test(phoneNumber);
 
     const fullNumber = phoneNumber.startsWith("+")
       ? phoneNumber
       : `+${callingCountryCode}${phoneNumber}`;
     const parsedNumber = parsePhoneNumberFromString(fullNumber);
-    // remove numberIsTesting on prod
-    // // remove on prod
-    // // remove on prod
-    //
 
     if (!numberIsTesting && !parsedNumber?.isValid()) {
       tools.serverLog("Invalid phone number", "sms_error_3gy");
@@ -78,11 +60,11 @@ export class communicateWith {
 
   // @ts-ignore
   static sendEmail = async (
-    fromEmail,
-    toEmail,
-    subject,
-    messageHtml,
-    messageText,
+    /** @type {string | null } */ fromEmail,
+    /** @type {string } */ toEmail,
+    /** @type {string } */ subject,
+    /** @type {string } */ messageHtml,
+    /** @type {string } */ messageText,
   ) => {
     if (
       fromEmail !== null &&
@@ -118,15 +100,8 @@ export class communicateWith {
       const info = await transporter.sendMail({
         from: smtpusername,
         // if email is example.com, don't send email, just log it
-        // remove on prod
         // **
-        // remove on prod
-        // **
-        // remove on prod
-        // **
-        // remove on prod
-        // **
-        // remove on prod
+        // ## remove on prod: toballz@yahoo.com
         // **
         to: toEmail.includes("@example.com") ? "toballz@yahoo.com" : toEmail,
         subject: subject,

@@ -15,6 +15,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { cacheStorage, parseCategoryProducts } from '../funcs/functions';
 import { Loaderx } from '../funcs/functions_stateful';
 import { purchaseNative } from '../funcs/iap';
+import { leavePaymentScreens } from '../funcs/functions/paymentNotices';
 import { startWebOnetimeCheckout } from '../funcs/customConsumableSheet';
 import { namer, __CONFIG__ } from '../funcs/static';
 
@@ -168,6 +169,7 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
 
     if (result.code === 200) {
       setShowConfirm(false);
+      leavePaymentScreens();
       Dialogx.alert(
         'Purchase complete',
         'Your purchase was added to your account.',

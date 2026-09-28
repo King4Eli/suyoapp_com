@@ -272,7 +272,7 @@ function fmt_ts(?string $ts): string
 
                 <!-- Account & Contact -->
                 <div class="card shadow-sm mt-3">
-                    <div class="card-header py-2"><strong class="small">Account &amp; Contact</strong></div>
+                    <div class="card-header py-2"><strong class="small"><i class="bi bi-person-lines-fill"></i>Account &amp; Contact</strong></div>
                     <div class="card-body">
                         <dl class="info-grid mb-0">
                             <dt>Email</dt>
@@ -314,7 +314,7 @@ function fmt_ts(?string $ts): string
                 <!-- Quick Stats -->
                 <div class="card shadow-sm mt-3">
                     <div class="card-body">
-                        <h6 class="card-title mb-3">Quick Stats</h6>
+                        <h6 class="card-title mb-3"><i class="bi bi-graph-up"></i>Quick Stats</h6>
                         <div class="row text-center g-2">
                             <div class="col-4"><div class="h5 mb-0"><?php echo number_format($match_stats['count_matched']); ?></div><div class="small text-muted">Matches</div></div>
                             <div class="col-4"><div class="h5 mb-0"><?php echo number_format($match_stats['count_likes_received']); ?></div><div class="small text-muted">Likes in</div></div>
@@ -340,7 +340,7 @@ function fmt_ts(?string $ts): string
                     <div class="tab-pane fade show active" id="profile">
                         <div class="card shadow-sm">
                             <div class="card-body">
-                                <h6 class="card-title mb-3">Bio Information</h6>
+                                <h6 class="card-title mb-3"><i class="bi bi-person-badge"></i>Bio Information</h6>
                                 <div class="row info-grid">
                                     <div class="col-md-6">
                                         <dl>
@@ -427,7 +427,7 @@ function fmt_ts(?string $ts): string
                         <?php if ($location): ?>
                             <div class="card shadow-sm mt-3">
                                 <div class="card-body">
-                                    <h6 class="card-title mb-3">Location</h6>
+                                    <h6 class="card-title mb-3"><i class="bi bi-geo-alt"></i>Location</h6>
                                     <div class="row info-grid">
                                         <div class="col-md-6">
                                             <dl>
@@ -459,7 +459,7 @@ function fmt_ts(?string $ts): string
                     <div class="tab-pane fade" id="preferences">
                         <div class="card shadow-sm">
                             <div class="card-body">
-                                <h6 class="card-title mb-3">Match Preferences</h6>
+                                <h6 class="card-title mb-3"><i class="bi bi-sliders"></i>Match Preferences</h6>
                                 <div class="row info-grid">
                                     <div class="col-md-6">
                                         <dl>
@@ -523,7 +523,7 @@ function fmt_ts(?string $ts): string
                     <div class="tab-pane fade" id="matches">
                         <div class="card shadow-sm">
                             <div class="card-body">
-                                <h6 class="card-title mb-3">Match Activity</h6>
+                                <h6 class="card-title mb-3"><i class="bi bi-heart"></i>Match Activity</h6>
                                 <div class="row g-3 text-center">
                                     <?php foreach ([
                                         'Total activity' => 'total_matches',
@@ -581,7 +581,7 @@ function fmt_ts(?string $ts): string
                         <div class="card shadow-sm">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <h6 class="card-title mb-0">Every <code>users</code> column</h6>
+                                    <h6 class="card-title mb-0"><i class="bi bi-list-columns"></i>Every <code>users</code> column</h6>
                                     <button class="btn btn-outline-secondary btn-sm" id="copyJsonBtn">Copy row as JSON</button>
                                 </div>
                                 <div class="table-responsive">

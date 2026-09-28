@@ -283,7 +283,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
                   fontSize: 13,
                 }}
               >
-                Unlock premium
+                Get Plus or VIP
               </Text>
             </Pressable>
           )}

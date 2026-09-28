@@ -30,6 +30,7 @@ import {
   Loaderx,
   Skeleton,
   bottomsheet_renderBackdrop,
+  bottomsheet_renderHandle,
 } from '../funcs/functions_stateful';
 import { useFocusEffect } from '@react-navigation/native';
 import { styles, namer, __CONFIG__, SOCIAL_PLATFORMS } from '../funcs/static';
@@ -49,13 +50,19 @@ import {
   reportUser,
 } from '../funcs/functions';
 import { likesBadge } from '../funcs/tabBadges';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { TextInput } from 'react-native-gesture-handler';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { LinearGradient } from 'react-native-linear-gradient';
 import { Toastx } from '../funcs/customNotification';
 import { SafeImage } from '../funcs/customImage';
 import FastImage from '@d11/react-native-fast-image';
-import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
+import BottomSheet, {
+  BottomSheetScrollView,
+  BottomSheetScrollViewMethods,
+  BottomSheetTextInput,
+} from '@gorhom/bottom-sheet';
 import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
 import ImageViewing from 'react-native-image-viewing';
 import {
@@ -97,6 +104,11 @@ export default function Peoples_Screen({
   const imageDomain = __MAPPER?.img_domain ?? null;
 
   const [getPeopleToMatch, setPeopleToMatch] = useState<any[] | null>(null);
+  // Travel mode widening the search: { active, cities: [{ city, state, country }] }
+  const [travelSearch, setTravelSearch] = useState<{
+    active: boolean;
+    cities: Array<{ city?: string; state?: string }>;
+  } | null>(null);
   const [gptmd, sptmd] = useState<boolean>(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const isActionLockedRef = useRef(false);
@@ -239,8 +251,9 @@ export default function Peoples_Screen({
 
   const bottomSheetRef_reportUser = {
     ref: useRef<BottomSheet>(null),
-    snap: useMemo(() => ['80%'], []),
+    snap: useMemo(() => ['70%'], []),
   };
+  const safeInsets = useSafeAreaInsets();
 
   const functs = {
     onePersonProfile: route?.params?.getOnePersonId, //str
@@ -434,6 +447,9 @@ export default function Peoples_Screen({
         },
       })
         .then(response => {
+          if (response?.code === 200 || response?.code === 404) {
+            setTravelSearch(response?.travel_search ?? null);
+          }
           if (response?.code === 200) {
             const peopleMatchArr = response?.matchespeoples ?? [];
             //console.log("new peoples reloaded total, now:", peopleMatchArr.length);
@@ -493,18 +509,23 @@ export default function Peoples_Screen({
       'Other',
     ];
     const reportedUserName = getPeopleToMatch?.[0]?.user_fullname;
-    const scrollRef = useRef<ScrollView>(null);
+    const scrollRef = useRef<BottomSheetScrollViewMethods>(null);
 
     return (
-      <ScrollView
+      <BottomSheetScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
-        style={{ flex: 1 }}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 20 }}
       >
         <View
           style={[
             styles.container,
-            { paddingBottom: 5, backgroundColor: colors.background },
+            {
+              paddingTop: 8,
+              paddingBottom: 5,
+              backgroundColor: colors.background,
+            },
           ]}
         >
           <Text style={styles.title}>Report {reportedUserName}</Text>
@@ -538,7 +559,7 @@ export default function Peoples_Screen({
 
           {selectedReason === 'Other' && (
             <View style={{ marginBottom: 12 }}>
-              <TextInput
+              <BottomSheetTextInput
                 style={[
                   styles.input,
                   { height: 120, textAlignVertical: 'top', marginBottom: 0 },
@@ -597,7 +618,7 @@ export default function Peoples_Screen({
             <Text style={styles.pressableButtonText}>Submit Report</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </BottomSheetScrollView>
     );
   };
 
@@ -1060,6 +1081,28 @@ export default function Peoples_Screen({
     );
   }
 
+  // Travel mode is widening the search -- shown above the deck and on the empty
+  // state (not on a single profile opened from elsewhere)
+  const travelBanner =
+    !functs.onePersonProfile && travelSearch?.active ? (
+      <Pressable
+        style={deckStyles.travelBanner}
+        onPress={() => navigation.push(namer.navigation.editLocation)}
+        accessibilityLabel="Travel mode settings"
+      >
+        <IIcon name="airplane" size={16} color={colors.accent} />
+        <Text style={deckStyles.travelBannerText} numberOfLines={2}>
+          <Text style={{ fontWeight: '800' }}>Travel mode on</Text>
+          {' · also showing people near '}
+          {travelSearch.cities
+            .map(c => c.city)
+            .filter(city => city && city !== 'unknown')
+            .join(', ') || 'your travel cities'}
+        </Text>
+        <IIcon name="chevron-forward" size={16} color={colors.textTertiary} />
+      </Pressable>
+    ) : null;
+
   return (
     <>
       <View
@@ -1070,6 +1113,7 @@ export default function Peoples_Screen({
       >
         {getPeopleToMatch?.length === 0 ? (
           <View style={deckStyles.emptyStateWrap}>
+            {travelBanner}
             <View style={[deckStyles.emptyStateCard, deckStyles.cardShadow]}>
               <View style={deckStyles.emptyStateIconWrap}>
                 <IIcon
@@ -1131,6 +1175,7 @@ export default function Peoples_Screen({
                 },
               ]}
             >
+              {travelBanner}
               <View
                 style={[
                   {
@@ -1236,6 +1281,18 @@ export default function Peoples_Screen({
                 )}
 
                 <View style={deckStyles.cardFooter}>
+                  {currentPerson?.search_origin?.type === 'travel' && (
+                    <View style={deckStyles.travelPill}>
+                      <IIcon name="airplane" size={13} color="#fff" />
+                      <Text style={deckStyles.travelPillText} numberOfLines={1}>
+                        Near your travel city
+                        {currentPerson.search_origin.city &&
+                        currentPerson.search_origin.city !== 'unknown'
+                          ? ` · ${currentPerson.search_origin.city}`
+                          : ''}
+                      </Text>
+                    </View>
+                  )}
                   <View style={deckStyles.nameRow}>
                     <Text style={[deckStyles.name, { flexShrink: 1 }]}>
                       {currentPerson?.user_fullname}
@@ -1966,11 +2023,15 @@ export default function Peoples_Screen({
         index={-1}
         enablePanDownToClose
         snapPoints={bottomSheetRef_reportUser.snap}
+        enableDynamicSizing={false}
         backdropComponent={bottomsheet_renderBackdrop}
+        handleComponent={bottomsheet_renderHandle}
+        keyboardBehavior="extend"
+        keyboardBlurBehavior="restore"
       >
-        <BottomSheetView style={{ padding: 20 }}>
-          <ReportContent />
-        </BottomSheetView>
+        <ReportContent />
+        {/* Keeps the scroll area above the home indicator / nav bar */}
+        <View style={{ height: safeInsets.bottom }} />
       </BottomSheet>
     </>
   );
@@ -2259,6 +2320,29 @@ function createDeckStyles(colors: ThemeColors) {
       gap: spacing.md,
     },
     nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    travelPill: {
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 6,
+      borderRadius: 999,
+      backgroundColor: colors.accent,
+    },
+    travelPillText: { color: '#fff', fontSize: 12.5, fontWeight: '800' },
+    travelBanner: {
+      alignSelf: 'stretch',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 10,
+      marginBottom: spacing.md,
+      borderRadius: radius.lg,
+      backgroundColor: colors.accentSoft,
+    },
+    travelBannerText: { flex: 1, color: colors.text, fontSize: 13 },
     name: {
       color: '#fff',
       fontSize: 28,

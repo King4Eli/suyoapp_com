@@ -1,0 +1,11 @@
+# The admin folder is Apache's web root -- anything copied in is publicly
+# downloadable, so keep tooling files (and any local node_modules) out.
+node_modules
+package.json
+package-lock.json
+eslint.config.mjs
+.prettierrc.js
+Dockerfile
+.dockerignore
+.git
+.vscode
