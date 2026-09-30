@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 include "../main_config.php";
+include "../global/funcs.php";
 
 $page_title = 'User Reports';
 $page_subtitle = 'User-submitted reports and moderation actions';
@@ -183,13 +184,11 @@ try {
                         <?php [$status_label, $status_color] = render_report_status((string) ($report['status'] ?? '0')); ?>
                         <tr>
                             <td>
-                                <div class="fw-semibold"><?php echo htmlspecialchars($report['reported_fullname'] ?? 'Unknown'); ?></div>
-                                <div class="small text-muted"><?php echo htmlspecialchars($report['user_id'] ?? ''); ?></div>
+                                <?php echo user_cell($report['user_id'] ?? null, $report['reported_fullname'] ?? null); ?>
                             </td>
                             <td>
                                 <?php if (!empty($report['reporter_user_id'])): ?>
-                                    <div class="fw-semibold"><?php echo htmlspecialchars($report['reporter_fullname'] ?? 'Unknown'); ?></div>
-                                    <div class="small text-muted"><?php echo htmlspecialchars($report['reporter_user_id']); ?></div>
+                                    <?php echo user_cell($report['reporter_user_id'], $report['reporter_fullname'] ?? null); ?>
                                 <?php else: ?>
                                     <span class="text-muted small">Unknown</span>
                                 <?php endif; ?>
@@ -198,7 +197,7 @@ try {
                                 <div class="small" style="text-wrap:wrap;overflow-wrap:anywhere"><?php echo htmlspecialchars((string) ($report['reason'] ?? '')); ?></div>
                             </td>
                             <td><span class="badge text-bg-<?php echo $status_color; ?>"><?php echo htmlspecialchars($status_label); ?></span></td>
-                            <td><?php echo htmlspecialchars((string) ($report['date_created'] ?? '')); ?></td>
+                            <td><?php echo time_cell($report['date_created'] ?? null); ?></td>
                             <td class="text-end">
                                 <div class="btn-group">
                                     <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle"
@@ -237,14 +236,6 @@ try {
                                     <input type="hidden" name="action" value="">
                                     <input type="hidden" name="target_user_id" value="">
                                 </form>
-                                <?php if (!empty($report['reporter_user_id'])): ?>
-                                    <a class="btn btn-sm btn-outline-primary"
-                                        href="singleuser.php?id=<?php echo urlencode($report['reporter_user_id']); ?>">Reporter</a>
-                                <?php endif; ?>
-                                <?php if (!empty($report['user_id'])): ?>
-                                    <a class="btn btn-sm btn-outline-danger"
-                                        href="singleuser.php?id=<?php echo urlencode($report['user_id']); ?>">Reported</a>
-                                <?php endif; ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>

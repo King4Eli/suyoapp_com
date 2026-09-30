@@ -15,6 +15,19 @@
     --admin-sidebar: #15171e;
     --admin-sidebar-text: #a3a8b4;
     --admin-radius: 14px;
+    /* subtle fills and lines that need their own dark values */
+    --admin-surface-2: #f8f9fb;
+    --admin-row-stripe: #fafbfc;
+    --admin-row-hover: #f5f7fa;
+    --admin-row-line: #f0f1f4;
+    --admin-input-border: #dfe2e8;
+    --admin-outline-text: #4b5563;
+    --admin-outline-border: #d7dbe2;
+    --admin-outline-hover: #f1f3f6;
+    --admin-outline-active: #e7eaef;
+    --admin-primary-outline: #f1b5c0;
+    --admin-empty-icon: #c3c8d2;
+    --admin-shadow: rgba(16, 24, 40, 0.04);
 
     --bs-body-font-family: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
     --bs-body-color: var(--admin-text);
@@ -36,19 +49,89 @@ body {
 }
 
 /* ── Shell ─────────────────────────────────────────────────────────────── */
+/* The sidebar is a Bootstrap offcanvas-lg: a sticky column from lg up, a
+   slide-out drawer (opened by the top bar's hamburger) below. offcanvas-lg
+   forces a transparent background on lg+, so the column wrapper paints it. */
+.admin-sidebar-col {
+    padding: 0;
+}
 .admin-sidebar {
-    background: var(--admin-sidebar);
+    --bs-offcanvas-bg: var(--admin-sidebar);
+    --bs-offcanvas-color: var(--admin-sidebar-text);
+    --bs-offcanvas-width: 280px;
     color: var(--admin-sidebar-text);
+}
+.admin-sidebar .offcanvas-body {
+    flex-direction: column;
+    padding: 1rem;
+}
+@media (min-width: 992px) {
+    .admin-sidebar-col {
+        background: var(--admin-sidebar);
+    }
+    .admin-sidebar {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow-y: auto;
+    }
+    .admin-sidebar .offcanvas-body {
+        height: 100%;
+    }
+}
+.admin-sidebar .offcanvas-header {
+    padding: 1rem 1rem 0;
+}
+.admin-sidebar .offcanvas-header .admin-brand {
+    padding-bottom: 0;
+}
+
+/* Below lg: a slim bar with the hamburger, the brand and the theme switch */
+.admin-topbar {
     position: sticky;
     top: 0;
-    height: 100vh;
-    overflow-y: auto;
+    z-index: 1020;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: -1.25rem -1rem 1.25rem;
+    padding: 0.6rem 1rem;
+    background: var(--admin-sidebar);
+    color: #fff;
 }
-@media (max-width: 991.98px) {
-    .admin-sidebar {
-        position: static;
-        height: auto;
+@media (min-width: 576px) {
+    .admin-topbar {
+        margin: -1.75rem -2rem 1.5rem;
+        padding: 0.6rem 2rem;
     }
+}
+.admin-topbar .admin-brand {
+    padding: 0;
+}
+.admin-hamburger {
+    border: 0;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    font-size: 1.35rem;
+}
+.admin-hamburger:hover {
+    background: rgba(255, 255, 255, 0.14);
+}
+
+/* Theme switch (light / dark / system) */
+.admin-theme-toggle {
+    cursor: pointer;
+}
+.admin-topbar .admin-theme-toggle {
+    margin-left: auto;
+    background: rgba(255, 255, 255, 0.08);
+    border-color: transparent;
+    color: #fff;
 }
 .admin-brand {
     display: flex;
@@ -175,11 +258,11 @@ body {
     --bs-card-border-radius: var(--admin-radius);
     --bs-card-inner-border-radius: calc(var(--admin-radius) - 1px);
     --bs-card-cap-bg: var(--admin-surface);
-    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    box-shadow: 0 1px 2px var(--admin-shadow);
 }
 .card.shadow-sm,
 .card.shadow {
-    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04) !important;
+    box-shadow: 0 1px 2px var(--admin-shadow) !important;
 }
 .card-header {
     font-weight: 700;
@@ -225,21 +308,21 @@ body {
 }
 .tone-primary { color: var(--admin-primary); background: var(--admin-primary-soft); }
 .tone-accent { color: var(--admin-accent); background: var(--admin-accent-soft); }
-.tone-success { color: #15803d; background: #dcfce7; }
-.tone-warning { color: #b45309; background: #fef3c7; }
-.tone-info { color: #0369a1; background: #e0f2fe; }
-.tone-danger { color: #b91c1c; background: #fee2e2; }
-.tone-secondary { color: #475569; background: #eef1f5; }
+.tone-success { color: var(--tone-success-fg, #15803d); background: var(--tone-success-bg, #dcfce7); }
+.tone-warning { color: var(--tone-warning-fg, #b45309); background: var(--tone-warning-bg, #fef3c7); }
+.tone-info { color: var(--tone-info-fg, #0369a1); background: var(--tone-info-bg, #e0f2fe); }
+.tone-danger { color: var(--tone-danger-fg, #b91c1c); background: var(--tone-danger-bg, #fee2e2); }
+.tone-secondary { color: var(--tone-secondary-fg, #475569); background: var(--tone-secondary-bg, #eef1f5); }
 
 /* ── Tables ────────────────────────────────────────────────────────────── */
 .table {
-    --bs-table-striped-bg: #fafbfc;
-    --bs-table-hover-bg: #f5f7fa;
+    --bs-table-striped-bg: var(--admin-row-stripe);
+    --bs-table-hover-bg: var(--admin-row-hover);
     margin-bottom: 0;
 }
 .table > thead th,
 .table > thead.table-light th {
-    background: #f8f9fb;
+    background: var(--admin-surface-2);
     color: var(--admin-muted);
     font-size: 0.72rem;
     font-weight: 700;
@@ -254,7 +337,7 @@ body {
 .table td,
 .table th {
     padding: 0.7rem 0.9rem;
-    border-color: #f0f1f4;
+    border-color: var(--admin-row-line);
 }
 
 /* ── Controls ──────────────────────────────────────────────────────────── */
@@ -274,25 +357,25 @@ body {
 }
 .btn-outline-primary {
     --bs-btn-color: var(--admin-primary);
-    --bs-btn-border-color: #f1b5c0;
+    --bs-btn-border-color: var(--admin-primary-outline);
     --bs-btn-hover-bg: var(--admin-primary);
     --bs-btn-hover-border-color: var(--admin-primary);
     --bs-btn-active-bg: var(--admin-primary-dark);
     --bs-btn-active-border-color: var(--admin-primary-dark);
 }
 .btn-outline-secondary {
-    --bs-btn-color: #4b5563;
-    --bs-btn-border-color: #d7dbe2;
-    --bs-btn-hover-bg: #f1f3f6;
-    --bs-btn-hover-color: #1f2430;
-    --bs-btn-hover-border-color: #c9ced7;
-    --bs-btn-active-bg: #e7eaef;
-    --bs-btn-active-color: #1f2430;
+    --bs-btn-color: var(--admin-outline-text);
+    --bs-btn-border-color: var(--admin-outline-border);
+    --bs-btn-hover-bg: var(--admin-outline-hover);
+    --bs-btn-hover-color: var(--admin-text);
+    --bs-btn-hover-border-color: var(--admin-outline-border);
+    --bs-btn-active-bg: var(--admin-outline-active);
+    --bs-btn-active-color: var(--admin-text);
 }
 .form-control,
 .form-select {
     border-radius: 10px;
-    border-color: #dfe2e8;
+    border-color: var(--admin-input-border);
 }
 .form-control:focus,
 .form-select:focus {
@@ -383,7 +466,7 @@ body {
     display: block;
     font-size: 2rem;
     margin-bottom: 0.5rem;
-    color: #c3c8d2;
+    color: var(--admin-empty-icon);
 }
 
 /* In-card section titles (user details) */
@@ -394,4 +477,174 @@ body {
 .card-title .bi {
     color: var(--admin-primary);
     margin-right: 0.45rem;
+}
+
+/* ── Dark theme ────────────────────────────────────────────────────────────
+   data-bs-theme="dark" on <html> (set by global/head.php before first paint)
+   switches Bootstrap itself; these re-point the admin's own colors. The
+   :root[...] selector out-ranks the light :root block above. */
+:root[data-bs-theme="dark"] {
+    --admin-primary-soft: rgba(226, 72, 98, 0.16);
+    --admin-accent-soft: rgba(110, 75, 142, 0.24);
+    --admin-bg: #0e1015;
+    --admin-surface: #171a21;
+    --admin-surface-2: #1d2129;
+    --admin-border: #2a2f39;
+    --admin-text: #e6e8ec;
+    --admin-muted: #9aa1ad;
+    --admin-sidebar: #0a0b0f;
+    --admin-row-stripe: #1a1d24;
+    --admin-row-hover: #20242c;
+    --admin-row-line: #242832;
+    --admin-input-border: #343a45;
+    --admin-outline-text: #c4c9d2;
+    --admin-outline-border: #3a404b;
+    --admin-outline-hover: #242832;
+    --admin-outline-active: #2b303a;
+    --admin-primary-outline: #7a2d3c;
+    --admin-empty-icon: #4a505c;
+    --admin-shadow: rgba(0, 0, 0, 0.3);
+
+    --tone-success-fg: #4ade80;
+    --tone-success-bg: rgba(34, 197, 94, 0.14);
+    --tone-warning-fg: #fbbf24;
+    --tone-warning-bg: rgba(245, 158, 11, 0.14);
+    --tone-info-fg: #38bdf8;
+    --tone-info-bg: rgba(14, 165, 233, 0.14);
+    --tone-danger-fg: #f87171;
+    --tone-danger-bg: rgba(239, 68, 68, 0.14);
+    --tone-secondary-fg: #a3acb9;
+    --tone-secondary-bg: rgba(148, 163, 184, 0.12);
+
+    --bs-body-color: var(--admin-text);
+    --bs-body-bg: var(--admin-surface);
+    --bs-border-color: var(--admin-border);
+    --bs-secondary-color: var(--admin-muted);
+    --bs-tertiary-bg: var(--admin-surface-2);
+    --bs-link-color: #f0778b;
+    --bs-link-color-rgb: 240, 119, 139;
+    --bs-link-hover-color: #f59aa9;
+    --bs-link-hover-color-rgb: 245, 154, 169;
+    color-scheme: dark;
+}
+/* Bootstrap's *-light helpers stay light in dark mode; give them dark fills. */
+[data-bs-theme="dark"] .bg-light {
+    background-color: var(--admin-surface-2) !important;
+}
+[data-bs-theme="dark"] .text-bg-light {
+    color: var(--admin-text) !important;
+    background-color: var(--admin-surface-2) !important;
+}
+[data-bs-theme="dark"] .table-light {
+    --bs-table-bg: var(--admin-surface-2);
+    --bs-table-color: var(--admin-muted);
+    --bs-table-border-color: var(--admin-border);
+}
+[data-bs-theme="dark"] .table {
+    --bs-table-bg: var(--admin-surface);
+    --bs-table-color: var(--admin-text);
+    --bs-table-striped-color: var(--admin-text);
+    --bs-table-hover-color: var(--admin-text);
+}
+[data-bs-theme="dark"] .admin-login-bg {
+    background:
+        radial-gradient(circle at 15% 20%, rgba(226, 72, 98, 0.14), transparent 45%),
+        radial-gradient(circle at 85% 80%, rgba(110, 75, 142, 0.16), transparent 45%),
+        var(--admin-bg);
+}
+
+/* ── Popovers (time_cell / user_cell in global/funcs.php) ──────────────── */
+.admin-time {
+    cursor: help;
+    white-space: nowrap;
+    border-bottom: 1px dotted var(--admin-muted);
+}
+.admin-user-pop {
+    /* a button that reads as a name link */
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    font-weight: 600;
+    color: var(--bs-link-color);
+    text-align: left;
+    border-bottom: 1px dotted currentColor;
+    cursor: pointer;
+}
+.admin-user-pop:hover {
+    color: var(--bs-link-hover-color);
+}
+.admin-copy-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    max-width: 100%;
+}
+.admin-copy-text {
+    overflow-wrap: anywhere;
+}
+.admin-copy-btn {
+    flex-shrink: 0;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-surface-2);
+    color: var(--admin-muted);
+    border-radius: 6px;
+    width: 26px;
+    height: 24px;
+    display: inline-grid;
+    place-items: center;
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+.admin-copy-btn:hover {
+    color: var(--admin-primary);
+    border-color: var(--admin-primary-outline);
+}
+.admin-copy-btn.copied {
+    color: var(--tone-success-fg, #15803d);
+    border-color: currentColor;
+}
+.popover {
+    --bs-popover-border-color: var(--admin-border);
+    --bs-popover-bg: var(--admin-surface);
+    --bs-popover-body-color: var(--admin-text);
+    --bs-popover-border-radius: 12px;
+    --bs-popover-max-width: 320px;
+    box-shadow: 0 8px 24px rgba(16, 24, 40, 0.14);
+}
+.admin-user-popover {
+    --bs-popover-max-width: 340px;
+}
+.admin-pop-dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.2rem 0.75rem;
+    font-size: 0.82rem;
+}
+.admin-pop-dl dt {
+    color: var(--admin-muted);
+    font-weight: 600;
+}
+.admin-pop-dl dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+.admin-user-card {
+    min-width: 260px;
+}
+.admin-user-card-photo {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: var(--admin-surface-2);
+    color: var(--admin-muted);
+    place-items: center;
+}
+.admin-user-card .min-w-0 {
+    min-width: 0;
+}
+.table-responsive{
+    min-height: 40vw !important;
 }

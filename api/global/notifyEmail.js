@@ -11,9 +11,11 @@ import { formatDate, formatMoney } from "./paymentNotices.js";
 // Who gets which email. Two kinds:
 // - account emails (security alerts, receipts, billing, verification results) are
 //   always sent -- people need them whatever their settings say;
-// - activity emails (likes, matches, messages) follow the Settings > Notifications
-//   email toggle (users.user_notify_email), only go to people who aren't in the app
-//   right now (the socket already told them), and are throttled.
+// - activity emails (likes, matches, messages) follow Settings > Notifications:
+//   the email toggle (users.user_notify_email) and that category's email toggle
+//   (users.user_notify_email_<category>).
+//   They only go to people who aren't in the app right now (the socket already
+//   told them), and are throttled.
 // Everything here is best-effort: an email failing must never fail the action
 // that triggered it, so callers don't await these and errors are only logged.
 
@@ -32,6 +34,9 @@ async function recipient(userId) {
       name: users.userFullname,
       active: users.userActive,
       notifyEmail: users.userNotifyEmail,
+      notifyLikes: users.userNotifyEmailLikes,
+      notifyMatches: users.userNotifyEmailMatches,
+      notifyMessages: users.userNotifyEmailMessages,
     })
     .from(users)
     .where(eq(users.userId, userId))
@@ -112,20 +117,29 @@ function accountEmail(userId, what, build) {
   });
 }
 
+/** Which recipient() flag gates each activity category. */
+const CATEGORY_FLAG = /** @type {const} */ ({
+  likes: "notifyLikes",
+  matches: "notifyMatches",
+  messages: "notifyMessages",
+});
+
 /**
- * An activity email: respects the toggle, skips people in the app, and only
- * sends if `onceKey` hasn't fired within `ttlSeconds`.
+ * An activity email: respects the email and category toggles, skips
+ * people in the app, and only sends if `onceKey` hasn't fired within `ttlSeconds`.
  * @param {import("socket.io").Server | undefined} io
  * @param {string} userId
+ * @param {keyof typeof CATEGORY_FLAG} category
  * @param {string} what
  * @param {string} onceKey
  * @param {number} ttlSeconds
  * @param {(r: NonNullable<Awaited<ReturnType<typeof recipient>>>) => Promise<{ subject: string; html: string; text: string } | null>} build
  */
-function activityEmail(io, userId, what, onceKey, ttlSeconds, build) {
+function activityEmail(io, userId, category, what, onceKey, ttlSeconds, build) {
   background(what, async () => {
     const r = await recipient(userId);
     if (!r || r.active !== "1" || r.notifyEmail !== "1") return;
+    if (r[CATEGORY_FLAG[category]] !== "1") return;
     if (!isRealEmail(r.email)) return;
     if (await isOnline(io, userId)) return;
     if (!(await firstTime(onceKey, ttlSeconds))) return;
@@ -246,6 +260,7 @@ export const notifyEmail = {
     activityEmail(
       io,
       userId,
+      "likes",
       "new_like",
       `like:${userId}`,
       LIKE_EMAIL_EVERY_SECONDS,
@@ -263,6 +278,7 @@ export const notifyEmail = {
     activityEmail(
       io,
       userId,
+      "matches",
       "new_match",
       `match:${matchId}:${userId}`,
       7 * 24 * 60 * 60,
@@ -281,6 +297,7 @@ export const notifyEmail = {
     activityEmail(
       io,
       userId,
+      "messages",
       "new_message",
       `msg:${matchId}:${userId}`,
       MESSAGE_EMAIL_EVERY_SECONDS,
@@ -372,11 +389,13 @@ async function receiptRows(record, kind, vars, paymentId) {
 // ── verification results ───────────────────────────────────────────────────────
 
 // Selfie reviews happen in the PHP admin (admin/pages/verifications.php), which
-// can't send mail, so the API picks up recently reviewed requests and emails the
-// result once each.
+// can't send mail or reach sockets, so the API picks up recently reviewed
+// requests and, once each, emails the result and tells the app over the socket
+// ("verification-event") so an open app updates without a restart.
 const VERIFICATION_POLL_MS = 60 * 1000;
 
-async function emailReviewedVerifications() {
+/** @param {import("socket.io").Server | undefined} io */
+async function emailReviewedVerifications(io) {
   try {
     const reviewed = await db
       .select({
@@ -395,6 +414,10 @@ async function emailReviewedVerifications() {
     for (const v of reviewed) {
       if (!(await firstTime(`verification:${v.id}`, 7 * 24 * 60 * 60)))
         continue;
+      io?.to(`user-${v.userId}`).emit("verification-event", {
+        status: v.status === 1 ? "verified" : "rejected",
+        reason: v.status === 1 ? null : (v.reason ?? null),
+      });
       accountEmail(v.userId, "verification_result", () =>
         v.status === 1
           ? emailTemplates.verificationApproved()
@@ -409,7 +432,8 @@ async function emailReviewedVerifications() {
   }
 }
 
-export function startVerificationEmailJob() {
-  emailReviewedVerifications();
-  setInterval(emailReviewedVerifications, VERIFICATION_POLL_MS);
+/** @param {import("socket.io").Server} io */
+export function startVerificationEmailJob(io) {
+  emailReviewedVerifications(io);
+  setInterval(() => emailReviewedVerifications(io), VERIFICATION_POLL_MS);
 }

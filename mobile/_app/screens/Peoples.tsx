@@ -42,7 +42,9 @@ import {
   type as typo,
   elevation,
 } from '../funcs/theme';
+import { useUnits, formatDistance, formatHeight } from '../funcs/units';
 import { HeaderActions, HeaderIconButton } from '../funcs/customHeader';
+import { BoostChip } from '../funcs/boost';
 import {
   _http_request,
   cacheStorage,
@@ -89,6 +91,7 @@ export default function Peoples_Screen({
   navigation: any;
 }) {
   const { colors } = useTheme();
+  const { unit } = useUnits();
   const deckStyles = useMemo(() => createDeckStyles(colors), [colors]);
   const matchStyles = useMemo(() => createMatchStyles(colors), [colors]);
   const promptGradients = useMemo<[string, string][]>(
@@ -350,6 +353,7 @@ export default function Peoples_Screen({
       headerRight: () =>
         !functs.onePersonProfile && (
           <HeaderActions>
+            <BoostChip />
             {getSkippedLastPerson !== null && (
               <HeaderIconButton
                 family="mci"
@@ -819,11 +823,7 @@ export default function Peoples_Screen({
     }
   }
 
-  const distanceLabel = (() => {
-    const miles = Number(currentPerson?.distance_miles);
-    if (!Number.isFinite(miles)) return null;
-    return miles < 1 ? 'Less than a mile away' : `${Math.round(miles)} mi away`;
-  })();
+  const distanceLabel = formatDistance(currentPerson?.distance_miles, unit);
 
   const languagesSpoken: string[] = (() => {
     const raw = currentPerson?.user_bio_language;
@@ -856,9 +856,7 @@ export default function Peoples_Screen({
         },
         {
           icon: <MIcon name="ruler" size={18} color={colors.accent} />,
-          value: currentPerson?.user_bio_height
-            ? help.cmToFtIn(currentPerson?.user_bio_height)
-            : null,
+          value: formatHeight(currentPerson?.user_bio_height, unit),
         },
         {
           icon: (

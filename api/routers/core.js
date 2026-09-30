@@ -46,6 +46,7 @@ import pushFeedComment from "./core/pushFeedComment.js";
 import pushDeleteFeedComment from "./core/pushDeleteFeedComment.js";
 import pushDeleteAccount from "./core/pushDeleteAccount.js";
 import pushClaimStreakReward from "./core/pushClaimStreakReward.js";
+import pushBoost from "./core/pushBoost.js";
 
 // pushLogReport is open to signed-out clients, so it's throttled per IP instead.
 const LOG_REQUESTS_PER_MINUTE = 60;
@@ -278,6 +279,9 @@ core_router.post("/:action", async (req, res) => {
         reason: reportReason,
       });
       return res.json(reportUserResult);
+    }
+    case "pushBoost": {
+      return res.json(await pushBoost());
     }
     case "pushClaimStreakReward": {
       const claimResult = await pushClaimStreakReward();

@@ -4,8 +4,8 @@
   "description": "Find your next favorite person with better matching and safer conversations.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#fff8fa",
-  "theme_color": "#e8546f",
+  "background_color": "#FAF7F4",
+  "theme_color": "#E24862",
   "icons": [
     {
       "src": "/favicon-192x192.png",

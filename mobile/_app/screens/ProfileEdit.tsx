@@ -49,6 +49,7 @@ import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
 import LinearGradient from '../funcs/customGradient';
 import { useTheme, ThemeColors } from '../funcs/theme';
+import { useUnits, formatHeight, UnitSystem } from '../funcs/units';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const GAP = 5;
@@ -57,16 +58,17 @@ export const MAX_PROMPTS = 3;
 export const MAX_INTERESTS = 15;
 
 // user_bio_height is stored in centimetres.
-const heightLabel = (cm?: string | null) => {
-  const n = Number(cm);
-  if (!cm || !Number.isFinite(n) || n <= 0) return null;
-  const totalInches = Math.round(n / 2.54);
-  return `${Math.floor(totalInches / 12)}'${totalInches % 12}" (${n} cm)`;
+// Height is stored in cm; imperial shows both so the cm value stays visible.
+const heightLabel = (cm: string | null | undefined, unit: UnitSystem) => {
+  const primary = formatHeight(cm, unit);
+  if (!primary || unit === 'metric') return primary;
+  return `${primary} (${Number(cm)} cm)`;
 };
-const HEIGHT_OPTIONS = Array.from({ length: 81 }, (_, i) => {
-  const cm = String(140 + i);
-  return { id: cm, label: heightLabel(cm) as string };
-});
+const heightOptions = (unit: UnitSystem) =>
+  Array.from({ length: 81 }, (_, i) => {
+    const cm = String(140 + i);
+    return { id: cm, label: heightLabel(cm, unit) as string };
+  });
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface PhotoItem {
@@ -584,6 +586,7 @@ export function Screen_editprofile({
   route?: any;
 }) {
   const { colors } = useTheme();
+  const { unit } = useUnits();
   const photoStyles = useMemo(() => createPhotoStyles(colors), [colors]);
   const pgStyles = useMemo(() => createPgStyles(colors), [colors]);
 
@@ -1314,14 +1317,16 @@ export function Screen_editprofile({
                 />
                 <PickerField
                   label="Height"
-                  value={heightLabel(getProfileEdit.height)}
+                  value={heightLabel(getProfileEdit.height, unit)}
                   icon="human-male-height"
                   onPress={() =>
                     openPicker({
                       expanded: true,
                       title: 'How tall are you?',
                       selectedId: getProfileEdit.height,
-                      sections: [{ title: 'Height', options: HEIGHT_OPTIONS }],
+                      sections: [
+                        { title: 'Height', options: heightOptions(unit) },
+                      ],
                       onSelect: id => updateProfileEdit({ height: id }),
                     })
                   }

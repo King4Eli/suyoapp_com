@@ -10,14 +10,15 @@ import {
   View,
   Text,
   Pressable,
-  Dimensions,
   StyleSheet,
   Animated,
   Easing,
   FlatList,
   ScrollView,
   ActivityIndicator,
+  LayoutChangeEvent,
 } from 'react-native';
+import { useContentWidth } from '../funcs/responsive';
 import {
   _http_request,
   cacheStorage,
@@ -27,6 +28,7 @@ import {
 import { likesBadge } from '../funcs/tabBadges';
 import { useLiveRefresh } from '../funcs/useLiveRefresh';
 import { styles, namer, __CONFIG__ } from '../funcs/static';
+import { startBoost, useBoost } from '../funcs/boost';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import { BlurView } from '@react-native-community/blur';
 
@@ -69,8 +71,30 @@ const getAllLikesSortPriority = (item: any) => {
   return (isVerifiedLike(item) ? 2 : 0) + (isSuperlike(item) ? 1 : 0);
 };
 
+// Likes grid: one gap for rows, columns and the loading skeleton. Columns are
+// as many as fit at MIN_TILE_WIDTH (2 on phones, 3-4 on tablets).
+const GRID_GAP = 10;
+const MIN_TILE_WIDTH = 150;
+const MIN_COLUMNS = 2;
+const MAX_COLUMNS = 4;
+const TILE_ASPECT = 1.5; // height / width
+
+function likesGridLayout(gridWidth: number) {
+  const fit = Math.floor((gridWidth + GRID_GAP) / (MIN_TILE_WIDTH + GRID_GAP));
+  const numColumns = Math.min(MAX_COLUMNS, Math.max(MIN_COLUMNS, fit));
+  // Floored so rounding never pushes the last tile onto a new row
+  const itemWidth = Math.floor(
+    (gridWidth - (numColumns - 1) * GRID_GAP) / numColumns,
+  );
+  return {
+    numColumns,
+    itemWidth,
+    itemHeight: Math.round(itemWidth * TILE_ASPECT),
+  };
+}
 export function Screen_likes({ navigation }: { navigation: any }) {
   const { colors } = useTheme();
+  const boost = useBoost();
   const stylesoy = useMemo(() => createStylesoy(colors), [colors]);
   const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
 
@@ -81,11 +105,16 @@ export function Screen_likes({ navigation }: { navigation: any }) {
 
   const [getNewLikes, setNewLikes] = useState<any>(null);
   const [activeFilter, setActiveFilter] = useState<LikesFilter>('all');
-  const [layout, setLayout] = useState({
-    numColumns: 2,
-    itemWidth: 0,
-    itemHeight: 0,
-  });
+  // The grid's real width, measured on layout (so the screen's padding never
+  // has to be guessed). Until then, the content column minus that padding.
+  const contentWidth = useContentWidth();
+  const [measuredGridWidth, setMeasuredGridWidth] = useState(0);
+  const gridWidth = measuredGridWidth || contentWidth - 14;
+  const layout = useMemo(() => likesGridLayout(gridWidth), [gridWidth]);
+  const onGridLayout = useCallback((e: LayoutChangeEvent) => {
+    const width = Math.floor(e.nativeEvent.layout.width);
+    setMeasuredGridWidth(prev => (prev === width ? prev : width));
+  }, []);
   const LIKES_PAGE_SIZE = 12;
   const [visibleLikes, setVisibleLikes] = useState<number>(LIKES_PAGE_SIZE);
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(true);
@@ -139,25 +168,6 @@ export function Screen_likes({ navigation }: { navigation: any }) {
     });
   }, [canSeeLikes, navigation, colors.background]);
 
-  // Calculate responsive layout based on orientation and device width
-  const calculateLayout = useCallback((width: number, height: number) => {
-    const isLandscape = width > height;
-    const padding = 24;
-    const gap = 12;
-
-    let numColumns: number;
-    if (isLandscape) {
-      numColumns = width >= 900 ? 4 : 3;
-    } else {
-      numColumns = width >= 600 ? 3 : 2;
-    }
-
-    const itemWidth = (width - padding - (numColumns - 1) * gap) / numColumns;
-    const itemHeight = itemWidth * 1.5;
-
-    setLayout({ numColumns, itemWidth, itemHeight });
-  }, []);
-
   const bounceAnimx = useRef(new Animated.Value(0)).current;
   const bounceInterpolatex = bounceAnimx.interpolate({
     inputRange: [0, 0.6, 1],
@@ -190,18 +200,6 @@ export function Screen_likes({ navigation }: { navigation: any }) {
       bounceAnimx.setValue(0);
     };
   }, [bounceAnimx]);
-
-  // Initial layout calculation and on dimension change
-  useEffect(() => {
-    const { width, height } = Dimensions.get('window');
-    calculateLayout(width, height);
-
-    const subscription = Dimensions.addEventListener('change', ({ window }) => {
-      calculateLayout(window.width, window.height);
-    });
-
-    return () => subscription?.remove();
-  }, [calculateLayout]);
 
   const filteredLikes = useMemo(() => {
     let list = Array.isArray(getNewLikes) ? [...getNewLikes] : [];
@@ -286,21 +284,21 @@ export function Screen_likes({ navigation }: { navigation: any }) {
   useLiveRefresh('likes-screen', loadLikes);
 
   if (getNewLikes === null) {
-    const skeletonWidth = Dimensions.get('window').width;
-    const skeletonCols = skeletonWidth >= 600 ? 3 : 2;
-    const skeletonItemWidth =
-      (skeletonWidth - 24 - (skeletonCols - 1) * 12) / skeletonCols;
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <Skeleton style={{ height: 96, borderRadius: 16, marginBottom: 12 }} />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-          {Array.from({ length: skeletonCols * 3 }).map((_, i) => (
+        {/* Same grid as the loaded list, so nothing jumps when likes arrive */}
+        <View
+          onLayout={onGridLayout}
+          style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP }}
+        >
+          {Array.from({ length: layout.numColumns * 3 }).map((_, i) => (
             <Skeleton
               key={i}
               style={{
-                width: skeletonItemWidth,
-                height: skeletonItemWidth * 1.5,
-                borderRadius: 16,
+                width: layout.itemWidth,
+                height: layout.itemHeight,
+                borderRadius: 8,
               }}
             />
           ))}
@@ -317,7 +315,9 @@ export function Screen_likes({ navigation }: { navigation: any }) {
       {getNewLikes.length > 0 ? (
         <>
           <FlatList
+            // numColumns can't change on a mounted FlatList
             key={`likesList-${layout.numColumns}`}
+            onLayout={onGridLayout}
             onEndReached={handleEndReached}
             onEndReachedThreshold={0.1}
             data={processedLikes}
@@ -326,7 +326,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
             }
             numColumns={layout.numColumns}
             showsVerticalScrollIndicator={false}
-            columnWrapperStyle={{ gap: 7 }}
+            columnWrapperStyle={{ gap: GRID_GAP }}
             ListHeaderComponent={
               <View style={{ gap: 12, marginBottom: 12 }}>
                 <View
@@ -348,7 +348,9 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                   <View style={{ marginTop: 10 }}>
                     <Pressable
                       onPress={() =>
-                        navigation.navigate(namer.navigation.subscription)
+                        canSeeLikes
+                          ? startBoost()
+                          : navigation.navigate(namer.navigation.subscription)
                       }
                       style={{
                         flex: 1,
@@ -367,7 +369,11 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                         color="#fff"
                       />
                       <Text style={{ color: '#fff', fontWeight: '700' }}>
-                        {canSeeLikes ? 'Boost visibility' : 'Unlock all likes'}
+                        {!canSeeLikes
+                          ? 'Unlock all likes'
+                          : boost.isActive
+                          ? `Boosted · ${boost.timeLeft} left`
+                          : 'Boost visibility'}
                       </Text>
                     </Pressable>
                   </View>
@@ -682,7 +688,7 @@ function createStylesoy(colors: ThemeColors) {
     card: {
       borderRadius: 8,
       backgroundColor: colors.surface,
-      marginBottom: 10,
+      marginBottom: GRID_GAP,
       shadowColor: colors.shadow,
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,

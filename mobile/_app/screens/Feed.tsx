@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   Modal,
+  useWindowDimensions,
 } from 'react-native';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import {
@@ -24,7 +25,6 @@ import {
   logReport,
   mediaHandler,
   reportUser,
-  screenWidth,
   uploadHandler,
 } from '../funcs/functions';
 import { styles, namer, __CONFIG__ } from '../funcs/static';
@@ -668,6 +668,7 @@ function FullscreenMediaViewer({
   initialIndex: number;
   onClose: () => void;
 }) {
+  const { width: screenWidth } = useWindowDimensions();
   return (
     <Modal
       visible={!!media}

@@ -23,7 +23,6 @@ import {
   getCurrentLocation,
   getFriendlyNetworkErrorMessage,
   navigationRef,
-  screenWidth,
   uploadHandler,
 } from '../funcs/functions';
 import { Toastx } from '../funcs/customNotification';
@@ -1442,7 +1441,7 @@ function createStylesx(colors: ThemeColors) {
       backgroundColor: colors.primary,
     },
     page: {
-      width: screenWidth,
+      width: '100%',
       flex: 1,
     },
     scrollContent: {

@@ -1,10 +1,11 @@
 import site from "../config/site.json";
+import { CheckIcon } from "../components/Icons.tsx";
 
 function PaymentSuccess() {
   return (
     <section className="legal status-page">
       <div className="status-icon status-icon-success" aria-hidden="true">
-        ✓
+        <CheckIcon width={30} height={30} />
       </div>
       <h1>Payment successful</h1>
       <p>
@@ -12,7 +13,7 @@ function PaymentSuccess() {
         reflected on your profile.
       </p>
       <a
-        className="store-button status-cta"
+        className="btn btn-primary status-cta"
         target="_blank"
         rel="noopener noreferrer"
         href={site.urls.site}

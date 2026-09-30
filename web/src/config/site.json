@@ -1,12 +1,15 @@
 {
   "brand": {
     "name": "SuyoApp",
-    "nameParts": { "base": "suyo", "accent": "app" },
+    "nameParts": {
+      "base": "suyo",
+      "accent": "app"
+    },
     "tagline": "Find your next favorite person.",
     "shortDescription": "Find your next favorite person with better matching and safer conversations.",
     "logo": {
-      "type": "text",
-      "imagePath": null
+      "type": "image",
+      "imagePath": "/favicon-192x192.png"
     },
     "favicon": "/favicon.ico",
     "socialShareImage": "/social-share.svg"
@@ -52,33 +55,83 @@
   },
   "theme": {
     "light": {
-      "background": "#fff8fa",
-      "text": "#74636b",
-      "textHeading": "#2d2430",
-      "accent": "#e8546f",
-      "accentDark": "#c53f58"
+      "background": "#FAF7F4",
+      "text": "#6C625B",
+      "textHeading": "#221E1B",
+      "accent": "#E24862",
+      "accentDark": "#B23350",
+      "gradientStart": "#F0577A",
+      "gradientEnd": "#B23FA0"
     },
     "dark": {
-      "background": "#1c1418",
-      "text": "#b9adb2",
-      "textHeading": "#f7f0f2",
-      "accent": "#e8546f",
-      "accentDark": "#f27b90"
+      "background": "#131110",
+      "text": "#B6ABA3",
+      "textHeading": "#F4EFEB",
+      "accent": "#FF5C79",
+      "accentDark": "#D6455E",
+      "gradientStart": "#FF5C79",
+      "gradientEnd": "#C558B8"
     }
   },
   "nav": {
     "headerCtaLabel": "Get the app",
     "footerLinks": [
-      { "label": "Privacy", "to": "/privacy" },
-      { "label": "Terms", "to": "/terms" },
-      { "label": "Contact", "to": "/contact" }
+      {
+        "label": "Privacy",
+        "to": "/privacy"
+      },
+      {
+        "label": "Terms",
+        "to": "/terms"
+      },
+      {
+        "label": "Contact",
+        "to": "/contact"
+      }
+    ],
+    "links": [
+      {
+        "label": "How it works",
+        "to": "/#how"
+      },
+      {
+        "label": "Features",
+        "to": "/#features"
+      },
+      {
+        "label": "Safety",
+        "to": "/#safety"
+      }
     ]
   },
   "home": {
     "hero": {
-      "headline": "Find your next favorite person.",
-      "body": "Sign in with your phone number to start matching, chatting, and meeting people who are actually worth your time."
+      "eyebrow": "Dating, but make it real",
+      "headline": "Find your next",
+      "headlineAccent": "favorite person.",
+      "body": "Sign in with your phone number to start matching, chatting, and meeting people who are actually worth your time.",
+      "trust": ["Phone-verified sign-in", "Free to join", "18+ only"]
     },
+    "how": {
+      "eyebrow": "How it works",
+      "title": "From hello to first date in three steps",
+      "steps": [
+        {
+          "title": "Make it yours",
+          "body": "Add your best photos, answer a few prompts, and pick the interests that say the most about you."
+        },
+        {
+          "title": "Swipe with intent",
+          "body": "Like who catches your eye, pass on who doesn't, and send a rose when someone really stands out."
+        },
+        {
+          "title": "Match and talk",
+          "body": "When it's mutual, the chat opens. Send messages, photos, and voice notes right away."
+        }
+      ]
+    },
+    "featuresEyebrow": "Why SuyoApp",
+    "featuresTitle": "Built for connections that go somewhere",
     "features": [
       {
         "title": "Smart matches",
@@ -95,8 +148,31 @@
       {
         "title": "Your privacy first",
         "body": "Block and report anyone, anytime. You’re always in control of who can reach you."
+      },
+      {
+        "title": "Travel mode",
+        "body": "Heading somewhere new? Set your location ahead of time and start matching before you land."
+      },
+      {
+        "title": "Roses",
+        "body": "Skip the queue. A rose puts you at the top of someone’s likes and shows you mean it."
       }
-    ]
+    ],
+    "safety": {
+      "eyebrow": "Trust & safety",
+      "title": "You’re in control, always",
+      "body": "Every account is phone-verified, every report is reviewed, and you decide who can reach you.",
+      "points": [
+        "Phone verification on every account",
+        "Block or report from any profile or chat",
+        "Human review of reports",
+        "Delete your account and data anytime"
+      ]
+    },
+    "cta": {
+      "title": "Your person might be one swipe away.",
+      "body": "Download SuyoApp and start matching today. It’s free to join."
+    }
   },
   "legal": {
     "lastUpdated": "July 9, 2026",

@@ -209,25 +209,18 @@ function build_device_page_url(int $page, string $query, string $os_filter, int 
                         <th>Carrier</th>
                         <th>First Seen</th>
                         <th>Last Seen</th>
-                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (!$devices): ?>
                         <tr>
-                            <td colspan="8" class="text-center text-muted py-4">No devices found.</td>
+                            <td colspan="7" class="text-center text-muted py-4">No devices found.</td>
                         </tr>
                     <?php endif; ?>
                     <?php foreach ($devices as $device): ?>
                         <tr>
                             <td>
-                                <div class="fw-semibold"><?php echo htmlspecialchars($device['user_fullname'] ?? 'Unknown'); ?></div>
-                                <div class="small text-muted">
-                                    <button type="button" class="btn btn-link p-0 js-copy" title="Click to copy"
-                                        data-copy="<?php echo htmlspecialchars($device['user_id'] ?? ''); ?>">
-                                        <?php echo htmlspecialchars($device['user_id'] ?? ''); ?>
-                                    </button>
-                                </div>
+                                <?php echo user_cell($device['user_id'] ?? null, $device['user_fullname'] ?? null); ?>
                             </td>
                             <td>
                                 <div class="fw-semibold">
@@ -249,14 +242,8 @@ function build_device_page_url(int $page, string $query, string $os_filter, int 
                             <td><?php echo htmlspecialchars($device['device_os'] ?? 'Unknown'); ?></td>
                             <td><?php echo htmlspecialchars($device['app_version'] ?? ''); ?></td>
                             <td><?php echo htmlspecialchars($device['carrier'] ?? ''); ?></td>
-                            <td><?php echo htmlspecialchars($device['date_created'] ?? ''); ?></td>
-                            <td><?php echo htmlspecialchars($device['date_mod'] ?? ''); ?></td>
-                            <td class="text-end">
-                                <?php if (!empty($device['user_id'])): ?>
-                                    <a class="btn btn-sm btn-outline-secondary"
-                                        href="singleuser.php?id=<?php echo urlencode($device['user_id']); ?>"><i class="bi bi-person"></i> User</a>
-                                <?php endif; ?>
-                            </td>
+                            <td><?php echo time_cell($device['date_created'] ?? null); ?></td>
+                            <td><?php echo time_cell($device['date_mod'] ?? null); ?></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>

@@ -32,7 +32,6 @@ import {
   _http_request,
   help,
   mediaHandler,
-  screenWidth,
   logReport,
   uploadHandler,
   navigationRef,
@@ -68,6 +67,7 @@ import {
 import ImageViewing from 'react-native-image-viewing';
 import { useTheme } from '../funcs/theme';
 import { HeaderIconButton } from '../funcs/customHeader';
+import { useContentWidth } from '../funcs/responsive';
 
 const CONFIG = {
   imgSelectUploadLimit: 4,
@@ -615,6 +615,8 @@ export function Screen_conversation({
 }) {
   const ajjj = useCallback(bottomsheet_renderBackdrop, []);
   const { colors } = useTheme();
+  // Live width of the chat column (rotation, tablets)
+  const contentWidth = useContentWidth();
 
   const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
   const imageDomain = __MAPPER?.img_domain;
@@ -2376,7 +2378,7 @@ export function Screen_conversation({
               style={{
                 paddingVertical: 4,
                 maxWidth: '100%',
-                minWidth: Math.min(screenWidth * 0.65, 280),
+                minWidth: Math.min(contentWidth * 0.65, 280),
               }}
             >
               <View
@@ -2466,9 +2468,10 @@ export function Screen_conversation({
                 const originalHeight = img?.h ?? 600;
                 const targetHeight = 190;
                 const aspectRatio = originalWidth / originalHeight;
+                // Fits inside the bubble on any width
                 const targetWidth = Math.min(
                   targetHeight * aspectRatio,
-                  screenWidth,
+                  contentWidth * 0.7,
                 );
 
                 let imgPath = img?.p;
@@ -2728,7 +2731,7 @@ export function Screen_conversation({
                   const aspectRatio = originalWidth / originalHeight;
                   const targetWidth = Math.min(
                     targetHeight * aspectRatio,
-                    screenWidth * 0.8,
+                    contentWidth * 0.8,
                   );
 
                   return (

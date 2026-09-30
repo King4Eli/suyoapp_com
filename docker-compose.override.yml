@@ -24,4 +24,7 @@ services:
     build:
       context: ./web
       target: build
-    command: npm run dev -- --host 0.0.0.0
+    command: npm run dev -- --host 0.0.0.0 --port 80
+    volumes:
+      - ./web:/var/www/html
+      - /var/www/html/node_modules

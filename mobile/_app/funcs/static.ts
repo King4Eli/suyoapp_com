@@ -269,6 +269,7 @@ export const namer = {
     themeMode: 'pk3nf7vqxz8w2m',
     lastLocationPush: 'qm3nc7xr9wfj2t',
     apiBuild: 'xw8br4ktq2zj7m', // X-Api-Build the caches were filled under
+    units: 'vt6hq2mzc9rk4p', // display-only: 'metric' | 'imperial'
   },
   navigation: {
     devpage: 'zz_devv',
@@ -283,6 +284,7 @@ export const namer = {
     myTimeline: 'MyTimeline',
     profile: 'Profile',
     settings: 'Settings',
+    notificationSettings: 'NotificationSettings',
     editprofile: 'Editprofile',
     editProfilePrompts: 'EditProfilePrompts',
     editProfileInterests: 'EditProfileInterests',

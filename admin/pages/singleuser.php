@@ -220,11 +220,11 @@ function fmt_ts(?string $ts): string
     <?php include "../global/head.php"; ?>
     <style>
         .profile-image { width: 120px; height: 120px; object-fit: cover; border-radius: 10px; }
-        .info-grid dt { font-weight: 600; color: #6b7280; font-size: .85rem; }
+        .info-grid dt { font-weight: 600; color: var(--admin-muted); font-size: .85rem; }
         .info-grid dd { margin-bottom: .9rem; word-break: break-word; }
         .allfields td { vertical-align: top; }
-        .allfields td.k { white-space: nowrap; font-family: ui-monospace, monospace; font-size: .82rem; color: #374151; width: 240px; }
-        .allfields pre { white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow: auto; background: #f8f9fa; padding: .6rem; border-radius: 6px; }
+        .allfields td.k { white-space: nowrap; font-family: ui-monospace, monospace; font-size: .82rem; color: var(--admin-text); width: 240px; }
+        .allfields pre { white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow: auto; background: var(--admin-surface-2); padding: .6rem; border-radius: 6px; }
         .copy-btn { --bs-btn-padding-y: .1rem; --bs-btn-padding-x: .4rem; --bs-btn-font-size: .7rem; }
     </style>
 </head>

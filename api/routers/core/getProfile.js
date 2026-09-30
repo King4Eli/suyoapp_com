@@ -81,6 +81,16 @@ export default async function getProfile() {
         user_preference_language: users.userPreferenceLanguage,
         user_notify_email: users.userNotifyEmail,
         user_notify_push: users.userNotifyPush,
+        user_notify_push_likes: users.userNotifyPushLikes,
+        user_notify_push_matches: users.userNotifyPushMatches,
+        user_notify_push_messages: users.userNotifyPushMessages,
+        user_notify_push_promotions: users.userNotifyPushPromotions,
+        user_notify_push_announcements: users.userNotifyPushAnnouncements,
+        user_notify_email_likes: users.userNotifyEmailLikes,
+        user_notify_email_matches: users.userNotifyEmailMatches,
+        user_notify_email_messages: users.userNotifyEmailMessages,
+        user_notify_email_promotions: users.userNotifyEmailPromotions,
+        user_notify_email_announcements: users.userNotifyEmailAnnouncements,
         user_privacy_show_distance: users.userPrivacyShowDistance,
         user_privacy_show_age: users.userPrivacyShowAge,
         user_privacy_incognito: users.userPrivacyIncognito,
@@ -198,12 +208,15 @@ export default async function getProfile() {
 
     userLocation = userProfile.geo_meta ?? {};
 
+    const entitlementsLoad = getEntitlements(sessions.currentUserID);
     const [entitlements, roses, directMessages, boosts, streak] =
       await Promise.all([
-        getEntitlements(sessions.currentUserID),
+        entitlementsLoad,
         getRoseStatus(sessions.currentUserID),
         getDirectMessageStatus(sessions.currentUserID),
-        getBoostStatus(sessions.currentUserID),
+        entitlementsLoad.then((e) =>
+          getBoostStatus(sessions.currentUserID, e.features.weeklyBoost),
+        ),
         getStreakStatus(sessions.currentUserID),
       ]);
     let likesRemainingToday = null;
@@ -239,6 +252,18 @@ export default async function getProfile() {
         notifications: {
           email: userProfile.user_notify_email === "1",
           push: userProfile.user_notify_push === "1",
+          push_likes: userProfile.user_notify_push_likes === "1",
+          push_matches: userProfile.user_notify_push_matches === "1",
+          push_messages: userProfile.user_notify_push_messages === "1",
+          push_promotions: userProfile.user_notify_push_promotions === "1",
+          push_announcements:
+            userProfile.user_notify_push_announcements === "1",
+          email_likes: userProfile.user_notify_email_likes === "1",
+          email_matches: userProfile.user_notify_email_matches === "1",
+          email_messages: userProfile.user_notify_email_messages === "1",
+          email_promotions: userProfile.user_notify_email_promotions === "1",
+          email_announcements:
+            userProfile.user_notify_email_announcements === "1",
         },
         privacy: {
           showDistance: userProfile.user_privacy_show_distance === "1",

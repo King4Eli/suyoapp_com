@@ -392,6 +392,8 @@ export const userBoostUsage = mysqlTable("user_boost_usage", {
   userId: varchar("user_id", { length: 50 }).primaryKey().notNull(),
   // purchased boosts not yet used
   boostBalance: int("boost_balance").notNull().default(0),
+  // when the plan's free weekly boost was last used; it's back 7 days later
+  weeklyBoostUsedAt: timestamp("weekly_boost_used_at"),
 });
 
 export const userDirectMessageUsage = mysqlTable("user_direct_message_usage", {
@@ -533,12 +535,53 @@ export const users = mysqlTable("users", {
     .notNull()
     .default(-99),
   userPreferenceLanguage: longtext("user_preference_language"),
-  // Settings > Notifications. Email covers activity (likes, matches, messages);
-  // security codes, receipts and billing emails are always sent (global/notifyEmail.js).
+  // Settings > Notifications > Push / Email. user_notify_<channel> turns the
+  // whole channel off; the per-category columns pick what it carries while on.
+  // Security codes, receipts and billing emails ignore all of these and are
+  // always sent (global/notifyEmail.js). Promotions are marketing, so opt-in.
   userNotifyEmail: mysqlEnum("user_notify_email", ["0", "1"])
     .notNull()
     .default("1"),
+  userNotifyEmailLikes: mysqlEnum("user_notify_email_likes", ["0", "1"])
+    .notNull()
+    .default("1"),
+  userNotifyEmailMatches: mysqlEnum("user_notify_email_matches", ["0", "1"])
+    .notNull()
+    .default("1"),
+  userNotifyEmailMessages: mysqlEnum("user_notify_email_messages", ["0", "1"])
+    .notNull()
+    .default("1"),
+  userNotifyEmailPromotions: mysqlEnum("user_notify_email_promotions", [
+    "0",
+    "1",
+  ])
+    .notNull()
+    .default("0"),
+  userNotifyEmailAnnouncements: mysqlEnum("user_notify_email_announcements", [
+    "0",
+    "1",
+  ])
+    .notNull()
+    .default("1"),
   userNotifyPush: mysqlEnum("user_notify_push", ["0", "1"])
+    .notNull()
+    .default("1"),
+  userNotifyPushLikes: mysqlEnum("user_notify_push_likes", ["0", "1"])
+    .notNull()
+    .default("1"),
+  userNotifyPushMatches: mysqlEnum("user_notify_push_matches", ["0", "1"])
+    .notNull()
+    .default("1"),
+  userNotifyPushMessages: mysqlEnum("user_notify_push_messages", ["0", "1"])
+    .notNull()
+    .default("1"),
+  userNotifyPushPromotions: mysqlEnum("user_notify_push_promotions", ["0", "1"])
+    .notNull()
+    .default("0"),
+  userNotifyPushAnnouncements: mysqlEnum("user_notify_push_announcements", [
+    "0",
+    "1",
+  ])
     .notNull()
     .default("1"),
   userPrivacyShowDistance: mysqlEnum("user_privacy_show_distance", ["0", "1"])
@@ -560,6 +603,8 @@ export const users = mysqlTable("users", {
     .notNull()
     .default("0"),
   userBioSocialLinks: longtext("user_bio_social_links"),
+  // Boosted profiles rank first in discovery until this time (pushBoost.js).
+  userBoostedUntil: timestamp("user_boosted_until"),
 });
 
 // Secondary (travel mode) locations -- at most MAX_SECONDARY_LOCATIONS per user

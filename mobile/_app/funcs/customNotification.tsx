@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -14,7 +20,6 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import IIcon from 'react-native-vector-icons/Ionicons';
-import { screenWidth } from './functions';
 import { useTheme } from './theme';
 import type { ThemeColors } from './theme/palette';
 
@@ -80,6 +85,9 @@ const ToastCard = ({
   const accent = getAccentColor(colors, item.type);
   const iconName =
     item.icon ?? (item.type ? SEMANTIC_ICONS[item.type] : 'notifications');
+  const { width: windowWidth } = useWindowDimensions();
+  // Phone: nearly full width. Tablet: a readable toast, not a banner.
+  const cardWidth = Math.min(windowWidth - 28, 480);
 
   const translateX = useSharedValue(0);
   const enter = useSharedValue(0);
@@ -161,11 +169,11 @@ const ToastCard = ({
     })
     .onEnd(e => {
       const shouldDismiss =
-        Math.abs(e.translationX) > screenWidth * 0.25 ||
+        Math.abs(e.translationX) > windowWidth * 0.25 ||
         Math.abs(e.velocityX) > 800;
       if (shouldDismiss) {
         translateX.value = withTiming(
-          (e.translationX < 0 ? -1 : 1) * screenWidth,
+          (e.translationX < 0 ? -1 : 1) * windowWidth,
           {
             duration: 200,
             easing: Easing.out(Easing.cubic),
@@ -207,6 +215,7 @@ const ToastCard = ({
           accessibilityRole="alert"
           style={({ pressed }) => [
             styles.card,
+            { width: cardWidth },
             {
               backgroundColor: colors.surfaceElevated,
               borderColor: colors.border,
@@ -373,8 +382,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   card: {
-    minWidth: screenWidth / 1.15,
-    maxWidth: screenWidth - 28,
     borderRadius: 18,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',

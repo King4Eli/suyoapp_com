@@ -38,7 +38,6 @@ import Feather from 'react-native-vector-icons/Feather';
 import BottomSheet, {
   BottomSheetScrollView,
   BottomSheetTextInput,
-  BottomSheetView,
 } from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
 import { onPaymentRefreshed } from '../funcs/functions/paymentNotices';
@@ -48,6 +47,7 @@ import {
   bottomsheet_renderHandle,
 } from '../funcs/functions_stateful';
 import { useTheme, ThemeMode, ThemeColors } from '../funcs/theme';
+import { useUnits, UnitSystem } from '../funcs/units';
 import {
   SubscriptionCard,
   confirmCancelPlan,
@@ -57,6 +57,7 @@ import {
 export function Screen_settings({ navigation }: { navigation: any }) {
   const [getProfile, setProfile] = useState<any>(null);
   const { colors, mode, setMode } = useTheme();
+  const { unit, setUnit } = useUnits();
   const MODERN_COLORS = colors;
   const modernStyles = useMemo(() => createModernStyles(colors), [colors]);
 
@@ -64,8 +65,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   const [privacyShowAge, setPrivacyShowAge] = useState(true);
   const [privacyIncognitoMode, setPrivacyIncognitoMode] = useState(false);
   const [privacyReadReceipts, setPrivacyReadReceipts] = useState(false);
-  const [notifyPushEnabled, setNotifyPushEnabled] = useState(true);
-  const [notifyEmailEnabled, setNotifyEmailEnabled] = useState(true);
 
   const subscriptionState = help.getSubscriptionState(getProfile);
   const currentPlan = describePlan(getProfile);
@@ -76,15 +75,22 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   }, []);
   const profileDetails = getProfile?.profile ?? {};
   const profileEmail = profileDetails?.email ?? getProfile?.user_email ?? '';
-  const hasRealEmail = !!profileEmail;
   const profilePhone =
     profileDetails?.phonenumber ?? getProfile?.user_phonenumber ?? '';
 
   const safeInsets = useSafeAreaInsets();
 
-  // Push/privacy sheets size to their content; email/phone hold a carousel that
+  // Row subtitles for Settings > Notifications; the detail lives on each screen.
+  const notifySummary = (channel: 'push' | 'email') => {
+    const n = profileDetails?.notifications;
+    if (n && n[channel] === false) return 'Off';
+    if (channel === 'email' && !profileEmail)
+      return 'Add an email to get these';
+    return 'Likes, matches, messages and more';
+  };
+
+  // The privacy sheet sizes to its content; email/phone hold a carousel that
   // needs a fixed height (its pages scroll when the content doesn't fit)
-  const bottomSheetRef_push = { ref: useRef<BottomSheet>(null) };
   const bottomSheetRef_email = {
     ref: useRef<BottomSheet>(null),
     snap: useMemo(() => ['60%', '80%'], []),
@@ -100,10 +106,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     showAge: true,
     incognitoMode: false,
     readReceipts: false,
-  };
-  const notificationDefaults = {
-    pushEnabled: true,
-    emailEnabled: true,
   };
 
   // Plan changes (checkout, renewal, cancel) refresh the cached profile elsewhere;
@@ -142,13 +144,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         setPrivacyReadReceipts(
           privacy?.readReceipts ?? privacyDefaults.readReceipts,
         );
-        const notifications = profile?.profile?.notifications;
-        setNotifyPushEnabled(
-          notifications?.push ?? notificationDefaults.pushEnabled,
-        );
-        setNotifyEmailEnabled(
-          notifications?.email ?? notificationDefaults.emailEnabled,
-        );
       } catch {
         if (mounted) setProfile(null);
       }
@@ -162,8 +157,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     privacyDefaults.readReceipts,
     privacyDefaults.showAge,
     privacyDefaults.showDistance,
-    notificationDefaults.emailEnabled,
-    notificationDefaults.pushEnabled,
   ]);
 
   useLayoutEffect(() => {
@@ -173,62 +166,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
       headerTitle: '',
     });
   }, [navigation, colors.background]);
-
-  // Stored on the account (users.user_notify_*) -- the server decides which
-  // emails to send from these.
-  const pushNotificationSettings = async (push: boolean, email: boolean) => {
-    const response = await _http_request({
-      customApiUrl: __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/pushProfile',
-      reqType: 'POST',
-      bodyArray: { prof_notifications: { push, email } },
-    });
-    if (response?.code !== 200) {
-      throw new Error(
-        response?.message ?? 'Failed to save notification settings',
-      );
-    }
-    cacheStorage.getCurrentUserProfile(true);
-  };
-
-  const saveNotificationSettings = async () => {
-    try {
-      await pushNotificationSettings(notifyPushEnabled, notifyEmailEnabled);
-      Toastx.show({ type: 'success', message: 'Notification settings saved' });
-      bottomSheetRef_push.ref.current?.close();
-    } catch {
-      Toastx.show({
-        type: 'error',
-        message: 'Failed to save notification settings',
-      });
-      logReport({
-        type: 'function',
-        useraction: 'saveNotificationSettings',
-        logMessage: 'Failed to save notification settings',
-      });
-    }
-  };
-
-  const resetNotificationSettings = async () => {
-    setNotifyPushEnabled(notificationDefaults.pushEnabled);
-    setNotifyEmailEnabled(notificationDefaults.emailEnabled);
-    try {
-      await pushNotificationSettings(
-        notificationDefaults.pushEnabled,
-        notificationDefaults.emailEnabled,
-      );
-      Toastx.show({ type: 'success', message: 'Notification settings reset' });
-    } catch {
-      Toastx.show({
-        type: 'error',
-        message: 'Failed to reset notification settings',
-      });
-      logReport({
-        type: 'function',
-        useraction: 'resetNotificationSettings',
-        logMessage: 'Failed to reset notification settings',
-      });
-    }
-  };
 
   const savePrivacySettings = async () => {
     try {
@@ -505,7 +442,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
             >
               <IIcon
                 name={opt.icon}
-                size={20}
+                size={15}
                 color={active ? colors.onPrimary : colors.textSecondary}
               />
               <Text
@@ -515,6 +452,52 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 ]}
               >
                 {opt.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  };
+
+  // Units: how distances and heights are shown (display only)
+  const UnitsSwitcher = () => {
+    const options: { key: UnitSystem; label: string; hint: string }[] = [
+      { key: 'imperial', label: 'Imperial', hint: 'mi · ft/in' },
+      { key: 'metric', label: 'Metric', hint: 'km · cm' },
+    ];
+    return (
+      <View style={modernStyles.appearanceRow}>
+        {options.map(opt => {
+          const active = unit === opt.key;
+          return (
+            <TouchableOpacity
+              key={opt.key}
+              onPress={() => setUnit(opt.key)}
+              activeOpacity={0.8}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: active }}
+              style={[
+                modernStyles.appearanceOption,
+                active && modernStyles.appearanceOptionActive,
+              ]}
+            >
+              <Text
+                style={[
+                  modernStyles.appearanceOptionText,
+                  active && modernStyles.appearanceOptionTextActive,
+                ]}
+              >
+                {opt.label}
+              </Text>
+              <Text
+                style={[
+                  modernStyles.appearanceOptionText,
+                  { fontWeight: '400' },
+                  active && modernStyles.appearanceOptionTextActive,
+                ]}
+              >
+                {opt.hint}
               </Text>
             </TouchableOpacity>
           );
@@ -1224,6 +1207,11 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               <AppearanceSwitcher />
             </ModernSection>
 
+            {/* Units Section */}
+            <ModernSection title="Units" icon="resize-outline">
+              <UnitsSwitcher />
+            </ModernSection>
+
             {/* Privacy & Safety Section */}
             <ModernSection title="Privacy & Safety" icon="shield-outline">
               <ModernOption
@@ -1247,12 +1235,24 @@ export function Screen_settings({ navigation }: { navigation: any }) {
             {/* Notifications Section */}
             <ModernSection title="Notifications" icon="notifications-outline">
               <ModernOption
-                icon="notifications-outline"
-                title="Notifications"
-                subtitle="Push and email updates"
-                onPress={() => {
-                  bottomSheetRef_push.ref.current?.expand();
-                }}
+                icon="phone-portrait-outline"
+                title="Push"
+                subtitle={notifySummary('push')}
+                onPress={() =>
+                  navigation.navigate(namer.navigation.notificationSettings, {
+                    channel: 'push',
+                  })
+                }
+              />
+              <ModernOption
+                icon="mail-outline"
+                title="Email"
+                subtitle={notifySummary('email')}
+                onPress={() =>
+                  navigation.navigate(namer.navigation.notificationSettings, {
+                    channel: 'email',
+                  })
+                }
                 hr={false}
               />
             </ModernSection>
@@ -1446,62 +1446,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         />
         {/* Keeps the scroll area above the home indicator / nav bar */}
         <View style={{ height: safeInsets.bottom }} />
-      </BottomSheet>
-
-      <BottomSheet
-        ref={bottomSheetRef_push.ref}
-        index={-1}
-        enablePanDownToClose
-        backdropComponent={bottomsheet_renderBackdrop}
-        handleComponent={bottomsheet_renderHandle}
-      >
-        <BottomSheetView
-          style={{ padding: 23, paddingBottom: 23 + safeInsets.bottom }}
-        >
-          <View>
-            <Text style={modernStyles.sectionTitle}>Notifications</Text>
-            <Text style={[modernStyles.optionSubtitle, { marginTop: 6 }]}>
-              Choose how you receive updates and alerts. Codes, receipts and
-              security alerts are always emailed.
-            </Text>
-
-            <View style={{ marginTop: 16 }}>
-              <ModernSwitch
-                icon="notifications-outline"
-                title="Push notifications"
-                subtitle="Allow alerts on your device"
-                value={notifyPushEnabled}
-                onValueChange={setNotifyPushEnabled}
-              />
-              <ModernSwitch
-                icon="mail-outline"
-                title="Email notifications"
-                subtitle={
-                  hasRealEmail
-                    ? 'New likes, matches and messages while you are away'
-                    : 'Add an email address under Account to get these'
-                }
-                value={notifyEmailEnabled}
-                onValueChange={setNotifyEmailEnabled}
-              />
-            </View>
-
-            <View style={[modernStyles.buttonRow, { marginTop: 40 }]}>
-              <TouchableOpacity
-                style={[modernStyles.secondaryButton, { flex: 1 }]}
-                onPress={resetNotificationSettings}
-              >
-                <Text style={modernStyles.secondaryButtonText}>Reset</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[modernStyles.primaryButton, { flex: 1 }]}
-                onPress={saveNotificationSettings}
-              >
-                <Text style={modernStyles.primaryButtonText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </BottomSheetView>
       </BottomSheet>
 
       <BottomSheet
@@ -1765,16 +1709,17 @@ function createModernStyles(colors: ThemeColors) {
     },
     appearanceRow: {
       flexDirection: 'row',
-      gap: 8,
-      paddingVertical: 10,
+      gap: 6,
+      paddingVertical: 8,
     },
     appearanceOption: {
       flex: 1,
+      flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 6,
-      paddingVertical: 14,
-      borderRadius: 14,
+      gap: 5,
+      paddingVertical: 8,
+      borderRadius: 10,
       backgroundColor: colors.backgroundSecondary,
       borderWidth: 1,
       borderColor: colors.border,

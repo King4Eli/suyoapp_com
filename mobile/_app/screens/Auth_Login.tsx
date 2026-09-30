@@ -28,7 +28,6 @@ import {
   _handle_Signin,
   cacheStorage,
   getFriendlyNetworkErrorMessage,
-  screenWidth,
 } from '../funcs/functions';
 import { Loaderx } from '../funcs/functions_stateful';
 import { namer, __CONFIG__ } from '../funcs/static';
@@ -657,7 +656,7 @@ function createStylesx(colors: ThemeColors) {
       backgroundColor: colors.background,
     },
     page: {
-      width: screenWidth,
+      width: '100%',
       flex: 1,
     },
     pageContent: {

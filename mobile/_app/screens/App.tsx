@@ -19,6 +19,7 @@ import { Screen_conversation } from './Conversations';
 import { Auth_Login } from './Auth_Login';
 import { Loaderx } from '../funcs/functions_stateful';
 import { Screen_settings } from './Settings';
+import { Screen_notificationSettings } from './NotificationSettings';
 import { Screen_editprofile } from './ProfileEdit';
 import { Screen_profileVerify } from './ProfileVerify';
 import { Screen_editProfilePrompts } from './ProfileEditPrompts';
@@ -42,7 +43,9 @@ import { SocketClient } from '../funcs/socket_realtimeData';
 import { chatsBadge, likesBadge, useBadgeCount } from '../funcs/tabBadges';
 import { Linking, StatusBar, View } from 'react-native';
 import { ThemeProvider, useTheme } from '../funcs/theme';
+import { UnitsProvider } from '../funcs/units';
 import { HEADER_SIDE_INSET } from '../funcs/customHeader';
+import { ResponsiveScreen } from '../funcs/responsive';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Toastx } from '../funcs/customNotification';
 import { Dialogx } from '../funcs/customDialog';
@@ -56,6 +59,12 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 const Stack = createNativeStackNavigator<any>();
 const TabBottom = createBottomTabNavigator<any>();
 const TAB_HEADER_HEIGHT = 60;
+// Centre every screen's content in a capped-width column (tablets, landscape)
+const renderResponsiveScreen = ({
+  children,
+}: {
+  children: React.ReactElement;
+}) => <ResponsiveScreen>{children}</ResponsiveScreen>;
 
 const MainApp: React.FC = () => {
   const [currentSession, setCurrentSession] = useState<SessionTypes | null>(
@@ -149,6 +158,7 @@ const MainApp: React.FC = () => {
     return (
       <TabBottom.Navigator
         initialRouteName={namer.navigation.peoples}
+        screenLayout={renderResponsiveScreen}
         screenOptions={{
           tabBarShowLabel: true,
           // Same header on iOS and Android: the platform defaults differ in
@@ -263,6 +273,7 @@ const MainApp: React.FC = () => {
       />
       <NavigationContainer ref={navigationRef} theme={navigationTheme}>
         <Stack.Navigator
+          screenLayout={renderResponsiveScreen}
           initialRouteName={
             currentSession?.x_omi_payload ? 'Home' : namer.navigation.login
           }
@@ -286,6 +297,8 @@ const MainApp: React.FC = () => {
                 name="Home"
                 component={BottomTabNavigator}
                 options={{ headerShown: false }}
+                // The tabs centre their own screens; the tab bar stays full width
+                layout={({ children }) => children}
               />
               <Stack.Screen
                 name={namer.navigation.conversation}
@@ -370,6 +383,11 @@ const MainApp: React.FC = () => {
                 component={Screen_settings}
                 options={{ headerBackTitle: '' }}
               />
+              <Stack.Screen
+                name={namer.navigation.notificationSettings}
+                component={Screen_notificationSettings}
+                options={{ headerBackTitle: '' }}
+              />
             </>
           )}
           <Stack.Screen
@@ -385,16 +403,18 @@ const MainApp: React.FC = () => {
 
 const App = () => (
   <ThemeProvider>
-    <SafeAreaProvider style={{ flex: 1, position: 'relative' }}>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <BottomSheetModalProvider>
-          <Loaderx />
-          <MainApp />
-          <Toastx />
-          <Dialogx />
-        </BottomSheetModalProvider>
-      </GestureHandlerRootView>
-    </SafeAreaProvider>
+    <UnitsProvider>
+      <SafeAreaProvider style={{ flex: 1, position: 'relative' }}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <BottomSheetModalProvider>
+            <Loaderx />
+            <MainApp />
+            <Toastx />
+            <Dialogx />
+          </BottomSheetModalProvider>
+        </GestureHandlerRootView>
+      </SafeAreaProvider>
+    </UnitsProvider>
   </ThemeProvider>
 );
 

@@ -270,7 +270,8 @@ export default async function pushProfile(input = {}) {
       }
     }
 
-    // Notification toggles (Settings > Notifications)
+    // Notification toggles (Settings > Notifications > Push / Email), e.g.
+    // { push: true, push_likes: false, email_promotions: true }
     if (
       hasKey(input, "prof_notifications") &&
       input.prof_notifications &&
@@ -279,6 +280,16 @@ export default async function pushProfile(input = {}) {
       const notificationMapping = [
         ["email", "user_notify_email"],
         ["push", "user_notify_push"],
+        ["push_likes", "user_notify_push_likes"],
+        ["push_matches", "user_notify_push_matches"],
+        ["push_messages", "user_notify_push_messages"],
+        ["push_promotions", "user_notify_push_promotions"],
+        ["push_announcements", "user_notify_push_announcements"],
+        ["email_likes", "user_notify_email_likes"],
+        ["email_matches", "user_notify_email_matches"],
+        ["email_messages", "user_notify_email_messages"],
+        ["email_promotions", "user_notify_email_promotions"],
+        ["email_announcements", "user_notify_email_announcements"],
       ];
       for (const [inputKey, dbField] of notificationMapping) {
         const val = input.prof_notifications[inputKey];

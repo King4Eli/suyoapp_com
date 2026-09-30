@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -21,13 +21,15 @@ import {
   help,
   logReport,
   parseCategoryProducts,
-  screenWidth,
 } from '../funcs/functions';
 import { Loaderx } from '../funcs/functions_stateful';
 import { ConsumableSheet } from '../funcs/customConsumableSheet';
 import { namer, resourceMap, styles, __CONFIG__ } from '../funcs/static';
 import { useTheme, ThemeColors, spacing } from '../funcs/theme';
 import { HeaderActions, HeaderIconButton } from '../funcs/customHeader';
+import { useContentWidth } from '../funcs/responsive';
+import { onVerificationChanged } from '../funcs/functions/verificationEvents';
+import { BoostAura, BoostBanner, startBoost, useBoost } from '../funcs/boost';
 
 const PLAN_UI: Record<
   string,
@@ -63,12 +65,18 @@ const getPlanUi = (plan?: string | null) =>
 export function Screen_profile({ navigation }: { navigation: any }) {
   const { colors } = useTheme();
   const stylesx = useMemo(() => createStylesx(colors), [colors]);
+  const contentWidth = useContentWidth();
+  // Power-ups: 3 across on tablets, 2 on phones, 1 on the narrowest phones
+  // (the last one takes the full row when the count doesn't divide evenly)
+  const powerColumns = contentWidth >= 600 ? 3 : contentWidth >= 340 ? 2 : 1;
+  const planCardWidth = Math.min(contentWidth * 0.8, 460);
   const [profile, setProfile] = useState<any>(null);
   const [mainSubProducts, setMainSubProducts] = useState<any[]>([]);
 
   const mapper = cacheStorage.CONFIG.get()?.mapper;
   const imageDomain = mapper?.img_domain ?? '';
   const [buyCategory, setBuyCategory] = useState<string | null>(null);
+  const boost = useBoost();
 
   const profileCore = profile?.profile ?? {};
   const images = Array.isArray(profileCore?.images) ? profileCore.images : [];
@@ -105,7 +113,16 @@ export function Screen_profile({ navigation }: { navigation: any }) {
       label: 'Boost',
       icon: 'flash',
       subtitle: 'Be one of the top profiles in your area',
-      count: Number(profile?.boosts?.balance ?? 0),
+      count: boost.balance,
+      // Tapping a boost uses one; the + buys more.
+      status: boost.isActive
+        ? `Active · ${boost.timeLeft} left`
+        : boost.weeklyAvailable
+        ? `${boost.balance} available · 1 free`
+        : undefined,
+      active: boost.isActive,
+      onPress: () =>
+        startBoost(() => setBuyCategory(namer.productCategoryName.boost)),
     },
     {
       category: namer.productCategoryName.directmessage,
@@ -153,6 +170,9 @@ export function Screen_profile({ navigation }: { navigation: any }) {
       // keep showing the last known profile if the refresh itself fails
     }
   };
+
+  // An admin reviewed the selfie while this screen is open: show the badge now.
+  useEffect(() => onVerificationChanged(refreshProfile), []);
 
   const claimStreakReward = async () => {
     Loaderx.show();
@@ -300,6 +320,8 @@ export function Screen_profile({ navigation }: { navigation: any }) {
           { gap: 14, paddingTop: spacing.sm, paddingBottom: 10 },
         ]}
       >
+        <BoostBanner />
+
         <View style={stylesx.profileCard}>
           <View style={stylesx.profileRow}>
             <Pressable
@@ -312,29 +334,31 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                   trackColor={colors.border}
                   styleProp={stylesx.progressCircle}
                 />
-                {firstImageUri ? (
-                  <SafeImage
-                    style={stylesx.avatar}
-                    resizeMode="cover"
-                    source={{ uri: firstImageUri }}
-                    onError={() =>
-                      logReport({
-                        type: 'http -image',
-                        logMessage: 'Image load',
-                        url: firstImageUri,
-                        useraction: 'Image Load',
-                      })
-                    }
-                  />
-                ) : (
-                  <View style={[stylesx.avatar, stylesx.avatarEmpty]}>
-                    <MIcon
-                      name="account-heart-outline"
-                      size={42}
-                      color={colors.primary}
+                <BoostAura size={100}>
+                  {firstImageUri ? (
+                    <SafeImage
+                      style={stylesx.avatar}
+                      resizeMode="cover"
+                      source={{ uri: firstImageUri }}
+                      onError={() =>
+                        logReport({
+                          type: 'http -image',
+                          logMessage: 'Image load',
+                          url: firstImageUri,
+                          useraction: 'Image Load',
+                        })
+                      }
                     />
-                  </View>
-                )}
+                  ) : (
+                    <View style={[stylesx.avatar, stylesx.avatarEmpty]}>
+                      <MIcon
+                        name="account-heart-outline"
+                        size={42}
+                        color={colors.primary}
+                      />
+                    </View>
+                  )}
+                </BoostAura>
                 {userVerified && (
                   <View style={stylesx.verifiedBadge}>
                     <IIcon
@@ -464,20 +488,44 @@ export function Screen_profile({ navigation }: { navigation: any }) {
         <View style={stylesx.card}>
           <SectionHeader title="Power-ups" colors={colors} stylesx={stylesx} />
           <View style={stylesx.powerGrid}>
-            {consumableItems.map(item => (
+            {consumableItems.map((item: any) => (
               <Pressable
                 key={item.category}
-                style={stylesx.productPill}
-                onPress={() => setBuyCategory(item.category)}
+                style={[
+                  stylesx.productPill,
+                  { flexBasis: `${100 / powerColumns - 4}%` },
+                  item.active && {
+                    borderColor: colors.primary,
+                    borderWidth: 1.5,
+                  },
+                ]}
+                onPress={item.onPress ?? (() => setBuyCategory(item.category))}
               >
                 <IIcon name={item.icon} size={22} color={colors.primary} />
                 <View style={{ flex: 1 }}>
-                  <Text style={stylesx.productLabel}>{item.label}</Text>
-                  <Text style={stylesx.productCount}>
-                    {item.count} available
+                  <Text style={stylesx.productLabel} numberOfLines={1}>
+                    {item.label}
+                  </Text>
+                  <Text
+                    style={[
+                      stylesx.productCount,
+                      item.active && {
+                        color: colors.primary,
+                        fontWeight: '700',
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {item.status ?? `${item.count} available`}
                   </Text>
                 </View>
-                <IIcon name="add-circle" size={22} color={colors.primary} />
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => setBuyCategory(item.category)}
+                  accessibilityLabel={`Buy ${item.label}`}
+                >
+                  <IIcon name="add-circle" size={22} color={colors.primary} />
+                </Pressable>
               </Pressable>
             ))}
           </View>
@@ -517,6 +565,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                     colors={tierUi.cardColors}
                     style={[
                       stylesx.planCard,
+                      { width: planCardWidth },
                       visibleMainSubProducts.length === 1 &&
                         stylesx.singlePlanCard,
                     ]}
@@ -997,7 +1046,6 @@ function createStylesx(colors: ThemeColors) {
     },
     productPill: {
       flexGrow: 1,
-      minWidth: 140,
       borderRadius: 16,
       backgroundColor: colors.backgroundSecondary,
       padding: 12,
@@ -1066,7 +1114,6 @@ function createStylesx(colors: ThemeColors) {
       flexGrow: 1,
     },
     planCard: {
-      width: screenWidth * 0.8,
       borderRadius: 22,
       padding: 16,
       minHeight: 220,
@@ -1124,6 +1171,8 @@ function createStylesx(colors: ThemeColors) {
     },
     streakDot: {
       flex: 1,
+      // Scales down on small phones; capped so tablets don't get giant circles
+      maxWidth: 64,
       aspectRatio: 1,
       borderRadius: 999,
       alignItems: 'center',

@@ -124,6 +124,7 @@ export const TIERS = /** @type {const} */ (["free", "plus", "vip"]);
  *   readReceipts: boolean;
  *   viewSocialLinks: boolean;
  *   travelMode: boolean;
+ *   weeklyBoost: boolean;
  *   dailyRoses: number;
  *   dailyDirectMessages: number;
  * }} PlanFeatures
@@ -140,6 +141,7 @@ export const PLAN_FEATURES = {
     readReceipts: false,
     viewSocialLinks: false,
     travelMode: false,
+    weeklyBoost: false,
     dailyRoses: 2,
     dailyDirectMessages: 3,
   },
@@ -151,6 +153,7 @@ export const PLAN_FEATURES = {
     readReceipts: true,
     viewSocialLinks: false,
     travelMode: false,
+    weeklyBoost: true,
     dailyRoses: 5,
     dailyDirectMessages: 10,
   },
@@ -162,6 +165,7 @@ export const PLAN_FEATURES = {
     readReceipts: true,
     viewSocialLinks: true,
     travelMode: true,
+    weeklyBoost: true,
     dailyRoses: 10,
     dailyDirectMessages: 20,
   },
@@ -455,14 +459,55 @@ export async function grantBoosts(userId, boosts, tx = db) {
     });
 }
 
+/** How long one boost keeps a profile at the top of discovery. */
+export const BOOST_MINUTES = 30;
+/** Plans with weeklyBoost get one free boost per this many days. */
+export const WEEKLY_BOOST_DAYS = 7;
+
 /**
- * Purchased boosts the user hasn't used yet.
+ * Boosts the user can use and whether one is running:
+ * - balance: purchased boosts not yet used
+ * - activeUntil: ISO time the running boost ends, or null
+ * - weekly: the plan's free boost -- available now, or when it's back (null
+ *   when the plan doesn't include one)
  * @param {string} userId
+ * @param {boolean} hasWeeklyBoost the plan's weeklyBoost feature
  */
-export async function getBoostStatus(userId) {
-  const [row] = await db
-    .select({ boostBalance: userBoostUsage.boostBalance })
-    .from(userBoostUsage)
-    .where(eq(userBoostUsage.userId, userId));
-  return { balance: Number(row?.boostBalance ?? 0) };
+export async function getBoostStatus(userId, hasWeeklyBoost) {
+  // Seconds left are worked out by MySQL against its own NOW() (what pushBoost
+  // and discovery compare with), so the session time zone can't skew them.
+  const [[usage], [user]] = await Promise.all([
+    db
+      .select({
+        boostBalance: userBoostUsage.boostBalance,
+        weeklyBackInSeconds:
+          sql`TIMESTAMPDIFF(SECOND, NOW(), ${userBoostUsage.weeklyBoostUsedAt} + INTERVAL ${WEEKLY_BOOST_DAYS} DAY)`.mapWith(
+            Number,
+          ),
+      })
+      .from(userBoostUsage)
+      .where(eq(userBoostUsage.userId, userId)),
+    db
+      .select({
+        boostSecondsLeft:
+          sql`TIMESTAMPDIFF(SECOND, NOW(), ${users.userBoostedUntil})`.mapWith(
+            Number,
+          ),
+      })
+      .from(users)
+      .where(eq(users.userId, userId)),
+  ]);
+  const inSeconds = (/** @type {number | null | undefined} */ secs) =>
+    secs != null && secs > 0
+      ? new Date(Date.now() + secs * 1000).toISOString()
+      : null;
+  const weeklyNextAt = inSeconds(usage?.weeklyBackInSeconds);
+  return {
+    balance: Number(usage?.boostBalance ?? 0),
+    activeUntil: inSeconds(user?.boostSecondsLeft),
+    minutes: BOOST_MINUTES,
+    weekly: hasWeeklyBoost
+      ? { available: weeklyNextAt === null, nextAt: weeklyNextAt }
+      : null,
+  };
 }

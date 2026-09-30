@@ -22,6 +22,7 @@ import { Loaderx } from '../funcs/functions_stateful';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLiveRefresh } from '../funcs/useLiveRefresh';
 import { namer, resourceMap, styles, __CONFIG__ } from '../funcs/static';
+import { startBoost, useBoost } from '../funcs/boost';
 import {
   _http_request,
   cacheStorage,
@@ -47,6 +48,7 @@ const filtersList = [
 
 export function Screen_chat({ navigation }: { navigation: any }) {
   const { colors } = useTheme();
+  const boost = useBoost();
   const [getProfile, setProfile] = useState<any>(null);
   const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
 
@@ -223,7 +225,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
           }}
         >
           <Pressable
-            onPress={() => navigation.navigate(namer.navigation.subscription)}
+            onPress={() => startBoost()}
             style={({ pressed }) => [
               {
                 flex: 1,
@@ -246,7 +248,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
               color="#fff"
             />
             <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>
-              Boost
+              {boost.isActive ? `Boosted · ${boost.timeLeft}` : 'Boost'}
             </Text>
           </Pressable>
           {!activeSubscription && (
@@ -281,7 +283,15 @@ export function Screen_chat({ navigation }: { navigation: any }) {
         </View>
       </LinearGradient>
     );
-  }, [activeSubscription, countNewMatches, getProfile, navigation, colors]);
+  }, [
+    activeSubscription,
+    countNewMatches,
+    getProfile,
+    navigation,
+    colors,
+    boost.isActive,
+    boost.timeLeft,
+  ]);
 
   const renderFiltersRow = useCallback(
     () => (

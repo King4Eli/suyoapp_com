@@ -548,6 +548,10 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
           distanceCondition,
         ),
       )
+      // Boosted profiles (pushBoost.js) come first; the rest stay unordered.
+      .orderBy(
+        sql`(${users.userBoostedUntil} IS NOT NULL AND ${users.userBoostedUntil} > NOW()) DESC`,
+      )
       .limit(9);
 
     if (Array.isArray(rows) && rows.length > 0) {

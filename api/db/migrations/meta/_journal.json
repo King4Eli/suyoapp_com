@@ -92,6 +92,27 @@
       "when": 1790582481619,
       "tag": "0012_user_email_optional_drop_placeholder_emails",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "5",
+      "when": 1790821582987,
+      "tag": "0013_push_and_email_notification_categories",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "5",
+      "when": 1790822117847,
+      "tag": "0014_user_id_collation_match_users_for_admin_joins",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "5",
+      "when": 1790822783882,
+      "tag": "0015_boost_activation_and_weekly_plan_boost",
+      "breakpoints": true
     }
   ]
 }

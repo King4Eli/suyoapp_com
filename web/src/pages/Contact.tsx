@@ -1,4 +1,5 @@
 import site from "../config/site.json";
+import { ChatIcon, ShieldIcon } from "../components/Icons.tsx";
 
 function Contact() {
   const {
@@ -13,20 +14,33 @@ function Contact() {
 
   return (
     <section className="legal">
-      <h1>Contact</h1>
+      <span className="eyebrow">Get in touch</span>
+      <h1>Contact us</h1>
       <p>{headline}</p>
 
-      <h2>{supportTitle}</h2>
-      <p>
-        <a href={`mailto:${supportEmail}`}>{supportEmail}</a>{" "}
-        {supportBody.replace("{email}", supportEmail)}
-      </p>
+      <div className="contact-grid">
+        <div className="contact-card">
+          <span className="feature-icon tone-rose">
+            <ChatIcon width={22} height={22} />
+          </span>
+          <h2>{supportTitle}</h2>
+          <p>{supportBody.replace("{email}", supportEmail)}</p>
+          <a className="btn btn-primary btn-sm" href={`mailto:${supportEmail}`}>
+            {supportEmail}
+          </a>
+        </div>
 
-      <h2>{safetyTitle}</h2>
-      <p>
-        {safetyBody.replace("{email}", safetyEmail)}{" "}
-        <a href={`mailto:${safetyEmail}`}>{safetyEmail}</a>.
-      </p>
+        <div className="contact-card">
+          <span className="feature-icon tone-green">
+            <ShieldIcon width={22} height={22} />
+          </span>
+          <h2>{safetyTitle}</h2>
+          <p>{safetyBody.replace("{email}", safetyEmail)}</p>
+          <a className="btn btn-primary btn-sm" href={`mailto:${safetyEmail}`}>
+            {safetyEmail}
+          </a>
+        </div>
+      </div>
     </section>
   );
 }

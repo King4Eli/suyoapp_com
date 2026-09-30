@@ -174,25 +174,6 @@ function location_place(array $row, bool $with_country = false): string
     return $parts ? implode(', ', $parts) : '';
 }
 
-/** Tooltip body (HTML) with the user's id, contact details and dates. */
-function user_tooltip(array $user): string
-{
-    $lines = [
-        'ID' => $user['user_id'] ?? '',
-        'Email' => $user['user_email'] ?? '',
-        'Phone' => $user['user_phonenumber'] ?? '',
-        'Created' => $user['user_datecreated'] ?? '',
-        'Last access' => $user['user_last_accessed'] ?? '',
-    ];
-    $html = '';
-    foreach ($lines as $label => $value) {
-        $value = (string) $value;
-        $html .= '<div class="text-start"><span class="opacity-75">' . $label . ':</span> '
-            . htmlspecialchars($value !== '' ? $value : '-') . '</div>';
-    }
-    return $html;
-}
-
 function build_users_url(array $overrides = []): string
 {
     global $query, $country, $city, $status, $travel, $limit, $page;
@@ -222,9 +203,6 @@ function build_users_url(array $overrides = []): string
         #users-map {
             height: 480px;
             border-radius: 0 0 var(--bs-card-inner-border-radius) var(--bs-card-inner-border-radius);
-        }
-        .user-tooltip .tooltip-inner {
-            max-width: 340px;
         }
         .legend-dot {
             display: inline-block;
@@ -395,13 +373,7 @@ function build_users_url(array $overrides = []): string
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <span class="fw-semibold" data-bs-toggle="tooltip" data-bs-html="true"
-                                    data-bs-placement="right" data-bs-custom-class="user-tooltip"
-                                    data-bs-title="<?php echo htmlspecialchars(user_tooltip($user)); ?>"
-                                    style="cursor: help;">
-                                    <?php echo htmlspecialchars($user['user_fullname'] ?? 'Unknown'); ?>
-                                    <i class="bi bi-info-circle text-muted small ms-1"></i>
-                                </span>
+                                <?php echo user_cell($user['user_id'] ?? null, $user['user_fullname'] ?? null); ?>
                             </td>
                             <td>
                                 <?php if ($has_location): ?>

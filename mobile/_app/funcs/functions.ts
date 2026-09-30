@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   AppState,
-  Dimensions,
   PermissionsAndroid,
   Platform,
   Vibration,
@@ -31,6 +30,7 @@ import {
   checkPaymentNotices,
   followCheckoutReturn,
 } from './functions/paymentNotices';
+import { handleVerificationEvent } from './functions/verificationEvents';
 
 export { cacheStorage };
 export { xxa_logggingReport as logReport };
@@ -38,8 +38,6 @@ export { xxa__http_requests as _http_request };
 export { getFriendlyNetworkErrorMessage };
 export { reportUser };
 
-export const { width: screenWidth, height: screenHeight } =
-  Dimensions.get('window');
 export const navigationRef = createNavigationContainerRef<any>();
 
 // Helper functions for encoding/decoding
@@ -369,6 +367,9 @@ export const __init__app = async (): Promise<void> => {
           // Emitted by the Stripe webhook (api global/paymentNotices.js). Fetched
           // rather than shown from the payload so it's marked seen server-side.
           checkPaymentNotices();
+        } else if (data.event === 'verification-event') {
+          // Emitted once an admin reviews the selfie (api global/notifyEmail.js).
+          handleVerificationEvent(data);
         } else if (data.event === 'message-deleted') {
           // Emitted by pushDeleteMessage.js -- a deleted unread last message no longer counts as unread.
           chatsBadge.refresh();

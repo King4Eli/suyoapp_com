@@ -11,8 +11,6 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
-
 const CONFETTI_COLORS = [
   '#f95464',
   '#0ea5e9',
@@ -45,7 +43,8 @@ function ConfettiPiece({
     const sway = 40 + Math.random() * 40;
     translateY.value = withDelay(
       delay,
-      withTiming(SCREEN_H * 0.7, {
+      // Read when it fires, so it follows rotation / window size
+      withTiming(Dimensions.get('window').height * 0.7, {
         duration: fallDuration,
         easing: Easing.in(Easing.quad),
       }),
@@ -115,11 +114,12 @@ export function ConfettiBurst({
 
   useEffect(() => {
     if (!trigger) return;
+    const { width: windowWidth } = Dimensions.get('window');
     const arr = Array.from({ length: count }).map((_, i) => ({
       id: `${String(trigger)}-${i}`,
       delay: Math.random() * 450,
       color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-      left: Math.random() * SCREEN_W,
+      left: Math.random() * windowWidth,
       round: Math.random() > 0.5,
     }));
     setPieces(arr);

@@ -17,6 +17,7 @@ import { onPaymentRefreshed } from '../funcs/functions/paymentNotices';
 import { Toastx } from '../funcs/customNotification';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme, ThemeColors, elevation } from '../funcs/theme';
+import { useUnits, formatDistanceLimit } from '../funcs/units';
 
 const defaultPreferences = {
   minAge: '19',
@@ -63,6 +64,7 @@ function buildPreferencesPayload(
 
 export function Screen_editpreference({ navigation }: { navigation: any }) {
   const { colors } = useTheme();
+  const { unit } = useUnits();
   const localStyles = useMemo(() => createLocalStyles(colors), [colors]);
   const [getProfile, setProfile] = useState<any>(null);
 
@@ -459,7 +461,10 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
                 getProfile?.profile?.location?.city || 'your area'
               })`}</Text>
               <Text style={localStyles.inputSubTitle}>
-                {`Up to ${getDistance.miles} miles from you`}
+                {`Up to ${formatDistanceLimit(
+                  getDistance.miles,
+                  unit,
+                )} from you`}
               </Text>
               <RangeSlider
                 disableRange={true}

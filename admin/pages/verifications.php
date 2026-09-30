@@ -84,7 +84,11 @@ try {
     $stmt->execute($params);
     $requests = $stmt->fetchAll();
 } catch (PDOException $e) {
+    // Say so instead of looking like an empty queue -- a failing query once hid
+    // every pending request (user_id collation mismatch, migration 0014).
+    error_log('verifications.php list query failed: ' . $e->getMessage());
     $requests = [];
+    $action_error = 'Could not load verification requests: ' . $e->getMessage();
 }
 
 $img_base = rtrim(img_domain_base_url(), '/');
@@ -124,10 +128,8 @@ $status_labels = [0 => ['Pending', 'warning'], 1 => ['Approved', 'success'], 2 =
         <div class="card shadow-sm mb-3">
             <div class="card-header d-flex align-items-center justify-content-between">
                 <div>
-                    <a class="fw-semibold" href="singleuser.php?id=<?php echo urlencode($request['user_id']); ?>">
-                        <?php echo htmlspecialchars($request['user_fullname'] ?? 'Unknown'); ?>
-                    </a>
-                    <span class="small text-muted ms-2"><?php echo htmlspecialchars((string) $request['created_at']); ?></span>
+                    <?php echo user_cell($request['user_id'], $request['user_fullname'] ?? null); ?>
+                    <span class="small text-muted ms-2">submitted <?php echo time_cell($request['created_at'] ?? null); ?></span>
                 </div>
                 <span class="badge text-bg-<?php echo $status_color; ?>"><?php echo $status_label; ?></span>
             </div>

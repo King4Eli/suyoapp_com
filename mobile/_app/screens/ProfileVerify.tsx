@@ -17,6 +17,7 @@ import { Loaderx } from '../funcs/functions_stateful';
 import { Dialogx } from '../funcs/customDialog';
 import { __CONFIG__ } from '../funcs/static';
 import { useTheme, ThemeColors } from '../funcs/theme';
+import { onVerificationChanged } from '../funcs/functions/verificationEvents';
 
 type VerificationState = {
   status: 'verified' | 'pending' | 'rejected' | 'none';
@@ -57,6 +58,9 @@ export function Screen_profileVerify({ navigation }: { navigation: any }) {
     });
     load();
   }, [navigation, colors.background, load]);
+
+  // The review landed while waiting here: swap "pending" for the result.
+  useEffect(() => onVerificationChanged(load), [load]);
 
   const takeSelfie = async () => {
     const result = await launchCamera({

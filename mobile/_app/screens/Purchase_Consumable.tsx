@@ -6,7 +6,6 @@ import {
   ScrollView,
   StyleSheet,
   Animated,
-  Dimensions,
   Platform,
 } from 'react-native';
 import { Dialogx } from '../funcs/customDialog';
@@ -18,8 +17,6 @@ import { purchaseNative } from '../funcs/iap';
 import { leavePaymentScreens } from '../funcs/functions/paymentNotices';
 import { startWebOnetimeCheckout } from '../funcs/customConsumableSheet';
 import { namer, __CONFIG__ } from '../funcs/static';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const formatPrice = (price: number): string => price?.toFixed(2) ?? '0.00';
 
@@ -980,7 +977,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1F1F2A',
     borderRadius: 32,
     padding: 24,
-    width: SCREEN_WIDTH - 40,
+    width: '90%',
     maxWidth: 400,
     position: 'relative',
   },

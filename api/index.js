@@ -79,7 +79,7 @@ setupRealtime(io);
 
 // Periodically expire checkout attempts that were never completed
 startExpirePendingPaymentsJob();
-startVerificationEmailJob();
+startVerificationEmailJob(io);
 
 app.use("/s", status_check);
 app.use("/api/login", login_router);

@@ -4,6 +4,7 @@ import { namer, __CONFIG__ } from '../static';
 import DeviceInfo from 'react-native-device-info';
 import { Dimensions } from 'react-native';
 import { xxa_logggingReport } from './logging';
+import { setBoostState } from './boostStore';
 
 export class cacheStorage {
   // Profile
@@ -36,6 +37,7 @@ export class cacheStorage {
             if (cachedProfile) {
               //console.log("profile from AsyncStorage");
               this.profileMemoryCache = JSON.parse(cachedProfile);
+              setBoostState(this.profileMemoryCache?.boosts);
               return this.profileMemoryCache;
             }
           } catch (error) {
@@ -79,6 +81,7 @@ export class cacheStorage {
         ) {
           // Cache in memory and AsyncStorage
           this.profileMemoryCache = profile?.currentUser;
+          setBoostState(this.profileMemoryCache?.boosts);
           await AsyncStorage.setItem(
             namer.storage.currentUserProfile,
             JSON.stringify(profile?.currentUser),
