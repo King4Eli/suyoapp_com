@@ -123,9 +123,17 @@ const RecordingDot = () => {
   );
 };
 
-// Peer-typing indicator, styled as their message bubble (left-aligned, same blue)
+// Peer-typing indicator, styled as their message bubble (left-aligned, same colours)
 // with three dots bouncing in sequence -- the standard iMessage/WhatsApp treatment.
-const TypingBubble = ({ bg = '#E24862' }: { bg?: string }) => {
+const TypingBubble = ({
+  bg,
+  dotColor,
+  border,
+}: {
+  bg: string;
+  dotColor: string;
+  border: string;
+}) => {
   const dots = useRef([
     new Animated.Value(0),
     new Animated.Value(0),
@@ -166,6 +174,8 @@ const TypingBubble = ({ bg = '#E24862' }: { bg?: string }) => {
           {
             borderBottomLeftRadius: 4,
             backgroundColor: bg,
+            borderWidth: 1,
+            borderColor: border,
             flexDirection: 'row',
             alignItems: 'center',
             gap: 4,
@@ -173,15 +183,15 @@ const TypingBubble = ({ bg = '#E24862' }: { bg?: string }) => {
           },
         ]}
       >
-        {dots.map((dot, i) => (
+        {dots.map((dotY, i) => (
           <Animated.View
             key={i}
             style={{
               width: 7,
               height: 7,
               borderRadius: 4,
-              backgroundColor: '#fff',
-              transform: [{ translateY: dot }],
+              backgroundColor: dotColor,
+              transform: [{ translateY: dotY }],
             }}
           />
         ))}
@@ -2542,8 +2552,8 @@ export function Screen_conversation({
               alignSelf: item.fromMe ? 'flex-end' : 'flex-start',
             }}
           >
-            <IonIcon name="alert-circle" size={14} color="#ff3b30" />
-            <Text style={{ color: '#ff3b30', fontSize: 12 }}>
+            <IonIcon name="alert-circle" size={14} color={colors.error} />
+            <Text style={{ color: colors.error, fontSize: 12 }}>
               Failed to send -- tap to retry
             </Text>
           </Pressable>
@@ -2620,7 +2630,13 @@ export function Screen_conversation({
             // On an inverted list ListHeaderComponent renders at the visual bottom
             // (right above the composer), which is where a live typing bubble belongs.
             ListHeaderComponent={
-              peerTyping ? <TypingBubble bg={colors.primary} /> : null
+              peerTyping ? (
+                <TypingBubble
+                  bg={colors.surfaceElevated}
+                  dotColor={colors.textTertiary}
+                  border={colors.hairline}
+                />
+              ) : null
             }
             ListFooterComponent={
               <View style={{ paddingVertical: 5 }}>

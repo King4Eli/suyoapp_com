@@ -64,8 +64,46 @@ jobs:
         if: matrix.typecheck != ''
         run: ${{ matrix.typecheck }}
 
+  # API end-to-end tests (api/test/): the real app against a throwaway MySQL +
+  # Redis started with Docker Compose, built from the migrations and seed data.
+  # No secrets needed -- test/test.env has fake credentials only and outbound
+  # network is blocked inside the tests. Runs on pull requests too.
+  api-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          # the test runner needs a newer Node than the checks job (globs, --test-force-exit)
+          node-version: 24
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start test database and Redis, migrate, seed
+        run: npm run test:db:up
+
+      - name: Run API tests
+        run: npm test
+
+      - name: Database logs (on failure)
+        if: failure()
+        run: docker compose -f test/docker-compose.yml logs --tail=200
+
+      - name: Stop test containers
+        if: always()
+        run: npm run test:db:down
+
   build-and-push:
-    needs: checks
+    needs: [checks, api-tests]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
@@ -117,7 +155,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
   mobile-build-apk:
-    needs: checks
+    needs: [checks, api-tests]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     defaults:

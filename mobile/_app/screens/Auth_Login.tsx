@@ -38,7 +38,7 @@ const CODE_LENGTH = 6;
 const INITIAL_RESEND_SECONDS = 80;
 
 export const Auth_Login = () => {
-  const { colors } = useTheme();
+  const { colors, resolvedScheme } = useTheme();
   const stylesx = useMemo(() => createStylesx(colors), [colors]);
   const navigation = useNavigation<any>();
   const carouselRef = useRef<CarouselRef>(null);
@@ -395,7 +395,9 @@ export const Auth_Login = () => {
           <SocialButton
             icon="apple"
             label="Apple"
-            color="#151515"
+            // Apple's guidelines: black button on light, white on dark
+            color={resolvedScheme === 'dark' ? '#FFFFFF' : '#000000'}
+            textColor={resolvedScheme === 'dark' ? '#000000' : '#FFFFFF'}
             stylesx={stylesx}
           />
         )}
@@ -566,19 +568,23 @@ const SocialButton = ({
   icon,
   label,
   color,
+  textColor = '#fff',
   stylesx,
 }: {
   icon: string;
   label: string;
   color: string;
+  textColor?: string;
   stylesx: any;
 }) => (
   <Pressable
     style={[stylesx.socialButton, { backgroundColor: color }]}
     onPress={() => {}}
   >
-    <MaterialCommunityIcons name={icon} size={20} color={'#fff'} />
-    <Text style={stylesx.socialButtonText}>{label}</Text>
+    <MaterialCommunityIcons name={icon} size={20} color={textColor} />
+    <Text style={[stylesx.socialButtonText, { color: textColor }]}>
+      {label}
+    </Text>
   </Pressable>
 );
 

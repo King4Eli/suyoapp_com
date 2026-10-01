@@ -22,6 +22,7 @@ import {
   Loaderx,
   bottomsheet_renderBackdrop,
   bottomsheet_renderHandle,
+  bottomsheet_renderBackground,
 } from '../funcs/functions_stateful';
 import { ScrollView } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -45,7 +46,10 @@ import {
   mediaHandler,
   uploadHandler,
 } from '../funcs/functions';
-import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import BottomSheet, {
+  BottomSheetScrollView,
+  BottomSheetTextInput,
+} from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
 import LinearGradient from '../funcs/customGradient';
 import { useTheme, ThemeColors } from '../funcs/theme';
@@ -118,12 +122,49 @@ type PickerSheetConfig = {
   subtitle?: string;
   selectedId?: string | null;
   sections: PickerSection[];
-  onSelect: (id: string) => void;
+  // Single choice: called with the tapped option, then the sheet closes.
+  onSelect?: (id: string) => void;
   // Long lists open fully expanded; everything else opens at the small snap point
   expanded?: boolean;
+  // A search box above the options (long lists, e.g. languages)
+  searchable?: boolean;
+  // Multiple choice: taps toggle, "Done" calls onDone with the picked ids.
+  multiple?: {
+    selectedIds: string[];
+    max: number;
+    onDone: (ids: string[]) => void;
+  };
 };
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
+// Most languages a profile lists (the API enforces the same limit).
+const MAX_LANGUAGES = 10;
+
+/**
+ * Saved languages as codes for the picker. Profiles store gn_language_variant
+ * codes; older ones may hold names typed into the old free-text field, which
+ * are matched to a code by name (unknown ones are dropped on the next save).
+ */
+function languageCodesFrom(
+  saved: unknown,
+  languageMap: Record<string, string> | undefined,
+): string[] {
+  const list = Array.isArray(saved) ? saved : [];
+  const byName = new Map(
+    Object.entries(languageMap ?? {}).map(([code, name]) => [
+      String(name).toLowerCase(),
+      code,
+    ]),
+  );
+  const codes = list
+    .map(item => {
+      const text = String(item ?? '').trim();
+      return /^\d+$/.test(text) ? text : byName.get(text.toLowerCase());
+    })
+    .filter((code): code is string => !!code && !!languageMap?.[code]);
+  return [...new Set(codes)].slice(0, MAX_LANGUAGES);
+}
+
 function getCellDims(containerWidth: number): CellDim[] {
   const colW = (containerWidth - GAP) / 2;
   const smallH = colW * 0.65;
@@ -660,9 +701,8 @@ export function Screen_editprofile({
     schoolattended: '',
     jobrole: '',
     company: '',
-    // Raw text while editing ("English, Fr") -- parsed into a list on save, so a
-    // trailing comma isn't eaten mid-typing.
-    languagesText: '',
+    // gn_language_variant codes (__MAPPER.bio_language), picked from a list
+    languages: [] as string[],
   });
 
   // ── Profile state ──────────────────────────────────────────────────────
@@ -750,10 +790,10 @@ export function Screen_editprofile({
             schoolattended: profile?.bio?.school ?? '',
             jobrole: profile?.bio?.jobrole ?? '',
             company: profile?.bio?.company ?? '',
-            languagesText: (Array.isArray(profile?.bio?.language)
-              ? profile.bio.language
-              : []
-            ).join(', '),
+            languages: languageCodesFrom(
+              profile?.bio?.language,
+              cacheStorage.CONFIG.get()?.mapper?.bio_language,
+            ),
           });
           setPrompts(
             Array.isArray(profile?.bio?.prompts) ? profile.bio.prompts : [],
@@ -815,6 +855,9 @@ export function Screen_editprofile({
     null,
   );
   const pickerSnapPoints = useMemo(() => ['45%', '80%'], []);
+  // Multiple-choice picker: what's ticked so far, and the search text
+  const [pickerPicked, setPickerPicked] = useState<string[]>([]);
+  const [pickerQuery, setPickerQuery] = useState('');
   const safeInsets = useSafeAreaInsets();
 
   // ── Header ─────────────────────────────────────────────────────────────
@@ -911,10 +954,7 @@ export function Screen_editprofile({
           prof_highesteducation: getProfileEdit?.highEducation,
           prof_relationshipgoal: getProfileEdit?.relationshipgoal,
           prof_languages: JSON.stringify(
-            (getProfileEdit?.languagesText ?? '')
-              .split(',')
-              .map(item => item.trim())
-              .filter(Boolean),
+            (getProfileEdit?.languages ?? []).map(Number),
           ),
           prof_gender: getProfileEdit?.gender,
           prof_hometown: getProfileEdit?.hometown,
@@ -1096,6 +1136,8 @@ export function Screen_editprofile({
     }));
 
   const openPicker = useCallback((config: PickerSheetConfig) => {
+    setPickerPicked(config.multiple?.selectedIds ?? []);
+    setPickerQuery('');
     setPickerSheet(config);
   }, []);
 
@@ -1476,14 +1518,33 @@ export function Screen_editprofile({
                   colors={colors}
                   pgStyles={pgStyles}
                 />
-                <InlineTextField
+                <PickerField
                   label="Languages"
-                  value={getProfileEdit.languagesText}
+                  value={getProfileEdit.languages
+                    .map(code => __MAPPER?.bio_language?.[code])
+                    .filter(Boolean)
+                    .join(', ')}
                   icon="translate"
-                  placeholder="Languages you speak (comma separated)"
-                  maxLength={200}
-                  onChangeText={text =>
-                    updateProfileEdit({ languagesText: text })
+                  onPress={() =>
+                    openPicker({
+                      expanded: true,
+                      searchable: true,
+                      title: 'Languages you speak',
+                      subtitle: `Pick up to ${MAX_LANGUAGES}`,
+                      sections: [
+                        {
+                          title: 'Languages',
+                          options: buildOptions(__MAPPER?.bio_language).sort(
+                            (a, b) => a.label.localeCompare(b.label),
+                          ),
+                        },
+                      ],
+                      multiple: {
+                        selectedIds: getProfileEdit.languages,
+                        max: MAX_LANGUAGES,
+                        onDone: ids => updateProfileEdit({ languages: ids }),
+                      },
+                    })
                   }
                   colors={colors}
                   pgStyles={pgStyles}
@@ -1733,6 +1794,7 @@ export function Screen_editprofile({
 
       {pickerSheet && (
         <BottomSheet
+          backgroundComponent={bottomsheet_renderBackground}
           ref={pickerSheet_ref}
           index={pickerSheet.expanded ? pickerSnapPoints.length - 1 : 0}
           enablePanDownToClose
@@ -1746,10 +1808,37 @@ export function Screen_editprofile({
             <View style={{ flex: 1 }}>
               <Text style={pgStyles.sheetTitle}>{pickerSheet.title}</Text>
               {!!pickerSheet.subtitle && (
-                <Text style={pgStyles.sectionHint}>{pickerSheet.subtitle}</Text>
+                <Text style={pgStyles.sectionHint}>
+                  {pickerSheet.multiple
+                    ? `${pickerSheet.subtitle} · ${pickerPicked.length} selected`
+                    : pickerSheet.subtitle}
+                </Text>
               )}
             </View>
+            {pickerSheet.multiple && (
+              <TouchableOpacity
+                style={pgStyles.pickerDoneButton}
+                activeOpacity={0.82}
+                onPress={() => {
+                  pickerSheet.multiple?.onDone(pickerPicked);
+                  closePicker();
+                }}
+              >
+                <Text style={pgStyles.pickerDoneText}>Done</Text>
+              </TouchableOpacity>
+            )}
           </View>
+          {pickerSheet.searchable && (
+            <BottomSheetTextInput
+              style={pgStyles.pickerSearch}
+              placeholder="Search"
+              placeholderTextColor={colors.textTertiary}
+              value={pickerQuery}
+              onChangeText={setPickerQuery}
+              autoCorrect={false}
+              clearButtonMode="while-editing"
+            />
+          )}
           <BottomSheetScrollView
             contentContainerStyle={pgStyles.sheetScrollContent}
             showsVerticalScrollIndicator={false}
@@ -1758,40 +1847,58 @@ export function Screen_editprofile({
               <View key={section.title} style={pgStyles.pickerSectionCard}>
                 <Text style={pgStyles.pickerSectionTitle}>{section.title}</Text>
                 <View style={pgStyles.pickerOptions}>
-                  {section.options.map(option => {
-                    const selected =
-                      String(pickerSheet.selectedId ?? '') === option.id;
-                    return (
-                      <TouchableOpacity
-                        key={option.id}
-                        style={[
-                          pgStyles.pickerOption,
-                          selected && pgStyles.pickerOptionSelected,
-                        ]}
-                        activeOpacity={0.82}
-                        onPress={() => {
-                          pickerSheet.onSelect(option.id);
-                          closePicker();
-                        }}
-                      >
-                        <Text
+                  {section.options
+                    .filter(option =>
+                      option.label
+                        .toLowerCase()
+                        .includes(pickerQuery.trim().toLowerCase()),
+                    )
+                    .map(option => {
+                      const multiple = pickerSheet.multiple;
+                      const selected = multiple
+                        ? pickerPicked.includes(option.id)
+                        : String(pickerSheet.selectedId ?? '') === option.id;
+                      return (
+                        <TouchableOpacity
+                          key={option.id}
                           style={[
-                            pgStyles.pickerOptionText,
-                            selected && pgStyles.pickerOptionTextSelected,
+                            pgStyles.pickerOption,
+                            selected && pgStyles.pickerOptionSelected,
                           ]}
+                          activeOpacity={0.82}
+                          onPress={() => {
+                            if (multiple) {
+                              if (selected) {
+                                setPickerPicked(ids =>
+                                  ids.filter(id => id !== option.id),
+                                );
+                              } else if (pickerPicked.length < multiple.max) {
+                                setPickerPicked(ids => [...ids, option.id]);
+                              }
+                              return;
+                            }
+                            pickerSheet.onSelect?.(option.id);
+                            closePicker();
+                          }}
                         >
-                          {option.label}
-                        </Text>
-                        {selected && (
-                          <IIcon
-                            name="checkmark-circle"
-                            size={20}
-                            color={colors.primary}
-                          />
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
+                          <Text
+                            style={[
+                              pgStyles.pickerOptionText,
+                              selected && pgStyles.pickerOptionTextSelected,
+                            ]}
+                          >
+                            {option.label}
+                          </Text>
+                          {selected && (
+                            <IIcon
+                              name="checkmark-circle"
+                              size={20}
+                              color={colors.primary}
+                            />
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
                 </View>
               </View>
             ))}
@@ -2242,6 +2349,27 @@ function createPgStyles(colors: ThemeColors) {
     },
     addPromptText: { fontSize: 14, fontWeight: '900', color: colors.primary },
 
+    pickerDoneButton: {
+      backgroundColor: colors.primary,
+      borderRadius: 999,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+    },
+    pickerDoneText: {
+      color: colors.onPrimary,
+      fontWeight: '700',
+      fontSize: 14,
+    },
+    pickerSearch: {
+      marginHorizontal: 18,
+      marginBottom: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 12,
+      backgroundColor: colors.backgroundSecondary,
+      color: colors.text,
+      fontSize: 15,
+    },
     sheetHeader: {
       paddingHorizontal: 18,
       paddingTop: 12,

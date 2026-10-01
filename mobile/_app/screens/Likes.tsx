@@ -29,6 +29,7 @@ import { likesBadge } from '../funcs/tabBadges';
 import { useLiveRefresh } from '../funcs/useLiveRefresh';
 import { styles, namer, __CONFIG__ } from '../funcs/static';
 import { startBoost, useBoost } from '../funcs/boost';
+import { formatDistance, useUnits } from '../funcs/units';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import { BlurView } from '@react-native-community/blur';
 
@@ -95,6 +96,7 @@ function likesGridLayout(gridWidth: number) {
 export function Screen_likes({ navigation }: { navigation: any }) {
   const { colors } = useTheme();
   const boost = useBoost();
+  const { unit } = useUnits();
   const stylesoy = useMemo(() => createStylesoy(colors), [colors]);
   const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
 
@@ -331,7 +333,9 @@ export function Screen_likes({ navigation }: { navigation: any }) {
               <View style={{ gap: 12, marginBottom: 12 }}>
                 <View
                   style={{
-                    backgroundColor: '#0f172a',
+                    backgroundColor: colors.surface,
+                    borderWidth: 1,
+                    borderColor: colors.border,
                     borderRadius: 16,
                     padding: 14,
                     overflow: 'hidden',
@@ -339,7 +343,11 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                 >
                   <View style={styles.zcircle1} />
                   <Text
-                    style={{ color: '#fff', fontSize: 18, fontWeight: '700' }}
+                    style={{
+                      color: colors.text,
+                      fontSize: 18,
+                      fontWeight: '700',
+                    }}
                   >
                     You have {totalLikesCount} like
                     {totalLikesCount > 1 ? 's' : ''}
@@ -354,7 +362,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                       }
                       style={{
                         flex: 1,
-                        backgroundColor: '#1d4ed8',
+                        backgroundColor: colors.primary,
                         borderRadius: 12,
                         padding: 10,
                         flexDirection: 'row',
@@ -366,9 +374,11 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                       <MaterialCommunityIcons
                         name="lightning-bolt-outline"
                         size={18}
-                        color="#fff"
+                        color={colors.onPrimary}
                       />
-                      <Text style={{ color: '#fff', fontWeight: '700' }}>
+                      <Text
+                        style={{ color: colors.onPrimary, fontWeight: '700' }}
+                      >
                         {!canSeeLikes
                           ? 'Unlock all likes'
                           : boost.isActive
@@ -528,7 +538,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                           />
                         </View>
                       )}
-                      {item?.distance && (
+                      {formatDistance(item?.distanceMiles, unit) && (
                         <View style={stylesoy.pill}>
                           <IIcon
                             name="location-outline"
@@ -536,7 +546,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                             color="#fff"
                           />
                           <Text style={stylesoy.pillText}>
-                            {item.distance} km
+                            {formatDistance(item.distanceMiles, unit)}
                           </Text>
                         </View>
                       )}
@@ -699,7 +709,7 @@ function createStylesoy(colors: ThemeColors) {
     image: {
       width: '100%',
       height: '100%',
-      backgroundColor: '#454545ff',
+      backgroundColor: colors.skeleton,
     },
     topChips: {
       position: 'absolute',

@@ -251,6 +251,9 @@ function attachSocialLinks(rows, canViewLinks) {
 /**
  * @param {string} [getOnePersons_id2]
  */
+// Discovery puts people seen within this many days ahead of dormant accounts.
+const ACTIVE_DAYS = 3;
+
 export default async function getPeopleToMatch(getOnePersons_id2) {
   /** @type {any} */
   const response = {
@@ -548,9 +551,16 @@ export default async function getPeopleToMatch(getOnePersons_id2) {
           distanceCondition,
         ),
       )
-      // Boosted profiles (pushBoost.js) come first; the rest stay unordered.
+      // Ranking, in order: boosted profiles (pushBoost.js); people active in
+      // the last ACTIVE_DAYS (users.user_last_accessed, kept fresh by
+      // global/activity.js) over dormant ones; nearest first; then whoever was
+      // on most recently. Swiped people are excluded above, so the front of
+      // the queue keeps moving.
       .orderBy(
         sql`(${users.userBoostedUntil} IS NOT NULL AND ${users.userBoostedUntil} > NOW()) DESC`,
+        sql`(${users.userLastAccessed} >= NOW() - INTERVAL ${ACTIVE_DAYS} DAY) DESC`,
+        sql`${distanceExpr} ASC`,
+        sql`${users.userLastAccessed} DESC`,
       )
       .limit(9);
 

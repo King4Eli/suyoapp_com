@@ -61,12 +61,15 @@ export const productLists = [
     plSku: "vip_91n46w586u0m4eomircybdvsz",
     plName: "vip",
     plDescription: {
+      // VIP includes everything Plus has (global/entitlements.js PLAN_FEATURES),
+      // so the list leads with that and then only what VIP adds or raises.
       features: [
+        { d: "All Plus features", e: true },
+        { d: "Travel mode", e: true },
         { d: "Unlimited Phone/Video calls", e: true },
         { d: "10 roses per day", e: true },
         { d: "20 direct messages per day", e: true },
-        { d: "Rewind missed matches", e: true },
-        { d: "Travel mode", e: true },
+        { d: "See their social links", e: true },
         { d: "Priority customer support", e: true },
       ],
     },

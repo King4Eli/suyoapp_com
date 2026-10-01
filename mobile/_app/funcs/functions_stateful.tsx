@@ -7,6 +7,8 @@ import {
   Text,
   Animated,
   Pressable,
+  StyleProp,
+  ViewStyle,
 } from 'react-native';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import { useEffect, useRef, useState } from 'react';
@@ -115,6 +117,34 @@ const BottomSheetCloseHandle = (props: BottomSheetDefaultHandleProps) => {
         <IIcon name="close" size={18} color={colors.textSecondary} />
       </Pressable>
     </BottomSheetHandle>
+  );
+};
+
+// Sheet surface that follows the theme; the library default is always white.
+export const bottomsheet_renderBackground = ({
+  style,
+}: {
+  style?: StyleProp<ViewStyle>;
+}) => <BottomSheetThemedBackground style={style} />;
+
+const BottomSheetThemedBackground = ({
+  style,
+}: {
+  style?: StyleProp<ViewStyle>;
+}) => {
+  const { colors } = useTheme();
+  return (
+    <View
+      pointerEvents="none"
+      style={[
+        style,
+        {
+          backgroundColor: colors.surface,
+          borderTopLeftRadius: 28,
+          borderTopRightRadius: 28,
+        },
+      ]}
+    />
   );
 };
 //*****************************

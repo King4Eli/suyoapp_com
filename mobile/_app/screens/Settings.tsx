@@ -45,6 +45,7 @@ import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
 import {
   bottomsheet_renderBackdrop,
   bottomsheet_renderHandle,
+  bottomsheet_renderBackground,
 } from '../funcs/functions_stateful';
 import { useTheme, ThemeMode, ThemeColors } from '../funcs/theme';
 import { useUnits, UnitSystem } from '../funcs/units';
@@ -56,10 +57,18 @@ import {
 
 export function Screen_settings({ navigation }: { navigation: any }) {
   const [getProfile, setProfile] = useState<any>(null);
-  const { colors, mode, setMode } = useTheme();
+  const { colors, mode, setMode, resolvedScheme } = useTheme();
   const { unit, setUnit } = useUnits();
   const MODERN_COLORS = colors;
   const modernStyles = useMemo(() => createModernStyles(colors), [colors]);
+  // Shared by every text field in the sheets so placeholder, caret and keyboard
+  // follow the active theme instead of the platform defaults.
+  const sheetInputProps = {
+    placeholderTextColor: colors.placeholder,
+    selectionColor: colors.primary,
+    cursorColor: colors.primary,
+    keyboardAppearance: resolvedScheme,
+  } as const;
 
   const [privacyShowDistance, setPrivacyShowDistance] = useState(true);
   const [privacyShowAge, setPrivacyShowAge] = useState(true);
@@ -392,7 +401,9 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         style={modernStyles.quickAction}
         onPress={() => Linking.openURL(`mailto:${__CONFIG__.SUPPORT_EMAIL}`)}
       >
-        <Feather name="help-circle" size={20} color="#FFF" />
+        <View style={modernStyles.quickActionIcon}>
+          <Feather name="help-circle" size={22} color={MODERN_COLORS.primary} />
+        </View>
         <Text style={modernStyles.quickActionText}>Support</Text>
       </TouchableOpacity>
 
@@ -405,7 +416,9 @@ export function Screen_settings({ navigation }: { navigation: any }) {
           });
         }}
       >
-        <Feather name="share-2" size={20} color="#FFF" />
+        <View style={modernStyles.quickActionIcon}>
+          <Feather name="share-2" size={22} color={MODERN_COLORS.primary} />
+        </View>
         <Text style={modernStyles.quickActionText}>Share</Text>
       </TouchableOpacity>
 
@@ -413,7 +426,13 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         style={modernStyles.quickAction}
         onPress={() => navigation.navigate(namer.navigation.subscription)}
       >
-        <Feather name="crown" size={20} color="#FFF" />
+        <View style={modernStyles.quickActionIcon}>
+          <IIcon
+            name="diamond-outline"
+            size={22}
+            color={MODERN_COLORS.premium}
+          />
+        </View>
         <Text style={modernStyles.quickActionText}>Plus & VIP</Text>
       </TouchableOpacity>
     </View>
@@ -527,19 +546,28 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     const steps = [
       {
         title: 'Change Email',
+        icon: 'mail-outline',
         subtitle: 'Enter your new email address',
         content: (
-          <View style={{}}>
+          <View>
             <View style={modernStyles.currentInfo}>
-              <Text style={modernStyles.currentLabel}>Current Email</Text>
-              <Text style={modernStyles.currentValue}>
-                {currentEmail || 'None yet'}
-              </Text>
+              <IIcon
+                name="mail-outline"
+                size={18}
+                color={MODERN_COLORS.textSecondary}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={modernStyles.currentLabel}>Current Email</Text>
+                <Text style={modernStyles.currentValue}>
+                  {currentEmail || 'None yet'}
+                </Text>
+              </View>
             </View>
 
             <View style={modernStyles.inputGroup}>
               <Text style={modernStyles.inputLabel}>New Email Address</Text>
               <BottomSheetTextInput
+                {...sheetInputProps}
                 style={modernStyles.input}
                 placeholder="your@email.com"
                 keyboardType="email-address"
@@ -556,87 +584,91 @@ export function Screen_settings({ navigation }: { navigation: any }) {
 
             {error ? <Text style={modernStyles.errorText}>{error}</Text> : null}
 
-            <TouchableOpacity
-              style={[
-                modernStyles.primaryButton,
-                (!newEmail || isLoading) && modernStyles.buttonDisabled,
-              ]}
-              onPress={async () => {
-                const trimmedEmail = newEmail.trim().toLowerCase();
-                const trimmedCurrentEmail = currentEmail.trim().toLowerCase();
-                if (!trimmedEmail || trimmedEmail === trimmedCurrentEmail) {
-                  setError('Please enter a different email address');
-                  return;
-                }
-
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (!emailRegex.test(trimmedEmail)) {
-                  setError('Please enter a valid email address');
-                  return;
-                }
-
-                setIsLoading(true);
-                setError('');
-
-                try {
-                  const response = await _http_request({
-                    customApiUrl:
-                      __CONFIG__.HTTPS_API_DOMAIN + '/api/core/v1/pushNewEmail',
-                    reqType: 'POST',
-                    bodyArray: {
-                      oldemail: trimmedCurrentEmail,
-                      newemail: trimmedEmail,
-                      rnc: '1',
-                    },
-                  });
-
-                  if (response?.code === 200) {
-                    setNewEmail(trimmedEmail);
-                    setSuccessMessage(
-                      'Verification code sent to your new email',
-                    );
-                    carouselRef.current?.goToNext();
-                  } else {
-                    setError(
-                      response?.message || 'Failed to send verification',
-                    );
+            <View style={modernStyles.flowActions}>
+              <TouchableOpacity
+                style={[
+                  modernStyles.primaryButton,
+                  (!newEmail || isLoading) && modernStyles.buttonDisabled,
+                ]}
+                onPress={async () => {
+                  const trimmedEmail = newEmail.trim().toLowerCase();
+                  const trimmedCurrentEmail = currentEmail.trim().toLowerCase();
+                  if (!trimmedEmail || trimmedEmail === trimmedCurrentEmail) {
+                    setError('Please enter a different email address');
+                    return;
                   }
-                } catch {
-                  setError('Network error. Please try again.');
-                  logReport({
-                    type: 'function',
-                    useraction: 'pushNewEmail',
-                    logMessage: 'Network error during email change',
-                  });
-                } finally {
-                  setIsLoading(false);
-                }
-              }}
-              disabled={!newEmail || isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator size="small" color="#FFF" />
-              ) : (
-                <Text style={modernStyles.primaryButtonText}>
-                  Send Verification Code
-                </Text>
-              )}
-            </TouchableOpacity>
 
-            <TouchableOpacity
-              style={modernStyles.secondaryButton}
-              onPress={onCancel}
-            >
-              <Text style={modernStyles.secondaryButtonText}>Cancel</Text>
-            </TouchableOpacity>
+                  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                  if (!emailRegex.test(trimmedEmail)) {
+                    setError('Please enter a valid email address');
+                    return;
+                  }
+
+                  setIsLoading(true);
+                  setError('');
+
+                  try {
+                    const response = await _http_request({
+                      customApiUrl:
+                        __CONFIG__.HTTPS_API_DOMAIN +
+                        '/api/core/v1/pushNewEmail',
+                      reqType: 'POST',
+                      bodyArray: {
+                        oldemail: trimmedCurrentEmail,
+                        newemail: trimmedEmail,
+                        rnc: '1',
+                      },
+                    });
+
+                    if (response?.code === 200) {
+                      setNewEmail(trimmedEmail);
+                      setSuccessMessage(
+                        'Verification code sent to your new email',
+                      );
+                      carouselRef.current?.goToNext();
+                    } else {
+                      setError(
+                        response?.message || 'Failed to send verification',
+                      );
+                    }
+                  } catch {
+                    setError('Network error. Please try again.');
+                    logReport({
+                      type: 'function',
+                      useraction: 'pushNewEmail',
+                      logMessage: 'Network error during email change',
+                    });
+                  } finally {
+                    setIsLoading(false);
+                  }
+                }}
+                disabled={!newEmail || isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color={colors.onPrimary} />
+                ) : (
+                  <Text style={modernStyles.primaryButtonText}>
+                    Send Verification Code
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={modernStyles.secondaryButton}
+                onPress={onCancel}
+              >
+                <Text style={modernStyles.secondaryButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ),
       },
       {
         title: 'Verify Email',
+        icon: 'shield-checkmark-outline',
         subtitle: 'Enter the 6-digit code sent to your new email',
         content: (
-          <View style={{}}>
+          <View>
             <View style={modernStyles.infoBox}>
               <IIcon
                 name="mail-outline"
@@ -645,15 +677,16 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               />
               <Text style={modernStyles.infoText}>
                 Code sent to:{' '}
-                <Text style={{ fontWeight: 'bold' }}>{newEmail}</Text>
+                <Text style={modernStyles.infoTextStrong}>{newEmail}</Text>
               </Text>
             </View>
 
             <View style={modernStyles.inputGroup}>
               <Text style={modernStyles.inputLabel}>Verification Code</Text>
               <BottomSheetTextInput
-                style={modernStyles.input}
-                placeholder="Enter 6-digit code"
+                {...sheetInputProps}
+                style={[modernStyles.input, modernStyles.codeInput]}
+                placeholder="000000"
                 keyboardType="number-pad"
                 maxLength={6}
                 value={verificationCode}
@@ -708,7 +741,10 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               }}
               disabled={isLoading}
             >
-              <Text style={modernStyles.resendButtonText}>Resend Code</Text>
+              <Text style={modernStyles.resendHint}>
+                Didn't get it?{' '}
+                <Text style={modernStyles.resendButtonText}>Resend code</Text>
+              </Text>
             </TouchableOpacity>
 
             {error ? <Text style={modernStyles.errorText}>{error}</Text> : null}
@@ -716,7 +752,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               <Text style={modernStyles.successText}>{successMessage}</Text>
             ) : null}
 
-            <View style={modernStyles.buttonRow}>
+            <View style={[modernStyles.buttonRow, modernStyles.flowActions]}>
               <TouchableOpacity
                 style={[modernStyles.secondaryButton, { flex: 1 }]}
                 onPress={() => carouselRef.current?.goToPrevious()}
@@ -778,7 +814,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 disabled={verificationCode.length !== 6 || isLoading}
               >
                 {isLoading ? (
-                  <ActivityIndicator size="small" color="#FFF" />
+                  <ActivityIndicator size="small" color={colors.onPrimary} />
                 ) : (
                   <Text style={modernStyles.primaryButtonText}>
                     Verify & Update
@@ -794,32 +830,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     // Keyboard is handled by the sheet (keyboardBehavior + BottomSheetTextInput)
     return (
       <View style={{ flex: 1 }}>
-        <ControlledCarousel
-          ref={carouselRef}
-          initialPage={0}
-          onPageChange={setStep}
-          pages={steps.map((stepConfig, index) => (
-            <BottomSheetScrollView
-              key={index}
-              style={{ flex: 1 }}
-              contentContainerStyle={{
-                paddingHorizontal: 20,
-                paddingBottom: 20,
-              }}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-            >
-              <View style={modernStyles.flowHeader}>
-                <Text style={modernStyles.flowTitle}>{stepConfig.title}</Text>
-                <Text style={modernStyles.flowSubtitle}>
-                  {stepConfig.subtitle}
-                </Text>
-              </View>
-              {stepConfig.content}
-            </BottomSheetScrollView>
-          ))}
-        />
-
         <View style={modernStyles.stepIndicator}>
           {steps.map((_, index) => (
             <View
@@ -831,6 +841,41 @@ export function Screen_settings({ navigation }: { navigation: any }) {
             />
           ))}
         </View>
+        <ControlledCarousel
+          ref={carouselRef}
+          initialPage={0}
+          onPageChange={setStep}
+          pages={steps.map((stepConfig, index) => (
+            <BottomSheetScrollView
+              key={index}
+              style={{ flex: 1 }}
+              contentContainerStyle={{
+                paddingHorizontal: 20,
+                paddingTop: 4,
+                paddingBottom: 24,
+              }}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={modernStyles.flowHeader}>
+                <View style={modernStyles.flowHeaderIcon}>
+                  <IIcon
+                    name={stepConfig.icon}
+                    size={22}
+                    color={MODERN_COLORS.primary}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={modernStyles.flowTitle}>{stepConfig.title}</Text>
+                  <Text style={modernStyles.flowSubtitle}>
+                    {stepConfig.subtitle}
+                  </Text>
+                </View>
+              </View>
+              {stepConfig.content}
+            </BottomSheetScrollView>
+          ))}
+        />
       </View>
     );
   };
@@ -856,17 +901,28 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     const steps = [
       {
         title: 'Change Phone',
+        icon: 'call-outline',
         subtitle: 'Enter your new phone number',
         content: (
-          <View style={{}}>
+          <View>
             <View style={modernStyles.currentInfo}>
-              <Text style={modernStyles.currentLabel}>Current Phone</Text>
-              <Text style={modernStyles.currentValue}>{currentPhone}</Text>
+              <IIcon
+                name="call-outline"
+                size={18}
+                color={MODERN_COLORS.textSecondary}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={modernStyles.currentLabel}>Current Phone</Text>
+                <Text style={modernStyles.currentValue}>
+                  {currentPhone || 'None yet'}
+                </Text>
+              </View>
             </View>
 
             <View style={modernStyles.inputGroup}>
               <Text style={modernStyles.inputLabel}>New Phone Number</Text>
               <BottomSheetTextInput
+                {...sheetInputProps}
                 style={modernStyles.input}
                 placeholder="+1 555 000 0000"
                 keyboardType="phone-pad"
@@ -882,85 +938,91 @@ export function Screen_settings({ navigation }: { navigation: any }) {
 
             {error ? <Text style={modernStyles.errorText}>{error}</Text> : null}
 
-            <TouchableOpacity
-              style={[
-                modernStyles.primaryButton,
-                (!newPhone || isLoading) && modernStyles.buttonDisabled,
-              ]}
-              onPress={async () => {
-                const trimmedPhone = newPhone.replace(/[^0-9]/g, '');
-                const currentPhoneDigits = currentPhone.replace(/[^0-9]/g, '');
-                if (!trimmedPhone || trimmedPhone === currentPhoneDigits) {
-                  setError('Please enter a different phone number');
-                  return;
-                }
-                if (trimmedPhone.length < 7) {
-                  setError('Please enter a valid phone number');
-                  return;
-                }
-
-                setIsLoading(true);
-                setError('');
-
-                try {
-                  const response = await _http_request({
-                    customApiUrl:
-                      __CONFIG__.HTTPS_API_DOMAIN +
-                      '/api/core/v1/pushNewPhonenumber',
-                    reqType: 'POST',
-                    bodyArray: {
-                      oldpnumber: currentPhoneDigits,
-                      newpnumber: trimmedPhone,
-                      rnc: '1',
-                    },
-                  });
-
-                  if (response?.code === 200) {
-                    setSuccessMessage(
-                      'Verification code sent to your new phone',
-                    );
-                    carouselRef.current?.goToNext();
-                  } else {
-                    setError(
-                      response?.message || 'Failed to send verification',
-                    );
+            <View style={modernStyles.flowActions}>
+              <TouchableOpacity
+                style={[
+                  modernStyles.primaryButton,
+                  (!newPhone || isLoading) && modernStyles.buttonDisabled,
+                ]}
+                onPress={async () => {
+                  const trimmedPhone = newPhone.replace(/[^0-9]/g, '');
+                  const currentPhoneDigits = currentPhone.replace(
+                    /[^0-9]/g,
+                    '',
+                  );
+                  if (!trimmedPhone || trimmedPhone === currentPhoneDigits) {
+                    setError('Please enter a different phone number');
+                    return;
                   }
-                } catch {
-                  setError('Network error. Please try again.');
-                  logReport({
-                    type: 'function',
-                    useraction: 'pushNewPhonenumber',
-                    logMessage: 'Network error during phone number change',
-                  });
-                } finally {
-                  setIsLoading(false);
-                }
-              }}
-              disabled={!newPhone || isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator size="small" color="#FFF" />
-              ) : (
-                <Text style={modernStyles.primaryButtonText}>
-                  Send Verification Code
-                </Text>
-              )}
-            </TouchableOpacity>
+                  if (trimmedPhone.length < 7) {
+                    setError('Please enter a valid phone number');
+                    return;
+                  }
 
-            <TouchableOpacity
-              style={modernStyles.secondaryButton}
-              onPress={onCancel}
-            >
-              <Text style={modernStyles.secondaryButtonText}>Cancel</Text>
-            </TouchableOpacity>
+                  setIsLoading(true);
+                  setError('');
+
+                  try {
+                    const response = await _http_request({
+                      customApiUrl:
+                        __CONFIG__.HTTPS_API_DOMAIN +
+                        '/api/core/v1/pushNewPhonenumber',
+                      reqType: 'POST',
+                      bodyArray: {
+                        oldpnumber: currentPhoneDigits,
+                        newpnumber: trimmedPhone,
+                        rnc: '1',
+                      },
+                    });
+
+                    if (response?.code === 200) {
+                      setSuccessMessage(
+                        'Verification code sent to your new phone',
+                      );
+                      carouselRef.current?.goToNext();
+                    } else {
+                      setError(
+                        response?.message || 'Failed to send verification',
+                      );
+                    }
+                  } catch {
+                    setError('Network error. Please try again.');
+                    logReport({
+                      type: 'function',
+                      useraction: 'pushNewPhonenumber',
+                      logMessage: 'Network error during phone number change',
+                    });
+                  } finally {
+                    setIsLoading(false);
+                  }
+                }}
+                disabled={!newPhone || isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color={colors.onPrimary} />
+                ) : (
+                  <Text style={modernStyles.primaryButtonText}>
+                    Send Verification Code
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={modernStyles.secondaryButton}
+                onPress={onCancel}
+              >
+                <Text style={modernStyles.secondaryButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ),
       },
       {
         title: 'Verify Phone',
+        icon: 'shield-checkmark-outline',
         subtitle: 'Enter the 6-digit code sent to your new phone',
         content: (
-          <View style={{}}>
+          <View>
             <View style={modernStyles.infoBox}>
               <IIcon
                 name="call-outline"
@@ -969,15 +1031,16 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               />
               <Text style={modernStyles.infoText}>
                 Code sent to:{' '}
-                <Text style={{ fontWeight: 'bold' }}>{newPhone}</Text>
+                <Text style={modernStyles.infoTextStrong}>{newPhone}</Text>
               </Text>
             </View>
 
             <View style={modernStyles.inputGroup}>
               <Text style={modernStyles.inputLabel}>Verification Code</Text>
               <BottomSheetTextInput
-                style={modernStyles.input}
-                placeholder="Enter 6-digit code"
+                {...sheetInputProps}
+                style={[modernStyles.input, modernStyles.codeInput]}
+                placeholder="000000"
                 keyboardType="number-pad"
                 maxLength={6}
                 value={verificationCode}
@@ -1033,7 +1096,10 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               }}
               disabled={isLoading}
             >
-              <Text style={modernStyles.resendButtonText}>Resend Code</Text>
+              <Text style={modernStyles.resendHint}>
+                Didn't get it?{' '}
+                <Text style={modernStyles.resendButtonText}>Resend code</Text>
+              </Text>
             </TouchableOpacity>
 
             {error ? <Text style={modernStyles.errorText}>{error}</Text> : null}
@@ -1041,7 +1107,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               <Text style={modernStyles.successText}>{successMessage}</Text>
             ) : null}
 
-            <View style={modernStyles.buttonRow}>
+            <View style={[modernStyles.buttonRow, modernStyles.flowActions]}>
               <TouchableOpacity
                 style={[modernStyles.secondaryButton, { flex: 1 }]}
                 onPress={() => carouselRef.current?.goToPrevious()}
@@ -1103,7 +1169,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 disabled={verificationCode.length !== 6 || isLoading}
               >
                 {isLoading ? (
-                  <ActivityIndicator size="small" color="#FFF" />
+                  <ActivityIndicator size="small" color={colors.onPrimary} />
                 ) : (
                   <Text style={modernStyles.primaryButtonText}>
                     Verify & Update
@@ -1119,32 +1185,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     // Keyboard is handled by the sheet (keyboardBehavior + BottomSheetTextInput)
     return (
       <View style={{ flex: 1 }}>
-        <ControlledCarousel
-          ref={carouselRef}
-          initialPage={0}
-          onPageChange={setStep}
-          pages={steps.map((stepConfig, index) => (
-            <BottomSheetScrollView
-              key={index}
-              style={{ flex: 1 }}
-              contentContainerStyle={{
-                paddingHorizontal: 20,
-                paddingBottom: 20,
-              }}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-            >
-              <View style={modernStyles.flowHeader}>
-                <Text style={modernStyles.flowTitle}>{stepConfig.title}</Text>
-                <Text style={modernStyles.flowSubtitle}>
-                  {stepConfig.subtitle}
-                </Text>
-              </View>
-              {stepConfig.content}
-            </BottomSheetScrollView>
-          ))}
-        />
-
         <View style={modernStyles.stepIndicator}>
           {steps.map((_, index) => (
             <View
@@ -1156,6 +1196,41 @@ export function Screen_settings({ navigation }: { navigation: any }) {
             />
           ))}
         </View>
+        <ControlledCarousel
+          ref={carouselRef}
+          initialPage={0}
+          onPageChange={setStep}
+          pages={steps.map((stepConfig, index) => (
+            <BottomSheetScrollView
+              key={index}
+              style={{ flex: 1 }}
+              contentContainerStyle={{
+                paddingHorizontal: 20,
+                paddingTop: 4,
+                paddingBottom: 24,
+              }}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={modernStyles.flowHeader}>
+                <View style={modernStyles.flowHeaderIcon}>
+                  <IIcon
+                    name={stepConfig.icon}
+                    size={22}
+                    color={MODERN_COLORS.primary}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={modernStyles.flowTitle}>{stepConfig.title}</Text>
+                  <Text style={modernStyles.flowSubtitle}>
+                    {stepConfig.subtitle}
+                  </Text>
+                </View>
+              </View>
+              {stepConfig.content}
+            </BottomSheetScrollView>
+          ))}
+        />
       </View>
     );
   };
@@ -1227,7 +1302,13 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 onPress={() =>
                   Linking.openURL(__CONFIG__.HTTPS_DOMAIN + '/contact')
                 }
-                rightElement={<IIcon size={20} name="open-outline" />}
+                rightElement={
+                  <IIcon
+                    size={20}
+                    name="open-outline"
+                    color={MODERN_COLORS.textTertiary}
+                  />
+                }
                 hr={false}
               />
             </ModernSection>
@@ -1265,7 +1346,13 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 onPress={() =>
                   Linking.openURL(__CONFIG__.HTTPS_DOMAIN + '/terms')
                 }
-                rightElement={<IIcon size={20} name="open-outline" />}
+                rightElement={
+                  <IIcon
+                    size={20}
+                    name="open-outline"
+                    color={MODERN_COLORS.textTertiary}
+                  />
+                }
               />
               <ModernOption
                 icon="shield-checkmark-outline"
@@ -1273,7 +1360,13 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 onPress={() =>
                   Linking.openURL(__CONFIG__.HTTPS_DOMAIN + '/privacy')
                 }
-                rightElement={<IIcon size={20} name="open-outline" />}
+                rightElement={
+                  <IIcon
+                    size={20}
+                    name="open-outline"
+                    color={MODERN_COLORS.textTertiary}
+                  />
+                }
                 hr={false}
               />
             </ModernSection>
@@ -1401,6 +1494,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
 
       {/* Bottom Sheets with keyboard configuration */}
       <BottomSheet
+        backgroundComponent={bottomsheet_renderBackground}
         ref={bottomSheetRef_email.ref}
         enablePanDownToClose
         index={-1}
@@ -1425,6 +1519,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
       </BottomSheet>
 
       <BottomSheet
+        backgroundComponent={bottomsheet_renderBackground}
         ref={bottomSheetRef_phone.ref}
         enablePanDownToClose
         index={-1}
@@ -1449,6 +1544,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
       </BottomSheet>
 
       <BottomSheet
+        backgroundComponent={bottomsheet_renderBackground}
         ref={bottomSheetRef_privacy.ref}
         index={-1}
         enablePanDownToClose
@@ -1520,31 +1616,59 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   );
 }
 
+// Low-emphasis fill from a theme hex colour (there's no dangerSoft token).
+function resolveSoft(hex: string) {
+  return `${hex}1F`;
+}
+
 function createModernStyles(colors: ThemeColors) {
   return StyleSheet.create({
     flowHeader: {
-      marginBottom: 18,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      marginBottom: 22,
+    },
+    flowHeaderIcon: {
+      width: 46,
+      height: 46,
+      borderRadius: 23,
+      backgroundColor: colors.primarySoft,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     flowTitle: {
-      fontSize: 18,
+      fontSize: 20,
       fontWeight: '700',
       color: colors.text,
-      marginBottom: 6,
+      marginBottom: 2,
     },
     flowSubtitle: {
-      fontSize: 16,
+      fontSize: 14,
+      lineHeight: 20,
       color: colors.textSecondary,
     },
+    flowActions: {
+      gap: 10,
+      marginTop: 20,
+    },
     currentInfo: {
-      backgroundColor: colors.border,
-      padding: 11,
-      borderRadius: 12,
-      marginBottom: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: colors.backgroundSecondary,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderRadius: 14,
+      marginBottom: 20,
     },
     currentLabel: {
       fontSize: 12,
+      fontWeight: '600',
       color: colors.textSecondary,
-      marginBottom: 4,
+      marginBottom: 2,
     },
     currentValue: {
       fontSize: 16,
@@ -1555,38 +1679,47 @@ function createModernStyles(colors: ThemeColors) {
       gap: 8,
     },
     inputLabel: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: '600',
-      color: colors.text,
+      color: colors.textSecondary,
+      marginLeft: 2,
     },
     input: {
-      backgroundColor: colors.surface,
+      backgroundColor: colors.inputBackground,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 12,
+      borderRadius: 14,
       paddingHorizontal: 16,
-      paddingVertical: 14,
+      minHeight: 52,
       fontSize: 16,
       color: colors.text,
     },
+    codeInput: {
+      fontSize: 22,
+      fontWeight: '600',
+      letterSpacing: 8,
+      textAlign: 'center',
+    },
     primaryButton: {
       backgroundColor: colors.primary,
-      borderRadius: 12,
-      paddingVertical: 16,
+      borderRadius: 14,
+      minHeight: 52,
+      paddingHorizontal: 16,
       alignItems: 'center',
       justifyContent: 'center',
     },
     primaryButtonText: {
-      color: '#FFFFFF',
+      color: colors.onPrimary,
       fontSize: 16,
       fontWeight: '600',
     },
     secondaryButton: {
-      backgroundColor: colors.surface,
+      backgroundColor: colors.backgroundSecondary,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 12,
-      paddingVertical: 16,
+      borderRadius: 14,
+      minHeight: 52,
+      paddingHorizontal: 16,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -1600,9 +1733,9 @@ function createModernStyles(colors: ThemeColors) {
     },
     errorText: {
       color: colors.error,
-      fontSize: 14,
-      textAlign: 'center',
+      fontSize: 13,
       marginTop: 8,
+      marginLeft: 2,
     },
     successText: {
       color: colors.success,
@@ -1614,7 +1747,7 @@ function createModernStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      backgroundColor: colors.border,
+      backgroundColor: colors.primarySoft,
       padding: 16,
       borderRadius: 12,
       marginBottom: 16,
@@ -1624,10 +1757,19 @@ function createModernStyles(colors: ThemeColors) {
       color: colors.text,
       flex: 1,
     },
+    infoTextStrong: {
+      fontWeight: '700',
+      color: colors.text,
+    },
     resendButton: {
       alignSelf: 'center',
-      paddingVertical: 8,
+      paddingVertical: 10,
       paddingHorizontal: 16,
+      marginTop: 6,
+    },
+    resendHint: {
+      color: colors.textSecondary,
+      fontSize: 14,
     },
     resendButtonText: {
       color: colors.primary,
@@ -1643,18 +1785,19 @@ function createModernStyles(colors: ThemeColors) {
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
-      gap: 8,
-      paddingVertical: 16,
+      gap: 6,
+      paddingTop: 2,
+      paddingBottom: 14,
     },
     stepDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
+      width: 6,
+      height: 6,
+      borderRadius: 3,
       backgroundColor: colors.border,
     },
     stepDotActive: {
       backgroundColor: colors.primary,
-      width: 12,
+      width: 20,
     },
     profileSubtitle: {
       fontSize: 14,
@@ -1698,6 +1841,9 @@ function createModernStyles(colors: ThemeColors) {
       width: 56,
       height: 56,
       borderRadius: 28,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 8,
@@ -1765,7 +1911,7 @@ function createModernStyles(colors: ThemeColors) {
       paddingHorizontal: 16,
       ...Platform.select({
         ios: {
-          shadowColor: colors.text,
+          shadowColor: colors.shadow,
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.05,
           shadowRadius: 12,
@@ -1801,10 +1947,10 @@ function createModernStyles(colors: ThemeColors) {
       marginRight: 12,
     },
     optionIconDanger: {
-      backgroundColor: 'rgba(255, 59, 48, 0.1)',
+      backgroundColor: resolveSoft(colors.error),
     },
     optionIconPremium: {
-      backgroundColor: 'rgba(255, 209, 102, 0.1)',
+      backgroundColor: colors.premiumSoft,
     },
     optionContent: {
       flex: 1,
@@ -1873,7 +2019,8 @@ function createModernStyles(colors: ThemeColors) {
       width: 28,
       height: 28,
       borderRadius: 14,
-      backgroundColor: colors.surface,
+      // white in both themes: a surface-coloured thumb vanishes on the dark track
+      backgroundColor: '#FFFFFF',
     },
     switchThumbActive: {
       transform: [{ translateX: 20 }],

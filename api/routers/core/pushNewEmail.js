@@ -77,9 +77,12 @@ export default async function pushNewEmail(
           return response;
         }
         await redisDo(async (client) => {
+          // Bound to the address it was sent to: the verify step must name the
+          // same address, or a code from your own inbox could be used to set an
+          // address you never proved you own.
           await client.set(
             `${namer.redis.verifyCode}email:${sessions.currentUserID}`,
-            genPinCode,
+            `${genPinCode}:${newEmail}`,
           );
           await client.expire(
             `${namer.redis.verifyCode}email:${sessions.currentUserID}`,
@@ -106,7 +109,7 @@ export default async function pushNewEmail(
         const code = await client.get(
           `${namer.redis.verifyCode}email:${sessions.currentUserID}`,
         );
-        const isValid = code === verificationCode;
+        const isValid = code === `${verificationCode}:${newEmail}`;
         if (isValid) {
           await client.del(
             `${namer.redis.verifyCode}email:${sessions.currentUserID}`,

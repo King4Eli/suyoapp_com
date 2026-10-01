@@ -64,9 +64,11 @@ $page = max(1, (int) ($_GET['page'] ?? 1));
 $offset = ($page - 1) * $limit;
 
 // Every query here shares these joins, so filters on device columns work for
-// the count as well as the rows. app_version / device_os are the device's
-// current values (users_devices is updated in place), not what it ran when the
-// log was written; build_hash is the API build that wrote the log.
+// the count as well as the rows. The app version is the one that wrote the log
+// (logs_application.app_version, migration 0016); only rows without one fall
+// back to the device's current version. device_os is the device's current OS;
+// build_hash is the API build that wrote the log.
+$app_version_sql = 'COALESCE(r.app_version, d.app_version)';
 $from_sql = ' FROM logs_application r
     LEFT JOIN users u ON u.user_id = r.report_currentuser
     LEFT JOIN users_devices d ON d.device_id = r.device_id';
@@ -83,7 +85,7 @@ function distinct_values(PDO $db, string $expr, string $from_sql): array
 }
 $report_types = distinct_values($db, 'r.report_type', $from_sql);
 sort($report_types);
-$app_versions = distinct_values($db, 'd.app_version', $from_sql);
+$app_versions = distinct_values($db, $app_version_sql, $from_sql);
 usort($app_versions, static fn($a, $b) => version_compare($b, $a));
 $device_oses = distinct_values($db, 'd.device_os', $from_sql);
 $builds = distinct_values($db, 'r.build_hash', $from_sql);
@@ -104,7 +106,7 @@ if ($report_type_filter !== '') {
     $params[':report_type'] = $report_type_filter;
 }
 foreach ([
-    'app_version' => 'd.app_version',
+    'app_version' => $app_version_sql,
     'device_os' => 'd.device_os',
     'build' => 'r.build_hash',
 ] as $key => $column) {
@@ -191,7 +193,7 @@ try {
     $count_stmt->execute($params);
     $total_rows = (int) ($count_stmt->fetchColumn() ?: 0);
 
-    $stmt = $db->prepare('SELECT r.report_id, r.report_type, r.report_status, r.report_data, r.created_at, r.updated_at, r.report_currentuser, r.build_hash, u.user_fullname, d.device_id, d.device_model, d.device_brand, d.device_os, d.app_version, d.is_emulator'
+    $stmt = $db->prepare('SELECT r.report_id, r.report_type, r.report_status, r.report_data, r.created_at, r.updated_at, r.report_currentuser, r.build_hash, u.user_fullname, d.device_id, d.device_model, d.device_brand, d.device_os, ' . $app_version_sql . ' AS app_version, d.is_emulator'
         . $from_sql . $where_sql
         . ' ORDER BY r.created_at DESC LIMIT ' . $limit . ' OFFSET ' . $offset);
     $stmt->execute($params);

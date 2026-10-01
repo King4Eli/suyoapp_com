@@ -3,6 +3,7 @@ import { db } from "../../db/client.js";
 import { users } from "../../db/schema.js";
 import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
+import { placeMeta, reverseGeocode } from "../../global/geocoder.js";
 import ngeohash from "ngeohash";
 
 function normalizeLocation(value = {}) {
@@ -45,27 +46,15 @@ export default async function pushLocation(
       return response;
     }
 
-    /** @type {any} */
-    let specsDecode = {};
-    try {
-      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${jsonDecodeLocation.latd}&lon=${jsonDecodeLocation.long}`;
-      const apiRes = await fetch(url, { headers: { "User-Agent": "MyApp" } });
-      specsDecode = await apiRes.json();
-    } catch (err) {
-      tools.serverLog(`Reverse geocode failed: ${err}`, "pushLocation-100");
-    }
-
-    const address = specsDecode.address ?? {};
+    // City-level lookup through the shared geocoder: nothing reads street or
+    // postcode, so don't fetch (or store) them.
+    const place = await reverseGeocode(
+      jsonDecodeLocation.latd,
+      jsonDecodeLocation.long,
+    );
     const enrichedLocation = {
       ...jsonDecodeLocation,
-      display_name: specsDecode.display_name ?? "unknown",
-      neighbourhood: address.neighbourhood ?? "unknown",
-      city: address.city ?? "unknown",
-      country: address.country ?? "unknown",
-      state: address.state ?? "unknown",
-      postcode: address.postcode ?? "unknown",
-      road: address.road ?? "unknown",
-      street: address.street ?? "unknown",
+      ...placeMeta(place),
     };
     // geo_meta is a native JSON column -- Drizzle's json() stringifies on
     // write, so pass the object itself here, not a pre-stringified string

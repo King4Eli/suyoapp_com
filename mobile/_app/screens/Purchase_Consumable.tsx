@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,11 @@ import { purchaseNative } from '../funcs/iap';
 import { leavePaymentScreens } from '../funcs/functions/paymentNotices';
 import { startWebOnetimeCheckout } from '../funcs/customConsumableSheet';
 import { namer, __CONFIG__ } from '../funcs/static';
+import { useTheme, ThemeColors } from '../funcs/theme';
+
+// Brand plum used for this screen's accents; reads on both light and dark.
+const ACCENT = '#C558B8';
+const ACCENT_DARK = '#8A3FA0';
 
 const formatPrice = (price: number): string => price?.toFixed(2) ?? '0.00';
 
@@ -50,6 +55,8 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
   );
   const [currentRoses, setCurrentRoses] = useState<number | null>(null);
 
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
 
@@ -264,7 +271,7 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
 
           {showQuickBuy && !isSelected && (
             <TouchableOpacity
-              style={[styles.quickBuyButton, { borderColor: '#C558B8' }]}
+              style={[styles.quickBuyButton, { borderColor: ACCENT }]}
               onPress={() => quickPurchase(product, variant.id)}
             >
               <Text style={styles.quickBuyText}>Buy Now</Text>
@@ -274,7 +281,7 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
 
         {isSelected && (
           <View style={styles.selectedIndicator}>
-            <Icon name="checkmark-circle" size={28} color="#C558B8" />
+            <Icon name="checkmark-circle" size={28} color={ACCENT} />
           </View>
         )}
       </TouchableOpacity>
@@ -303,7 +310,7 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
         {/* Product Header with Icon */}
         <View style={styles.productCardHeader}>
           <LinearGradient
-            colors={['#C558B8', '#8A3FA0']}
+            colors={[ACCENT, ACCENT_DARK]}
             style={styles.productIconContainer}
           >
             <Icon
@@ -336,7 +343,7 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
           {features.length > 0 && (
             <View style={styles.featureCount}>
               <Text style={styles.featureCountText}>{features.length}</Text>
-              <Icon name="star" size={10} color="#C558B8" />
+              <Icon name="star" size={10} color={ACCENT} />
             </View>
           )}
         </View>
@@ -347,7 +354,7 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
             {displayFeatures.map((feature: any, idx: number) => (
               <View key={idx} style={styles.featureItem}>
                 <LinearGradient
-                  colors={['#C558B8', '#8A3FA0']}
+                  colors={[ACCENT, ACCENT_DARK]}
                   style={styles.featureIconCircle}
                 >
                   <Icon name="checkmark" size={10} color="#FFF" />
@@ -369,7 +376,7 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
                 <Icon
                   name={isExpanded ? 'chevron-up' : 'chevron-down'}
                   size={14}
-                  color="#C558B8"
+                  color={ACCENT}
                 />
               </TouchableOpacity>
             )}
@@ -412,7 +419,10 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
   };
 
   return (
-    <LinearGradient colors={['#131110', '#1B1620']} style={styles.container}>
+    <LinearGradient
+      colors={[colors.background, colors.backgroundSecondary]}
+      style={styles.container}
+    >
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
@@ -428,7 +438,7 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
           ]}
         >
           <LinearGradient
-            colors={['#C558B8', '#8A3FA0']}
+            colors={[ACCENT, ACCENT_DARK]}
             style={styles.headerIconContainer}
           >
             <Icon
@@ -466,7 +476,7 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
 
           {isRoseCategory && currentRoses !== null && (
             <View style={styles.balanceRow}>
-              <Icon name="rose" size={14} color="#e11d48" />
+              <Icon name="rose" size={14} color={colors.primary} />
               <Text style={styles.balanceText}>
                 You have {currentRoses} rose{currentRoses === 1 ? '' : 's'}
               </Text>
@@ -477,12 +487,12 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
           {!isRewindCategory && (
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
-                <Icon name="people" size={16} color="#C558B8" />
+                <Icon name="people" size={16} color={ACCENT} />
                 <Text style={styles.statText}>2x more views</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Icon name="chatbubbles" size={16} color="#C558B8" />
+                <Icon name="chatbubbles" size={16} color={ACCENT} />
                 <Text style={styles.statText}>3x more matches</Text>
               </View>
             </View>
@@ -499,15 +509,15 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
         {/* Trust Indicators */}
         <View style={styles.trustSection}>
           <View style={styles.trustItem}>
-            <Icon name="lock-closed" size={14} color="#6B7280" />
+            <Icon name="lock-closed" size={14} color={colors.textTertiary} />
             <Text style={styles.trustText}>Secure checkout</Text>
           </View>
           <View style={styles.trustItem}>
-            <Icon name="card" size={14} color="#6B7280" />
+            <Icon name="card" size={14} color={colors.textTertiary} />
             <Text style={styles.trustText}>Instant delivery</Text>
           </View>
           <View style={styles.trustItem}>
-            <Icon name="help-circle" size={14} color="#6B7280" />
+            <Icon name="help-circle" size={14} color={colors.textTertiary} />
             <Text style={styles.trustText}>24/7 support</Text>
           </View>
         </View>
@@ -531,12 +541,12 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
               style={styles.modalClose}
               onPress={() => setShowConfirm(false)}
             >
-              <Icon name="close" size={24} color="#6B7280" />
+              <Icon name="close" size={24} color={colors.textTertiary} />
             </TouchableOpacity>
 
             <View style={styles.modalIcon}>
               <LinearGradient
-                colors={['#C558B8', '#8A3FA0']}
+                colors={[ACCENT, ACCENT_DARK]}
                 style={styles.modalIconGradient}
               >
                 <Icon name="cart" size={32} color="#FFF" />
@@ -577,7 +587,7 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
                           <Icon
                             name="trending-down"
                             size={12}
-                            color="#3DB58A"
+                            color={colors.success}
                           />
                           <Text style={styles.savingsBadgeText}>
                             Save {savings}%
@@ -614,7 +624,7 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
                   Platform.OS === 'ios' ? 'logo-apple' : 'logo-google-playstore'
                 }
                 size={18}
-                color="#E5E7EB"
+                color={colors.text}
               />
               <Text style={styles.nativeButtonText}>
                 {Platform.OS === 'ios'
@@ -636,473 +646,474 @@ export const Screen_PurchaseConsumable = ({ route }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content: { padding: 20, paddingBottom: 40 },
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1 },
+    content: { padding: 20, paddingBottom: 40 },
 
-  // Header styles
-  header: {
-    alignItems: 'center',
-    marginBottom: 32,
-    paddingTop: 20,
-  },
-  headerIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    shadowColor: '#C558B8',
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
-  },
-  title: {
-    color: '#FFF',
-    fontSize: 32,
-    fontWeight: '800',
-    marginBottom: 8,
-  },
-  subtitle: {
-    color: '#9CA3AF',
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1F1F2A',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginTop: 8,
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  statText: {
-    color: '#E5E7EB',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  statDivider: {
-    width: 1,
-    height: 20,
-    backgroundColor: '#2A2A35',
-    marginHorizontal: 12,
-  },
-  balanceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#e11d4820',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-    marginBottom: 12,
-  },
-  balanceText: {
-    color: '#FF7DA3',
-    fontSize: 12,
-    fontWeight: '700',
-  },
+    // Header styles
+    header: {
+      alignItems: 'center',
+      marginBottom: 32,
+      paddingTop: 20,
+    },
+    headerIconContainer: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+      shadowColor: ACCENT,
+      shadowOpacity: 0.4,
+      shadowRadius: 20,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 8,
+    },
+    title: {
+      color: colors.text,
+      fontSize: 32,
+      fontWeight: '800',
+      marginBottom: 8,
+    },
+    subtitle: {
+      color: colors.textSecondary,
+      fontSize: 14,
+      textAlign: 'center',
+      marginBottom: 16,
+    },
+    statsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 20,
+      marginTop: 8,
+    },
+    statItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    statText: {
+      color: colors.text,
+      fontSize: 12,
+      fontWeight: '500',
+    },
+    statDivider: {
+      width: 1,
+      height: 20,
+      backgroundColor: colors.border,
+      marginHorizontal: 12,
+    },
+    balanceRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: colors.primarySoft,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 14,
+      marginBottom: 12,
+    },
+    balanceText: {
+      color: colors.primary,
+      fontSize: 12,
+      fontWeight: '700',
+    },
 
-  productsContainer: {
-    gap: 20,
-    marginBottom: 24,
-  },
+    productsContainer: {
+      gap: 20,
+      marginBottom: 24,
+    },
 
-  // Product card styles
-  productCard: {
-    backgroundColor: '#1F1F2A',
-    borderRadius: 24,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#2A2A35',
-  },
-  productCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-    gap: 12,
-  },
-  productIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  productInfo: {
-    flex: 1,
-  },
-  productName: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  productDescription: {
-    color: '#9CA3AF',
-    fontSize: 12,
-  },
-  featureCount: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#2A2A35',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  featureCountText: {
-    color: '#C558B8',
-    fontSize: 12,
-    fontWeight: '600',
-  },
+    // Product card styles
+    productCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 24,
+      padding: 20,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    productCardHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 20,
+      gap: 12,
+    },
+    productIconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    productInfo: {
+      flex: 1,
+    },
+    productName: {
+      color: colors.text,
+      fontSize: 18,
+      fontWeight: '700',
+      marginBottom: 4,
+    },
+    productDescription: {
+      color: colors.textSecondary,
+      fontSize: 12,
+    },
+    featureCount: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: colors.backgroundSecondary,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    featureCountText: {
+      color: ACCENT,
+      fontSize: 12,
+      fontWeight: '600',
+    },
 
-  featuresSection: {
-    marginBottom: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2A2A35',
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 10,
-  },
-  featureIconCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  featureText: {
-    color: '#E5E7EB',
-    fontSize: 13,
-    flex: 1,
-    lineHeight: 18,
-  },
-  expandButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingTop: 8,
-    marginTop: 4,
-  },
-  expandButtonText: {
-    color: '#C558B8',
-    fontSize: 12,
-    fontWeight: '600',
-  },
+    featuresSection: {
+      marginBottom: 20,
+      paddingBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    featureItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 10,
+    },
+    featureIconCircle: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    featureText: {
+      color: colors.text,
+      fontSize: 13,
+      flex: 1,
+      lineHeight: 18,
+    },
+    expandButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingTop: 8,
+      marginTop: 4,
+    },
+    expandButtonText: {
+      color: ACCENT,
+      fontSize: 12,
+      fontWeight: '600',
+    },
 
-  variantsGrid: {
-    gap: 12,
-    marginBottom: 16,
-  },
+    variantsGrid: {
+      gap: 12,
+      marginBottom: 16,
+    },
 
-  variantCard: {
-    backgroundColor: '#181826',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1.5,
-    borderColor: '#2A2A35',
-    position: 'relative',
-  },
-  variantCardSelected: {
-    borderColor: '#C558B8',
-    backgroundColor: '#2E2030',
-  },
-  popularBadge: {
-    position: 'absolute',
-    top: -1,
-    left: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#C558B8',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderBottomLeftRadius: 10,
-    borderBottomRightRadius: 10,
-    zIndex: 1,
-  },
-  popularBadgeSelected: {
-    backgroundColor: '#B23FA0',
-  },
-  popularText: {
-    color: '#FFF',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  discountBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: '#3DB58A20',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    zIndex: 1,
-  },
-  discountBadgeSelected: {
-    backgroundColor: '#3DB58A30',
-  },
-  discountText: {
-    color: '#3DB58A',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  variantCardContent: {
-    gap: 8,
-  },
-  variantHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  variantCycle: {
-    color: '#E5E7EB',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  variantCycleSelected: {
-    color: '#FFF',
-  },
-  savingsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  savingsText: {
-    color: '#3DB58A',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 8,
-  },
-  variantPrice: {
-    color: '#C558B8',
-    fontSize: 22,
-    fontWeight: '800',
-  },
-  variantPriceSelected: {
-    color: '#D9A7D0',
-  },
-  originalPrice: {
-    color: '#6B7280',
-    fontSize: 14,
-    textDecorationLine: 'line-through',
-  },
-  quickBuyButton: {
-    marginTop: 8,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  quickBuyText: {
-    color: '#C558B8',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  selectedIndicator: {
-    position: 'absolute',
-    bottom: 12,
-    right: 12,
-  },
-  continueButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#C558B8',
-    paddingVertical: 14,
-    borderRadius: 14,
-    marginTop: 8,
-  },
-  continueButtonText: {
-    color: '#FFF',
-    fontSize: 15,
-    fontWeight: '700',
-  },
+    variantCard: {
+      backgroundColor: colors.backgroundSecondary,
+      borderRadius: 16,
+      padding: 16,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      position: 'relative',
+    },
+    variantCardSelected: {
+      borderColor: ACCENT,
+      backgroundColor: colors.accentSoft,
+    },
+    popularBadge: {
+      position: 'absolute',
+      top: -1,
+      left: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: ACCENT,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderBottomLeftRadius: 10,
+      borderBottomRightRadius: 10,
+      zIndex: 1,
+    },
+    popularBadgeSelected: {
+      backgroundColor: ACCENT_DARK,
+    },
+    popularText: {
+      color: '#FFF',
+      fontSize: 10,
+      fontWeight: '700',
+    },
+    discountBadge: {
+      position: 'absolute',
+      top: 12,
+      right: 12,
+      backgroundColor: `${colors.success}20`,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 12,
+      zIndex: 1,
+    },
+    discountBadgeSelected: {
+      backgroundColor: `${colors.success}30`,
+    },
+    discountText: {
+      color: colors.success,
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    variantCardContent: {
+      gap: 8,
+    },
+    variantHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    variantCycle: {
+      color: colors.text,
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    variantCycleSelected: {
+      color: colors.text,
+    },
+    savingsContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    savingsText: {
+      color: colors.success,
+      fontSize: 11,
+      fontWeight: '600',
+    },
+    priceContainer: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      gap: 8,
+    },
+    variantPrice: {
+      color: ACCENT,
+      fontSize: 22,
+      fontWeight: '800',
+    },
+    variantPriceSelected: {
+      color: ACCENT,
+    },
+    originalPrice: {
+      color: colors.textTertiary,
+      fontSize: 14,
+      textDecorationLine: 'line-through',
+    },
+    quickBuyButton: {
+      marginTop: 8,
+      paddingVertical: 6,
+      borderRadius: 10,
+      borderWidth: 1,
+      alignItems: 'center',
+    },
+    quickBuyText: {
+      color: ACCENT,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    selectedIndicator: {
+      position: 'absolute',
+      bottom: 12,
+      right: 12,
+    },
+    continueButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: ACCENT,
+      paddingVertical: 14,
+      borderRadius: 14,
+      marginTop: 8,
+    },
+    continueButtonText: {
+      color: '#FFF',
+      fontSize: 15,
+      fontWeight: '700',
+    },
 
-  trustSection: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 24,
-    marginBottom: 16,
-  },
-  trustItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  trustText: {
-    color: '#6B7280',
-    fontSize: 11,
-  },
+    trustSection: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 24,
+      marginBottom: 16,
+    },
+    trustItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    trustText: {
+      color: colors.textTertiary,
+      fontSize: 11,
+    },
 
-  disclaimer: {
-    color: '#6B7280',
-    fontSize: 11,
-    textAlign: 'center',
-    lineHeight: 16,
-  },
+    disclaimer: {
+      color: colors.textTertiary,
+      fontSize: 11,
+      textAlign: 'center',
+      lineHeight: 16,
+    },
 
-  // Modal styles - Improved
-  modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#1F1F2A',
-    borderRadius: 32,
-    padding: 24,
-    width: '90%',
-    maxWidth: 400,
-    position: 'relative',
-  },
-  modalClose: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    zIndex: 1,
-    padding: 4,
-  },
-  modalIcon: {
-    alignItems: 'center',
-    marginBottom: 20,
-    marginTop: 8,
-  },
-  modalIconGradient: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalTitle: {
-    color: '#FFF',
-    fontSize: 24,
-    fontWeight: '800',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  modalSubtitle: {
-    color: '#9CA3AF',
-    fontSize: 13,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  modalDetails: {
-    backgroundColor: '#2A2A35',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 24,
-  },
-  modalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  modalLabel: {
-    color: '#9CA3AF',
-    fontSize: 14,
-  },
-  modalValue: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  savingsBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#3DB58A20',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  savingsBadgeText: {
-    color: '#3DB58A',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  modalTotal: {
-    marginTop: 8,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: '#3A3A45',
-    marginBottom: 0,
-  },
-  modalTotalLabel: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  modalPrice: {
-    color: '#C558B8',
-    fontSize: 24,
-    fontWeight: '800',
-  },
-  purchaseButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#C558B8',
-    paddingVertical: 16,
-    borderRadius: 16,
-    marginBottom: 12,
-  },
-  purchaseButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  nativeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#2A2A35',
-    borderWidth: 1,
-    borderColor: '#3A3A45',
-    paddingVertical: 14,
-    borderRadius: 16,
-    marginBottom: 12,
-  },
-  nativeButtonText: {
-    color: '#E5E7EB',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  cancelButton: {
-    paddingVertical: 12,
-  },
-  cancelButtonText: {
-    color: '#9CA3AF',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-});
+    // Modal styles - Improved
+    modalOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: colors.overlay,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    modalContent: {
+      backgroundColor: colors.surface,
+      borderRadius: 32,
+      padding: 24,
+      width: '90%',
+      maxWidth: 400,
+      position: 'relative',
+    },
+    modalClose: {
+      position: 'absolute',
+      top: 16,
+      right: 16,
+      zIndex: 1,
+      padding: 4,
+    },
+    modalIcon: {
+      alignItems: 'center',
+      marginBottom: 20,
+      marginTop: 8,
+    },
+    modalIconGradient: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    modalTitle: {
+      color: colors.text,
+      fontSize: 24,
+      fontWeight: '800',
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    modalSubtitle: {
+      color: colors.textSecondary,
+      fontSize: 13,
+      textAlign: 'center',
+      marginBottom: 24,
+    },
+    modalDetails: {
+      backgroundColor: colors.backgroundSecondary,
+      borderRadius: 20,
+      padding: 20,
+      marginBottom: 24,
+    },
+    modalRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 14,
+    },
+    modalLabel: {
+      color: colors.textSecondary,
+      fontSize: 14,
+    },
+    modalValue: {
+      color: colors.text,
+      fontSize: 14,
+      fontWeight: '500',
+    },
+    savingsBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: `${colors.success}20`,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 12,
+    },
+    savingsBadgeText: {
+      color: colors.success,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    modalTotal: {
+      marginTop: 8,
+      paddingTop: 14,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      marginBottom: 0,
+    },
+    modalTotalLabel: {
+      color: colors.text,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    modalPrice: {
+      color: ACCENT,
+      fontSize: 24,
+      fontWeight: '800',
+    },
+    purchaseButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: ACCENT,
+      paddingVertical: 16,
+      borderRadius: 16,
+      marginBottom: 12,
+    },
+    purchaseButtonText: {
+      color: '#FFF',
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    nativeButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: colors.backgroundSecondary,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingVertical: 14,
+      borderRadius: 16,
+      marginBottom: 12,
+    },
+    nativeButtonText: {
+      color: colors.text,
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    cancelButton: {
+      paddingVertical: 12,
+    },
+    cancelButtonText: {
+      color: colors.textSecondary,
+      fontSize: 14,
+      textAlign: 'center',
+    },
+  });

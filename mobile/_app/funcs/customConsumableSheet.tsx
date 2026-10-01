@@ -193,7 +193,10 @@ export function ConsumableSheet({
         </View>
 
         {variants === null ? (
-          <ActivityIndicator style={{ marginVertical: 32 }} />
+          <ActivityIndicator
+            style={{ marginVertical: 32 }}
+            color={colors.primary}
+          />
         ) : variants.length === 0 ? (
           <Text style={s.empty}>Nothing available to buy right now.</Text>
         ) : (
