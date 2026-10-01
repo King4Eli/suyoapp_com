@@ -359,3 +359,43 @@ test("account deletion soft-deletes, frees the number and ends discovery", async
   assert.equal(again.json.code, 200, again.json.message);
   assert.ok(await otpFor(user.phone));
 });
+
+test("languages: saved as known codes; names converted, junk and repeats dropped", async () => {
+  const user = await createUser();
+  const res = await core(
+    "pushProfile",
+    { prof_languages: JSON.stringify([0, "1", "french", "Fff hhh", 0, 9999]) },
+    user,
+  );
+  assert.equal(res.code, 200, res.message);
+  const langs = (await core("getProfile", {}, user)).currentUser.bio.language;
+  assert.deepEqual(langs, [0, 1, 2], "English, Spanish, French");
+});
+
+test("languages: at most 10, and an empty list clears them", async () => {
+  const user = await createUser();
+  await core(
+    "pushProfile",
+    { prof_languages: Array.from({ length: 15 }, (_, i) => i) },
+    user,
+  );
+  let langs = (await core("getProfile", {}, user)).currentUser.bio.language;
+  assert.equal(langs.length, 10);
+  await core("pushProfile", { prof_languages: "[]" }, user);
+  langs = (await core("getProfile", {}, user)).currentUser.bio.language;
+  assert.deepEqual(langs, []);
+});
+
+test("languages: the app's list comes from the seed, cleaned up", async () => {
+  const user = await createUser();
+  const mapper = await core("getMapper", {}, user);
+  const languages = Object.values(mapper.mapper_payload.bio_language);
+  assert.ok(languages.includes("English"), "capitalised");
+  assert.ok(languages.includes("Tagalog"));
+  assert.equal(
+    languages.filter((l) => l === "Dutch").length,
+    1,
+    "no duplicate Dutch",
+  );
+  assert.ok(languages.length >= 100);
+});

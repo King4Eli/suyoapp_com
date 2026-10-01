@@ -825,18 +825,27 @@ export default function Peoples_Screen({
 
   const distanceLabel = formatDistance(currentPerson?.distance_miles, unit);
 
+  // Language codes (gn_language_variant) shown by name; profiles from before the
+  // language picker may still hold typed names, which show as they are.
   const languagesSpoken: string[] = (() => {
     const raw = currentPerson?.user_bio_language;
-    if (Array.isArray(raw)) return raw;
-    if (typeof raw === 'string' && raw) {
+    let list: unknown[] = [];
+    if (Array.isArray(raw)) list = raw;
+    else if (typeof raw === 'string' && raw) {
       try {
         const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
+        list = Array.isArray(parsed) ? parsed : [];
       } catch {
-        return [];
+        list = [];
       }
     }
-    return [];
+    return list
+      .map(item =>
+        /^\d+$/.test(String(item))
+          ? __MAPPER?.bio_language?.[String(item)]
+          : String(item ?? '').trim(),
+      )
+      .filter((name): name is string => !!name);
   })();
 
   const highlightFields = !currentPerson
