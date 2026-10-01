@@ -4,6 +4,7 @@ import { conversations, matches, users } from "../../db/schema.js";
 import { tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
 import { hasFeature } from "../../global/entitlements.js";
+import { sqlMilesTo } from "../../global/travelMode.js";
 
 // How many locked teaser cards a plan without seeWhoLikedYou gets.
 const LOCKED_PREVIEW_COUNT = 8;
@@ -13,6 +14,18 @@ export default async function getLikes() {
   const response = { code: 404, message: "No likes found." };
 
   try {
+    // Distance is from the viewer's own location; skipped if it's unknown.
+    const [viewer] = await db
+      .select({ latd: users.geoLatd, long: users.geoLong })
+      .from(users)
+      .where(eq(users.userId, sessions.currentUserID));
+    const viewerPoint =
+      viewer &&
+      Number.isFinite(Number(viewer.latd)) &&
+      Number.isFinite(Number(viewer.long))
+        ? { latd: Number(viewer.latd), long: Number(viewer.long) }
+        : null;
+
     const rows = await db
       .select({
         match_id: matches.matchId,
@@ -24,6 +37,12 @@ export default async function getLikes() {
         user_bio_dob: users.userBioDob,
         user_privacy_show_age: users.userPrivacyShowAge,
         user_verified: users.userVerified,
+        user_privacy_show_distance: users.userPrivacyShowDistance,
+        distance_miles: viewerPoint
+          ? sql`${sqlMilesTo(users.geoLatd, users.geoLong, viewerPoint)}`.mapWith(
+              Number,
+            )
+          : sql`NULL`,
         // A direct message (pushDirectMessage) is the only way a pending like has one.
         direct_message: conversations.convoMessage,
       })
@@ -48,8 +67,10 @@ export default async function getLikes() {
      * @returns {{ text: string; on: "photo" | "about" | null } | null}
      */
     // "Show age" off: their date of birth never leaves the server
+    // "Show distance" off: no distance either.
     for (const row of rows) {
       if (row.user_privacy_show_age === "0") row.user_bio_dob = null;
+      if (row.user_privacy_show_distance === "0") row.distance_miles = null;
     }
 
     const parseDirectMessage = (raw) => {
@@ -111,6 +132,12 @@ export default async function getLikes() {
         directMessage: dm?.text ?? null,
         directMessageOn: dm?.on ?? null,
         hasDirectMessage: Boolean(dm),
+        // miles (the app converts for display); null when unknown or hidden
+        distanceMiles:
+          row.distance_miles != null &&
+          Number.isFinite(Number(row.distance_miles))
+            ? Math.round(Number(row.distance_miles) * 10) / 10
+            : null,
       };
     });
     response.code = 200;

@@ -10,6 +10,8 @@ export const namer = {
     verifyPose: "verify:pose:",
     // SET NX markers: an email already sent / throttled (global/notifyEmail.js)
     emailOnce: "email:once:",
+    // SET NX marker throttling users.user_last_accessed writes (global/activity.js)
+    lastActive: "active:last:",
   },
   ratelimit: {
     login_ip: "ratelimit:login:ip:",

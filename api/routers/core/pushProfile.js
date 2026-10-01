@@ -121,7 +121,6 @@ export default async function pushProfile(input = {}) {
       ["prof_languages", "user_bio_language"],
       ["prof_political", "user_bio_politicalview", true],
       ["prof_schoolattended", "user_bio_schoolattended"],
-      ["prof_location", "user_location"],
       ["prof_company", "user_bio_company"],
       ["prof_jobrole", "user_bio_jobrole"],
     ];
@@ -131,10 +130,7 @@ export default async function pushProfile(input = {}) {
       // @ts-ignore
       if (!hasKey(input, inputKey)) continue;
       if (numeric ? onlyNumber(val) : val !== undefined && val !== null) {
-        let formattedVal =
-          dbField === "user_location" && typeof val === "object"
-            ? JSON.stringify(val)
-            : val;
+        let formattedVal = val;
         // ENUM('0','1',...) columns: a numeric 1 would select the 1st member
         // ('0') in MySQL, so always write the string value.
         // @ts-ignore

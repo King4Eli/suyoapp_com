@@ -11,7 +11,11 @@
     "http-dev": "nodemon --verbose --legacy-watch --ext js,json,ts ./index.js",
     "migrate:apply": "node --env-file=../.env/db.env node_modules/drizzle-kit/bin.cjs migrate --config=drizzle.config.js",
     "migrate:create": "node --env-file=../.env/db.env node_modules/drizzle-kit/bin.cjs generate --config=drizzle.config.js",
-    "db:seed": "node --env-file=../.env/db.env --env-file=../.env/redis.env db/seed/index.js"
+    "db:seed": "node --env-file=../.env/db.env --env-file=../.env/redis.env db/seed/index.js",
+    "test": "node --env-file=test/test.env --test --test-concurrency=1 --test-force-exit \"test/**/*.test.js\"",
+    "test:db:up": "docker compose -f test/docker-compose.yml up -d --wait && node --env-file=test/test.env node_modules/drizzle-kit/bin.cjs migrate --config=drizzle.config.js && node --env-file=test/test.env db/seed/index.js",
+    "test:db:down": "docker compose -f test/docker-compose.yml down",
+    "test:full": "npm run test:db:up && npm test; status=$?; npm run test:db:down; exit $status"
   },
   "dependencies": {
     "drizzle-kit": "^0.31.11",

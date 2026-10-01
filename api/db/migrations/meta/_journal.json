@@ -113,6 +113,27 @@
       "when": 1790822783882,
       "tag": "0015_boost_activation_and_weekly_plan_boost",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "5",
+      "when": 1790826872040,
+      "tag": "0016_log_app_version_at_write_time",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "5",
+      "when": 1790827102787,
+      "tag": "0017_user_id_collation_fresh_databases_match_production",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "5",
+      "when": 1790827493523,
+      "tag": "0018_production_indexes_for_fresh_databases",
+      "breakpoints": true
     }
   ]
 }

@@ -28,6 +28,18 @@ const MAX_LOGS_PER_REQUEST = 500;
  * @param {string} scripts
  * @param {string | undefined}  requestIP
  */
+/**
+ * "1.2.0 (34)" from the app block the client puts on every log
+ * (mobile funcs/functions/logging.ts getAppMeta), or null.
+ * @param {any} app
+ */
+function appVersionOf(app) {
+  const version = String(app?.version_app ?? "").trim();
+  if (!version) return null;
+  const build = String(app?.buildNumber_app ?? "").trim();
+  return (build ? `${version} (${build})` : version).slice(0, 32);
+}
+
 export default async function pushLogReport(scripts, requestIP) {
   const response = {
     code: 400,
@@ -84,6 +96,7 @@ export default async function pushLogReport(scripts, requestIP) {
         reportCurrentuser: loggedUser,
         buildHash: BUILD_HASH,
         deviceId,
+        appVersion: appVersionOf(decodeStats.app),
       };
     });
 

@@ -1,0 +1,32 @@
+# Throwaway MySQL + Redis for the API tests (npm test). Data lives in RAM
+# (tmpfs) and is gone when the containers stop. MySQL matches production
+# (8.0, same sql_mode -- note IGNORE_SPACE).
+name: suyoapp-api-test
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: test
+      MYSQL_DATABASE: suyo_test
+    command:
+      - --sql-mode=IGNORE_SPACE,ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+      - --skip-log-bin
+    tmpfs:
+      - /var/lib/mysql
+    ports:
+      - "127.0.0.1:33307:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-ptest"]
+      interval: 2s
+      timeout: 3s
+      retries: 60
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:36380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30

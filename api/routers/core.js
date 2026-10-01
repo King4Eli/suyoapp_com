@@ -21,6 +21,7 @@ import pushDeleteMessage from "./core/pushDeleteMessage.js";
 import pushNewEmail from "./core/pushNewEmail.js";
 import pushLogReport from "./core/pushLogReports.js";
 import { checkRateLimit } from "../global/rateLimit.js";
+import { touchLastActive } from "../global/activity.js";
 import { namer } from "../global/namer.js";
 import pushDevice from "./core/pushDevice.js";
 import handleFileUpload from "./core/handleFileUpload.js";
@@ -104,6 +105,7 @@ core_router.post("/:action", async (req, res) => {
       message: sessionValidation.message,
     });
   }
+  touchLastActive(sessions.currentUserID);
 
   switch (action) {
     case "getChatLists": {

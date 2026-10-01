@@ -29,6 +29,7 @@ import { likesBadge } from '../funcs/tabBadges';
 import { useLiveRefresh } from '../funcs/useLiveRefresh';
 import { styles, namer, __CONFIG__ } from '../funcs/static';
 import { startBoost, useBoost } from '../funcs/boost';
+import { formatDistance, useUnits } from '../funcs/units';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import { BlurView } from '@react-native-community/blur';
 
@@ -95,6 +96,7 @@ function likesGridLayout(gridWidth: number) {
 export function Screen_likes({ navigation }: { navigation: any }) {
   const { colors } = useTheme();
   const boost = useBoost();
+  const { unit } = useUnits();
   const stylesoy = useMemo(() => createStylesoy(colors), [colors]);
   const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
 
@@ -528,7 +530,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                           />
                         </View>
                       )}
-                      {item?.distance && (
+                      {formatDistance(item?.distanceMiles, unit) && (
                         <View style={stylesoy.pill}>
                           <IIcon
                             name="location-outline"
@@ -536,7 +538,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                             color="#fff"
                           />
                           <Text style={stylesoy.pillText}>
-                            {item.distance} km
+                            {formatDistance(item.distanceMiles, unit)}
                           </Text>
                         </View>
                       )}
