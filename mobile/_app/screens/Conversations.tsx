@@ -41,6 +41,7 @@ import {
 import { Asset } from 'react-native-image-picker';
 import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useHeaderHeight } from '@react-navigation/elements';
 import Sound, {
   AudioEncoderAndroidType,
   AudioSourceAndroidType,
@@ -627,6 +628,12 @@ export function Screen_conversation({
   const { colors } = useTheme();
   // Live width of the chat column (rotation, tablets)
   const contentWidth = useContentWidth();
+  // The keyboard is measured from the top of the screen, but this screen starts
+  // below the header, so the composer needs the header's height added.
+  const headerHeight = useHeaderHeight();
+  const liftForKeyboard =
+    Platform.OS === 'ios' ||
+    (Platform.OS === 'android' && Platform.Version >= 35);
 
   const __MAPPER = cacheStorage.CONFIG.get()?.mapper;
   const imageDomain = __MAPPER?.img_domain;
@@ -2609,8 +2616,12 @@ export function Screen_conversation({
         style={[styles.container, { backgroundColor: colors.background }]}
         edges={['bottom']}
       >
+        {/* Before Android 15 the window shrinks for the keyboard (adjustResize),
+            so moving the composer here too would lift it twice. From Android 15
+            the app is edge-to-edge and the window no longer shrinks. */}
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={liftForKeyboard ? 'padding' : undefined}
+          keyboardVerticalOffset={liftForKeyboard ? headerHeight : 0}
           style={{ flex: 1 }}
         >
           <FlatList
