@@ -40,8 +40,8 @@ const {
 // Config
 // ─────────────────────────────────────────────────────────────────────────────
 
-const AUTH_TOKEN      = "229f3903-9edc-4a2f-b325-477636786562";
-const DEVICE_ID       = "e3d342a9-4252-4ea7-9779-037842d01955";
+const AUTH_TOKEN      =  
+const DEVICE_ID       =  
 const CLIENT_SESSION  = process.env.TINDER_CLIENT_SESSION  ?? "";
 const USER_SESSION_ID = process.env.TINDER_USER_SESSION_ID ?? randomUUID();
 const APP_SESSION_ID  = process.env.TINDER_APP_SESSION_ID  ?? randomUUID();
