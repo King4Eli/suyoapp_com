@@ -372,6 +372,19 @@ test("languages: saved as known codes; names converted, junk and repeats dropped
   assert.deepEqual(langs, [0, 1, 2], "English, Spanish, French");
 });
 
+test("languages: not a search preference; older apps sending one still save", async () => {
+  const user = await createUser();
+  const res = await core(
+    "pushProfile",
+    { pref_smoking: "1", pref_languages: "3", pref_language: "[3]" },
+    user,
+  );
+  assert.equal(res.code, 200, res.message);
+  const prefs = (await core("getProfile", {}, user)).currentUser.preferences;
+  assert.equal(prefs.smoking, "1");
+  assert.equal("language" in prefs, false);
+});
+
 test("languages: at most 10, and an empty list clears them", async () => {
   const user = await createUser();
   await core(

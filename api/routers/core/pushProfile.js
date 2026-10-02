@@ -144,8 +144,6 @@ export default async function pushProfile(input = {}) {
       "prof_social_links",
       "prof_images_meta",
       "prof_location",
-      "pref_languages",
-      "pref_language",
     ]) {
       if (input[key] && typeof input[key] === "string") {
         try {
@@ -269,20 +267,6 @@ export default async function pushProfile(input = {}) {
         });
       }
     }
-    const prefLanguageInput = hasKey(input, "pref_languages")
-      ? input.pref_languages
-      : input.pref_language;
-    if (prefLanguageInput !== undefined && prefLanguageInput !== null) {
-      const normalizedPrefLanguage =
-        typeof prefLanguageInput === "object"
-          ? JSON.stringify(prefLanguageInput)
-          : String(prefLanguageInput);
-      profUpdates.push({
-        field: "user_preference_language",
-        value: normalizedPrefLanguage,
-      });
-    }
-
     // Privacy toggles
     if (
       hasKey(input, "prof_privacy") &&

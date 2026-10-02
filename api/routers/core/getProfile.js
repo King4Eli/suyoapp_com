@@ -78,7 +78,6 @@ export default async function getProfile() {
         user_preference_pet: users.userPreferencePet,
         user_preference_religion: users.userPreferenceReligion,
         user_preference_politicalview: users.userPreferencePoliticalview,
-        user_preference_language: users.userPreferenceLanguage,
         user_notify_email: users.userNotifyEmail,
         user_notify_push: users.userNotifyPush,
         user_notify_push_likes: users.userNotifyPushLikes,
@@ -323,11 +322,6 @@ export default async function getProfile() {
         pet: userProfile.user_preference_pet,
         religion: userProfile.user_preference_religion,
         politicalview: userProfile.user_preference_politicalview,
-        language: userProfile.user_preference_language
-          ? typeof userProfile.user_preference_language === "string"
-            ? JSON.parse(userProfile.user_preference_language)
-            : userProfile.user_preference_language
-          : [],
       },
 
       // stats

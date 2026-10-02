@@ -29,7 +29,6 @@ const defaultPreferences = {
   relationshipGoal: '-99',
   highEducation: '-99',
   ethnicity: '-99',
-  languages: '-99',
   pets: '-99',
   religion: '-99',
   politicalview: '-99',
@@ -56,7 +55,6 @@ function buildPreferencesPayload(
     pref_politicalview: preferences.politicalview,
     pref_highesteducation: preferences.highEducation,
     pref_relationshipgoal: preferences.relationshipGoal,
-    pref_languages: preferences.languages,
     pref_gender: preferences.gender,
     pref_distance: distanceMiles,
   };
@@ -156,11 +154,6 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
             ethnicity:
               profilePreferences?.ethnicity?.toString() ??
               defaultPreferences.ethnicity,
-            languages: Array.isArray(profilePreferences?.language)
-              ? profilePreferences.language[0]?.toString() ??
-                defaultPreferences.languages
-              : profilePreferences?.language?.toString() ??
-                defaultPreferences.languages,
             pets:
               profilePreferences?.pet?.toString() ?? defaultPreferences.pets,
             religion:
@@ -237,10 +230,6 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
     ] as [string, string][],
     getPoliticalView: [
       ...Object.entries(__MAPPER?.bio_politicalview ?? {}),
-      ['-99', 'Open to all'],
-    ] as [string, string][],
-    getLanguages: [
-      ...Object.entries(__MAPPER?.bio_language ?? {}),
       ['-99', 'Open to all'],
     ] as [string, string][],
   };
@@ -656,24 +645,16 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
             </>,
           )}
           {renderPremiumGroup(
-            'Education & language',
+            'Education',
             'school-outline',
-            <>
-              {renderRadioAccordion(
-                'Preferred highest education?',
-                preferences.highEducation,
-                radioButtons.getHighEducation,
-                id => setPreferences(prev => ({ ...prev, highEducation: id })),
-              )}
-              {renderRadioAccordion(
-                'Preferred language?',
-                preferences.languages,
-                radioButtons.getLanguages,
-                id => setPreferences(prev => ({ ...prev, languages: id })),
-                undefined,
-                true,
-              )}
-            </>,
+            renderRadioAccordion(
+              'Preferred highest education?',
+              preferences.highEducation,
+              radioButtons.getHighEducation,
+              id => setPreferences(prev => ({ ...prev, highEducation: id })),
+              undefined,
+              true,
+            ),
           )}
         </View>
       </ScrollView>
