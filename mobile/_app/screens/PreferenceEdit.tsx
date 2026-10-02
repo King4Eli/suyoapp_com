@@ -375,7 +375,7 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
         <Text style={localStyles.premiumGroupTitle}>{title}</Text>
         {!hasPremium && (
           <View style={localStyles.premiumBadge}>
-            <IIcon name="lock-closed" size={11} color="#9a3412" />
+            <IIcon name="lock-closed" size={11} color={colors.premium} />
             <Text style={localStyles.premiumBadgeText}>Plus</Text>
           </View>
         )}
@@ -417,11 +417,11 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
             style={[
               styles.editprofile_inputborder,
               localStyles.card,
-              { paddingHorizontal: 10 },
+              { paddingHorizontal: 10, borderColor: colors.border },
             ]}
           >
             <View
-              style={{ borderBottomWidth: 1, borderBottomColor: '#e5e7eb' }}
+              style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
             >
               <Text style={localStyles.inputTitle}>Age range</Text>
               <Text style={localStyles.inputSubTitle}>
@@ -448,10 +448,21 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
                       maxAge: high.toString(),
                     }));
                 }}
-                renderThumb={() => <View style={styles.slider_thumb} />}
-                renderRail={() => <View style={styles.slider_rail} />}
+                renderThumb={() => (
+                  <View
+                    style={[styles.slider_thumb, localStyles.sliderThumb]}
+                  />
+                )}
+                renderRail={() => (
+                  <View style={[styles.slider_rail, localStyles.sliderRail]} />
+                )}
                 renderRailSelected={() => (
-                  <View style={styles.slider_railSelected} />
+                  <View
+                    style={[
+                      styles.slider_railSelected,
+                      localStyles.sliderRailSelected,
+                    ]}
+                  />
                 )}
               />
             </View>
@@ -482,10 +493,21 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
                     });
                   }
                 }}
-                renderThumb={() => <View style={styles.slider_thumb} />}
-                renderRail={() => <View style={styles.slider_rail} />}
+                renderThumb={() => (
+                  <View
+                    style={[styles.slider_thumb, localStyles.sliderThumb]}
+                  />
+                )}
+                renderRail={() => (
+                  <View style={[styles.slider_rail, localStyles.sliderRail]} />
+                )}
                 renderRailSelected={() => (
-                  <View style={styles.slider_railSelected} />
+                  <View
+                    style={[
+                      styles.slider_railSelected,
+                      localStyles.sliderRailSelected,
+                    ]}
+                  />
                 )}
               />
             </View>
@@ -506,7 +528,7 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
             </View>
             {!hasTravelMode && (
               <View style={localStyles.premiumBadge}>
-                <IIcon name="lock-closed" size={11} color="#9a3412" />
+                <IIcon name="lock-closed" size={11} color={colors.premium} />
                 <Text style={localStyles.premiumBadgeText}>VIP</Text>
               </View>
             )}
@@ -544,7 +566,7 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
             <Text style={localStyles.sectionHeaderText}>Plus filters</Text>
             {!hasPremium && (
               <View style={localStyles.premiumBadge}>
-                <IIcon name="lock-closed" size={11} color="#9a3412" />
+                <IIcon name="lock-closed" size={11} color={colors.premium} />
                 <Text style={localStyles.premiumBadgeText}>Plus</Text>
               </View>
             )}
@@ -553,7 +575,7 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
           {!hasPremium ? (
             <View style={localStyles.paywallCard}>
               <View style={localStyles.paywallIconWrap}>
-                <IIcon name="sparkles" size={22} color="#f59e0b" />
+                <IIcon name="sparkles" size={22} color={colors.premium} />
               </View>
               <Text style={localStyles.paywallTitle}>
                 Unlock filters with Plus
@@ -725,7 +747,7 @@ function createLocalStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
-      backgroundColor: '#ffedd5',
+      backgroundColor: colors.premiumSoft,
       borderRadius: 999,
       paddingHorizontal: 8,
       paddingVertical: 3,
@@ -733,7 +755,7 @@ function createLocalStyles(colors: ThemeColors) {
     premiumBadgeText: {
       fontSize: 11,
       fontWeight: '700',
-      color: '#9a3412',
+      color: colors.premium,
       textTransform: 'uppercase',
       letterSpacing: 0.4,
     },
@@ -795,9 +817,9 @@ function createLocalStyles(colors: ThemeColors) {
     paywallCard: {
       marginHorizontal: 10,
       borderRadius: 18,
-      backgroundColor: '#fff7ed',
+      backgroundColor: colors.surface,
       borderWidth: 1,
-      borderColor: '#fed7aa',
+      borderColor: colors.premiumSoft,
       padding: 16,
       alignItems: 'center',
       gap: 10,
@@ -839,29 +861,35 @@ function createLocalStyles(colors: ThemeColors) {
       borderRadius: 22,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: '#ffedd5',
+      backgroundColor: colors.premiumSoft,
     },
     paywallTitle: {
       fontSize: 20,
       fontWeight: '800',
-      color: '#9a3412',
+      color: colors.text,
     },
     paywallSubTitle: {
       fontSize: 14,
       lineHeight: 20,
       textAlign: 'center',
-      color: '#7c2d12',
+      color: colors.textSecondary,
     },
     upgradeBtn: {
-      backgroundColor: '#ea580c',
+      backgroundColor: colors.premium,
       borderRadius: 12,
       width: '100%',
       paddingVertical: 13,
       alignItems: 'center',
       marginTop: 6,
     },
+    sliderThumb: {
+      backgroundColor: colors.primary,
+      shadowColor: colors.shadow,
+    },
+    sliderRail: { backgroundColor: colors.border },
+    sliderRailSelected: { backgroundColor: colors.primary },
     upgradeBtnText: {
-      color: '#fff',
+      color: colors.onPrimary,
       fontSize: 15,
       fontWeight: '800',
     },

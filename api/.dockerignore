@@ -5,3 +5,5 @@ npm-debug.log*
 .git
 .vscode
 .env*
+# API tests and their throwaway database config (fake credentials) -- not needed at runtime
+test

@@ -1,6 +1,11 @@
 import { eq, sql } from "drizzle-orm";
 import { db } from "../../db/client.js";
-import { users, usersInterests, usersPrompt } from "../../db/schema.js";
+import {
+  gnLanguageVariant,
+  users,
+  usersInterests,
+  usersPrompt,
+} from "../../db/schema.js";
 import { SEARCH_DISTANCE_MILES, tools } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
 import { hasFeature } from "../../global/entitlements.js";
@@ -78,6 +83,48 @@ function hasKey(input, key) {
 /**
  * @param {{ [x: string]: any;   }} input
  */
+// Most languages a profile lists.
+const MAX_LANGUAGES = 10;
+
+/**
+ * Languages a person speaks, as codes from gn_language_variant (picked from a
+ * list in the app). Accepts codes, or names from older app versions that had a
+ * free-text field; anything that isn't a current language is dropped.
+ * @param {unknown} value array (or JSON string of one) of codes or names
+ * @returns {Promise<number[]>}
+ */
+async function normalizeLanguages(value) {
+  let list = value;
+  if (typeof list === "string") {
+    try {
+      list = JSON.parse(list);
+    } catch {
+      list = list.split(",");
+    }
+  }
+  if (!Array.isArray(list)) return [];
+  const active = await db
+    .select({ code: gnLanguageVariant.code, label: gnLanguageVariant.label })
+    .from(gnLanguageVariant)
+    .where(eq(gnLanguageVariant.status, 1));
+  const byCode = new Set(active.map((l) => Number(l.code)));
+  const byLabel = new Map(
+    active.map((l) => [String(l.label).trim().toLowerCase(), Number(l.code)]),
+  );
+  /** @type {number[]} */
+  const codes = [];
+  for (const item of list) {
+    const text = String(item ?? "").trim();
+    const code = /^\d+$/.test(text)
+      ? Number(text)
+      : byLabel.get(text.toLowerCase());
+    if (code !== undefined && byCode.has(code) && !codes.includes(code)) {
+      codes.push(code);
+    }
+  }
+  return codes.slice(0, MAX_LANGUAGES);
+}
+
 export default async function pushProfile(input = {}) {
   const response = { code: 404, message: "Error saving your profile." };
   try {
@@ -85,6 +132,11 @@ export default async function pushProfile(input = {}) {
       return { code: 401, message: "Unauthorized request." };
     }
     const profUpdates = [];
+    if (hasKey(input, "prof_languages")) {
+      input.prof_languages = JSON.stringify(
+        await normalizeLanguages(input.prof_languages),
+      );
+    }
     // Parse JSON fields
     for (const key of [
       "prof_prompts",
@@ -121,7 +173,6 @@ export default async function pushProfile(input = {}) {
       ["prof_languages", "user_bio_language"],
       ["prof_political", "user_bio_politicalview", true],
       ["prof_schoolattended", "user_bio_schoolattended"],
-      ["prof_location", "user_location"],
       ["prof_company", "user_bio_company"],
       ["prof_jobrole", "user_bio_jobrole"],
     ];
@@ -131,10 +182,7 @@ export default async function pushProfile(input = {}) {
       // @ts-ignore
       if (!hasKey(input, inputKey)) continue;
       if (numeric ? onlyNumber(val) : val !== undefined && val !== null) {
-        let formattedVal =
-          dbField === "user_location" && typeof val === "object"
-            ? JSON.stringify(val)
-            : val;
+        let formattedVal = val;
         // ENUM('0','1',...) columns: a numeric 1 would select the 1st member
         // ('0') in MySQL, so always write the string value.
         // @ts-ignore

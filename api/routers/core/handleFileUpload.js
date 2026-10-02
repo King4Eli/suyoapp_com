@@ -1,4 +1,7 @@
 import { randomBytes } from "crypto";
+import { and, eq, or } from "drizzle-orm";
+import { db } from "../../db/client.js";
+import { matches } from "../../db/schema.js";
 import { tools, envInt } from "../../global/functions.js";
 import { sessions } from "../../global/sessions.js";
 import {
@@ -125,6 +128,28 @@ export default async function handleFileUpload(
         code: 400,
         message: "Conversation ID required for conversation uploads.",
       };
+    }
+    // Conversation uploads go under conversations/<matchId>/: the id must be a
+    // plain id (it becomes part of the storage key) of a match the caller is in.
+    if (bucketType?.startsWith("convo")) {
+      const [match] = /^[A-Za-z0-9_-]{1,64}$/.test(String(convoId))
+        ? await db
+            .select({ id: matches.matchId })
+            .from(matches)
+            .where(
+              and(
+                eq(matches.matchId, String(convoId)),
+                or(
+                  eq(matches.matchUserIdFrom, sessions.currentUserID),
+                  eq(matches.matchUserIdTo, sessions.currentUserID),
+                ),
+              ),
+            )
+            .limit(1)
+        : [];
+      if (!match) {
+        return { code: 403, message: "Not your conversation." };
+      }
     }
 
     // Validate file size

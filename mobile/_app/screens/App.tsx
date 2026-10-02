@@ -161,6 +161,8 @@ const MainApp: React.FC = () => {
         screenLayout={renderResponsiveScreen}
         screenOptions={{
           tabBarShowLabel: true,
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.textTertiary,
           // Same header on iOS and Android: the platform defaults differ in
           // height (44 vs 64) and title size/alignment.
           headerStyle: {
@@ -185,8 +187,8 @@ const MainApp: React.FC = () => {
             tabBarLabel: 'Likes',
             tabBarBadge:
               likesCount > 0 ? (likesCount > 9 ? '9+' : likesCount) : undefined,
-            tabBarIcon: () => (
-              <IIcon name="heart-half-outline" size={32} color="#4F8EF7" />
+            tabBarIcon: ({ color }) => (
+              <IIcon name="heart-half-outline" size={32} color={color} />
             ),
           }}
         />
@@ -197,11 +199,11 @@ const MainApp: React.FC = () => {
             tabBarLabel: 'Chat',
             tabBarBadge:
               chatsCount > 0 ? (chatsCount > 9 ? '9+' : chatsCount) : undefined,
-            tabBarIcon: () => (
+            tabBarIcon: ({ color }) => (
               <IIcon
                 name="chatbubble-ellipses-outline"
                 size={30}
-                color="#4F8EF7"
+                color={color}
               />
             ),
           }}
@@ -211,8 +213,8 @@ const MainApp: React.FC = () => {
           component={Peoples_Screen}
           options={{
             tabBarLabel: 'Peoples',
-            tabBarIcon: () => (
-              <MIcon name="cards-outline" size={30} color="#4F8EF7" />
+            tabBarIcon: ({ color }) => (
+              <MIcon name="cards-outline" size={30} color={color} />
             ),
           }}
         />
@@ -221,8 +223,8 @@ const MainApp: React.FC = () => {
         component={Screen_feed}
         options={{
           tabBarLabel: 'Feed',
-          tabBarIcon: () => (
-            <IIcon name="newspaper-outline" size={28} color="#4F8EF7" />
+          tabBarIcon: ({ color }) => (
+            <IIcon name="newspaper-outline" size={28} color={color} />
           ),
         }}
       />*/}
@@ -232,8 +234,8 @@ const MainApp: React.FC = () => {
           component={Screen_profile}
           options={{
             tabBarLabel: 'Profile',
-            tabBarIcon: () => (
-              <IIcon name="person-outline" size={30} color="#4F8EF7" />
+            tabBarIcon: ({ color }) => (
+              <IIcon name="person-outline" size={30} color={color} />
             ),
           }}
         />
@@ -348,34 +350,36 @@ const MainApp: React.FC = () => {
                 name={namer.navigation.subscription}
                 component={Screen_PurchaseSubscribe}
                 options={{
-                  headerTintColor: '#6d6139ff',
+                  headerTintColor: colors.text,
                   title: 'Upgrade Your Experience',
                   headerBackTitle: '',
                   headerTitleAlign: 'center',
                   headerTitleStyle: {
                     fontSize: 20,
                     fontWeight: 'bold',
-                    color: '#fff',
+                    color: colors.text,
                     fontFamily: 'Helvetica',
                   },
-                  headerStyle: { backgroundColor: '#1a1919ff' },
+                  headerShadowVisible: false,
+                  headerStyle: { backgroundColor: colors.background },
                 }}
               />
               <Stack.Screen
                 name={namer.navigation.consumables}
                 component={Screen_PurchaseConsumable}
                 options={{
-                  headerTintColor: '#6d6139ff',
+                  headerTintColor: colors.text,
                   title: 'Upgrade Your Experience',
                   headerBackTitle: '',
                   headerTitleAlign: 'center',
                   headerTitleStyle: {
                     fontSize: 20,
                     fontWeight: 'bold',
-                    color: '#fff',
+                    color: colors.text,
                     fontFamily: 'Helvetica',
                   },
-                  headerStyle: { backgroundColor: '#1a1919ff' },
+                  headerShadowVisible: false,
+                  headerStyle: { backgroundColor: colors.background },
                 }}
               />
               <Stack.Screen

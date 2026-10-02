@@ -1,6 +1,9 @@
-// Dutch appears twice (codes 6 and 19) in the source data.
+// Languages people pick on their profile (Edit profile > Languages) and in
+// discovery preferences; users store the codes, so a code's meaning must never
+// change once people use it. Code 19 was a duplicate "Dutch" (6) that no one
+// had picked, so it was reused for Tagalog.
 export const gnLanguageVariant = [
-  { code: 0, label: "english", status: 1 },
+  { code: 0, label: "English", status: 1 },
   { code: 1, label: "Spanish", status: 1 },
   { code: 2, label: "French", status: 1 },
   { code: 3, label: "German", status: 1 },
@@ -19,7 +22,7 @@ export const gnLanguageVariant = [
   { code: 16, label: "Vietnamese", status: 1 },
   { code: 17, label: "Persian", status: 1 },
   { code: 18, label: "Polish", status: 1 },
-  { code: 19, label: "Dutch", status: 1 },
+  { code: 19, label: "Tagalog", status: 1 },
   { code: 20, label: "Greek", status: 1 },
   { code: 21, label: "Czech", status: 1 },
   { code: 22, label: "Swedish", status: 1 },
@@ -90,4 +93,18 @@ export const gnLanguageVariant = [
   { code: 87, label: "Ojibwe", status: 1 },
   { code: 88, label: "Navajo", status: 1 },
   { code: 89, label: "Cherokee", status: 1 },
+  { code: 90, label: "Punjabi", status: 1 },
+  { code: 91, label: "Tamil", status: 1 },
+  { code: 92, label: "Telugu", status: 1 },
+  { code: 93, label: "Marathi", status: 1 },
+  { code: 94, label: "Gujarati", status: 1 },
+  { code: 95, label: "Kannada", status: 1 },
+  { code: 96, label: "Malayalam", status: 1 },
+  { code: 97, label: "Cantonese", status: 1 },
+  { code: 98, label: "Haitian Creole", status: 1 },
+  { code: 99, label: "Pashto", status: 1 },
+  { code: 100, label: "Kurdish", status: 1 },
+  { code: 101, label: "Hmong", status: 1 },
+  { code: 102, label: "Javanese", status: 1 },
+  { code: 103, label: "American Sign Language", status: 1 },
 ];

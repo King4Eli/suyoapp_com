@@ -60,9 +60,12 @@ export default async function pushNewPhoneNumber(
           `Your verification code is ${genPinCode}. Do not share this code with anyone. It expires in ${ttlMinutes} minutes.`,
         );
         await redisDo(async (client) => {
+          // Bound to the number it was texted to: the verify step must name
+          // the same number, or a code from your own phone could be used to
+          // switch the account to a number you never proved you own.
           await client.set(
             `${namer.redis.verifyCode}phone:${sessions.currentUserID}`,
-            genPinCode,
+            `${genPinCode}:${newPhoneNumber}`,
           );
           await client.expire(
             `${namer.redis.verifyCode}phone:${sessions.currentUserID}`,
@@ -88,7 +91,7 @@ export default async function pushNewPhoneNumber(
         const code = await client.get(
           `${namer.redis.verifyCode}phone:${sessions.currentUserID}`,
         );
-        const isValid = code === verificationCode;
+        const isValid = code === `${verificationCode}:${newPhoneNumber}`;
         if (isValid) {
           await client.del(
             `${namer.redis.verifyCode}phone:${sessions.currentUserID}`,
