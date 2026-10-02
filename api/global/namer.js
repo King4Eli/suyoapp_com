@@ -12,6 +12,9 @@ export const namer = {
     emailOnce: "email:once:",
     // SET NX marker throttling users.user_last_accessed writes (global/activity.js)
     lastActive: "active:last:",
+    // cached Nominatim results (global/geocoder.js)
+    geocodeReverse: "geocode:reverse:",
+    geocodeSearch: "geocode:search:",
   },
   ratelimit: {
     login_ip: "ratelimit:login:ip:",
