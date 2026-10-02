@@ -1485,7 +1485,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 {DeviceInfo.getVersion()}:{DeviceInfo.getBuildNumber()}
               </Text>
               {apiBuild && (
-                <Text style={modernStyles.versionSubText}>API: {apiBuild}</Text>
+                <Text style={modernStyles.versionSubText}>v-{apiBuild}</Text>
               )}
             </View>
           </View>

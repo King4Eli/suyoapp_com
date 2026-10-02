@@ -686,7 +686,6 @@ export const users = mysqlTable(
     userPreferencePoliticalview: tinyint("user_preference_politicalview")
       .notNull()
       .default(-99),
-    userPreferenceLanguage: longtext("user_preference_language"),
     // Settings > Notifications > Push / Email. user_notify_<channel> turns the
     // whole channel off; the per-category columns pick what it carries while on.
     // Security codes, receipts and billing emails ignore all of these and are

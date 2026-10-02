@@ -134,6 +134,13 @@
       "when": 1790827493523,
       "tag": "0018_production_indexes_for_fresh_databases",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1790921813213,
+      "tag": "0019_drop_unused_language_search_preference",
+      "breakpoints": true
     }
   ]
 }
