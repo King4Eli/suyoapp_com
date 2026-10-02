@@ -20,6 +20,7 @@ import {
   Loaderx,
   bottomsheet_renderBackdrop,
   bottomsheet_renderHandle,
+  bottomsheet_renderBackground,
 } from '../funcs/functions_stateful';
 import { purchaseNative } from '../funcs/iap';
 import {
@@ -30,6 +31,7 @@ import {
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { namer, styles, __CONFIG__ } from '../funcs/static';
+import { useTheme, ThemeColors } from '../funcs/theme';
 
 // Brand-family tier accents (rose -> plum -> gold -> aubergine) so the paywall
 // reads as the same product as the rest of the app.
@@ -73,6 +75,8 @@ export const Screen_PurchaseSubscribe = ({
     null,
   );
 
+  const { colors } = useTheme();
+  const s = useMemo(() => createStyles(colors), [colors]);
   const paymentSheetRef = useRef<BottomSheet>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -218,7 +222,10 @@ export const Screen_PurchaseSubscribe = ({
     : '';
 
   return (
-    <LinearGradient colors={['#1A1420', '#141018']} style={{ flex: 1 }}>
+    <LinearGradient
+      colors={[colors.background, colors.backgroundSecondary]}
+      style={{ flex: 1 }}
+    >
       <SafeAreaView edges={['bottom']} style={{ flex: 1 }}>
         <Animated.ScrollView
           contentContainerStyle={[
@@ -296,7 +303,7 @@ export const Screen_PurchaseSubscribe = ({
                     <IIcon
                       name={isSelected ? 'radio-button-on' : 'radio-button-off'}
                       size={20}
-                      color={isSelected ? tierColor : '#6b7280'}
+                      color={isSelected ? tierColor : colors.textTertiary}
                     />
                     <Text style={s.optionLabel}>{getCycleLabel(variant)}</Text>
                     {!!discount && (
@@ -337,6 +344,7 @@ export const Screen_PurchaseSubscribe = ({
       </SafeAreaView>
 
       <BottomSheet
+        backgroundComponent={bottomsheet_renderBackground}
         ref={paymentSheetRef}
         index={-1}
         enablePanDownToClose
@@ -355,7 +363,7 @@ export const Screen_PurchaseSubscribe = ({
               style={[s.sheetButton, s.sheetButtonPrimary]}
               onPress={() => handleSubscribe('card')}
             >
-              <IIcon name="card-outline" size={20} color="#fff" />
+              <IIcon name="card-outline" size={20} color={colors.onPrimary} />
               <Text style={s.sheetButtonTextPrimary}>Pay with card</Text>
             </TouchableOpacity>
 
@@ -368,7 +376,7 @@ export const Screen_PurchaseSubscribe = ({
                   Platform.OS === 'ios' ? 'logo-apple' : 'logo-google-playstore'
                 }
                 size={20}
-                color="#111827"
+                color={colors.text}
               />
               <Text style={s.sheetButtonTextSecondary}>
                 {Platform.OS === 'ios' ? 'Apple Pay' : 'Google Play'}
@@ -381,104 +389,112 @@ export const Screen_PurchaseSubscribe = ({
   );
 };
 
-const s = StyleSheet.create({
-  title: {
-    color: '#fff',
-    fontSize: 26,
-    fontWeight: '800',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    title: {
+      color: colors.text,
+      fontSize: 26,
+      fontWeight: '800',
+      textAlign: 'center',
+      marginBottom: 20,
+    },
 
-  segment: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 14,
-    padding: 4,
-    marginBottom: 24,
-  },
-  segmentItem: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderRadius: 11,
-  },
-  segmentText: {
-    color: '#9ca3af',
-    fontSize: 15,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  segmentTextActive: { color: '#fff' },
-  segmentCurrent: {
-    color: '#9ca3af',
-    fontSize: 10,
-    fontWeight: '700',
-    marginTop: 2,
-  },
+    segment: {
+      flexDirection: 'row',
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 14,
+      padding: 4,
+      marginBottom: 24,
+    },
+    segmentItem: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: 10,
+      borderRadius: 11,
+    },
+    segmentText: {
+      color: colors.textSecondary,
+      fontSize: 15,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+    },
+    segmentTextActive: { color: colors.onPrimary },
+    segmentCurrent: {
+      color: colors.textSecondary,
+      fontSize: 10,
+      fontWeight: '700',
+      marginTop: 2,
+    },
 
-  features: { gap: 12, marginBottom: 24, paddingHorizontal: 4 },
-  featureRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  featureText: { color: '#e5e7eb', fontSize: 15, flex: 1 },
-  muted: { color: '#9ca3af', fontSize: 14, textAlign: 'center' },
+    features: { gap: 12, marginBottom: 24, paddingHorizontal: 4 },
+    featureRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    featureText: { color: colors.text, fontSize: 15, flex: 1 },
+    muted: { color: colors.textSecondary, fontSize: 14, textAlign: 'center' },
 
-  options: { gap: 10, marginBottom: 20 },
-  option: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 16,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  optionLabel: {
-    flex: 1,
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-    textTransform: 'capitalize',
-  },
-  optionDiscount: { fontSize: 12, fontWeight: '800' },
-  optionPrice: { color: '#fff', fontSize: 16, fontWeight: '800' },
+    options: { gap: 10, marginBottom: 20 },
+    option: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      padding: 16,
+      borderRadius: 14,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    optionLabel: {
+      flex: 1,
+      color: colors.text,
+      fontSize: 16,
+      fontWeight: '700',
+      textTransform: 'capitalize',
+    },
+    optionDiscount: { fontSize: 12, fontWeight: '800' },
+    optionPrice: { color: colors.text, fontSize: 16, fontWeight: '800' },
 
-  cta: {
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderRadius: 16,
-    marginBottom: 12,
-  },
-  ctaDisabled: { opacity: 0.5 },
-  ctaText: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  footnote: { color: '#6b7280', fontSize: 12, textAlign: 'center' },
+    cta: {
+      alignItems: 'center',
+      paddingVertical: 16,
+      borderRadius: 16,
+      marginBottom: 12,
+    },
+    ctaDisabled: { opacity: 0.5 },
+    ctaText: { color: colors.onPrimary, fontSize: 16, fontWeight: '800' },
+    footnote: { color: colors.textTertiary, fontSize: 12, textAlign: 'center' },
 
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#111827',
-    textAlign: 'center',
-    textTransform: 'capitalize',
-    marginBottom: 20,
-  },
-  sheetButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingVertical: 14,
-    borderRadius: 14,
-    marginBottom: 12,
-  },
-  sheetButtonPrimary: { backgroundColor: '#111827' },
-  sheetButtonSecondary: {
-    backgroundColor: '#f3f4f6',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  sheetButtonTextPrimary: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  sheetButtonTextSecondary: {
-    color: '#111827',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-});
+    sheetTitle: {
+      fontSize: 18,
+      fontWeight: '800',
+      color: colors.text,
+      textAlign: 'center',
+      textTransform: 'capitalize',
+      marginBottom: 20,
+    },
+    sheetButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+      paddingVertical: 14,
+      borderRadius: 14,
+      marginBottom: 12,
+    },
+    sheetButtonPrimary: { backgroundColor: colors.primary },
+    sheetButtonSecondary: {
+      backgroundColor: colors.backgroundSecondary,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    sheetButtonTextPrimary: {
+      color: colors.onPrimary,
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    sheetButtonTextSecondary: {
+      color: colors.text,
+      fontSize: 15,
+      fontWeight: '700',
+    },
+  });

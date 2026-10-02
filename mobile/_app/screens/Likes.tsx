@@ -333,7 +333,9 @@ export function Screen_likes({ navigation }: { navigation: any }) {
               <View style={{ gap: 12, marginBottom: 12 }}>
                 <View
                   style={{
-                    backgroundColor: '#0f172a',
+                    backgroundColor: colors.surface,
+                    borderWidth: 1,
+                    borderColor: colors.border,
                     borderRadius: 16,
                     padding: 14,
                     overflow: 'hidden',
@@ -341,7 +343,11 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                 >
                   <View style={styles.zcircle1} />
                   <Text
-                    style={{ color: '#fff', fontSize: 18, fontWeight: '700' }}
+                    style={{
+                      color: colors.text,
+                      fontSize: 18,
+                      fontWeight: '700',
+                    }}
                   >
                     You have {totalLikesCount} like
                     {totalLikesCount > 1 ? 's' : ''}
@@ -356,7 +362,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                       }
                       style={{
                         flex: 1,
-                        backgroundColor: '#1d4ed8',
+                        backgroundColor: colors.primary,
                         borderRadius: 12,
                         padding: 10,
                         flexDirection: 'row',
@@ -368,9 +374,11 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                       <MaterialCommunityIcons
                         name="lightning-bolt-outline"
                         size={18}
-                        color="#fff"
+                        color={colors.onPrimary}
                       />
-                      <Text style={{ color: '#fff', fontWeight: '700' }}>
+                      <Text
+                        style={{ color: colors.onPrimary, fontWeight: '700' }}
+                      >
                         {!canSeeLikes
                           ? 'Unlock all likes'
                           : boost.isActive
@@ -701,7 +709,7 @@ function createStylesoy(colors: ThemeColors) {
     image: {
       width: '100%',
       height: '100%',
-      backgroundColor: '#454545ff',
+      backgroundColor: colors.skeleton,
     },
     topChips: {
       position: 'absolute',

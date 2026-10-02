@@ -22,6 +22,7 @@ import {
   Loaderx,
   bottomsheet_renderBackdrop,
   bottomsheet_renderHandle,
+  bottomsheet_renderBackground,
 } from '../funcs/functions_stateful';
 import { ScrollView } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -1793,6 +1794,7 @@ export function Screen_editprofile({
 
       {pickerSheet && (
         <BottomSheet
+          backgroundComponent={bottomsheet_renderBackground}
           ref={pickerSheet_ref}
           index={pickerSheet.expanded ? pickerSnapPoints.length - 1 : 0}
           enablePanDownToClose

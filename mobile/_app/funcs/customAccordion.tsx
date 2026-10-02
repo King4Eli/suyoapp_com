@@ -8,6 +8,7 @@ import {
   Text,
 } from 'react-native';
 import IIcon from 'react-native-vector-icons/Ionicons';
+import { useTheme } from './theme';
 
 export const AccordionItem = ({
   title,
@@ -23,6 +24,7 @@ export const AccordionItem = ({
   /** Set on the last item of a grouped list to omit the divider below it. */
   isLast?: boolean;
 }) => {
+  const { colors } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(true);
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
@@ -50,7 +52,7 @@ export const AccordionItem = ({
         },
         !isLast && {
           borderBottomWidth: 1,
-          borderBottomColor: '#e5e7eb',
+          borderBottomColor: colors.border,
         },
       ]}
     >
@@ -73,7 +75,7 @@ export const AccordionItem = ({
                     textTransform: 'capitalize',
                     fontSize: 16,
                     fontWeight: '700',
-                    color: '#111827',
+                    color: colors.text,
                   }
             }
           >
@@ -83,7 +85,7 @@ export const AccordionItem = ({
             <Text
               style={{
                 fontSize: 13,
-                color: '#6b7280',
+                color: colors.textSecondary,
                 marginTop: 2,
                 textTransform: 'capitalize',
               }}
@@ -93,7 +95,11 @@ export const AccordionItem = ({
           )}
         </View>
         <Animated.View style={{ transform: [{ rotate: rotation }] }}>
-          <IIcon name="chevron-down-outline" size={18} color="#4F8EF7" />
+          <IIcon
+            name="chevron-down-outline"
+            size={18}
+            color={colors.textTertiary}
+          />
         </Animated.View>
       </TouchableOpacity>
       {!isCollapsed && (

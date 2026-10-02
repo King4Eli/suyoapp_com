@@ -49,6 +49,7 @@ import {
   Loaderx,
   bottomsheet_renderBackdrop,
   bottomsheet_renderHandle,
+  bottomsheet_renderBackground,
 } from '../funcs/functions_stateful';
 import { ActionBurstOverlay } from '../funcs/customCelebration';
 import { Toastx } from '../funcs/customNotification';
@@ -609,7 +610,7 @@ function CommentItem({
           </Pressable>
           {comment.comment_user_id === myUserId && (
             <Pressable onPress={() => onDelete(comment)}>
-              <Text style={[stylesoy.commentMeta, { color: '#e11d48' }]}>
+              <Text style={[stylesoy.commentMeta, { color: colors.danger }]}>
                 Delete
               </Text>
             </Pressable>
@@ -643,7 +644,9 @@ function CommentItem({
                 </Text>
                 {reply.comment_user_id === myUserId && (
                   <Pressable onPress={() => onDelete(reply)}>
-                    <Text style={[stylesoy.commentMeta, { color: '#e11d48' }]}>
+                    <Text
+                      style={[stylesoy.commentMeta, { color: colors.danger }]}
+                    >
                       Delete
                     </Text>
                   </Pressable>
@@ -1395,6 +1398,7 @@ export function Screen_feed({
       </Pressable>
 
       <BottomSheet
+        backgroundComponent={bottomsheet_renderBackground}
         ref={optionsSheetRef}
         index={-1}
         enablePanDownToClose
@@ -1456,6 +1460,7 @@ export function Screen_feed({
       </BottomSheet>
 
       <BottomSheet
+        backgroundComponent={bottomsheet_renderBackground}
         ref={postMenuSheetRef}
         index={-1}
         enablePanDownToClose
@@ -1477,9 +1482,9 @@ export function Screen_feed({
               <View
                 style={[stylesoy.optionIconWrap, stylesoy.optionIconWrapDanger]}
               >
-                <IIcon name="trash-outline" size={20} color="#e11d48" />
+                <IIcon name="trash-outline" size={20} color={colors.danger} />
               </View>
-              <Text style={[stylesoy.optionLabel, { color: '#e11d48' }]}>
+              <Text style={[stylesoy.optionLabel, { color: colors.danger }]}>
                 Delete Post
               </Text>
             </Pressable>
@@ -1494,9 +1499,9 @@ export function Screen_feed({
               <View
                 style={[stylesoy.optionIconWrap, stylesoy.optionIconWrapDanger]}
               >
-                <IIcon name="flag-outline" size={20} color="#e11d48" />
+                <IIcon name="flag-outline" size={20} color={colors.danger} />
               </View>
-              <Text style={[stylesoy.optionLabel, { color: '#e11d48' }]}>
+              <Text style={[stylesoy.optionLabel, { color: colors.danger }]}>
                 Report Post
               </Text>
             </Pressable>
@@ -1505,6 +1510,7 @@ export function Screen_feed({
       </BottomSheet>
 
       <BottomSheet
+        backgroundComponent={bottomsheet_renderBackground}
         ref={commentsSheetRef}
         index={-1}
         enablePanDownToClose
@@ -1586,6 +1592,7 @@ export function Screen_feed({
       </BottomSheet>
 
       <BottomSheet
+        backgroundComponent={bottomsheet_renderBackground}
         ref={composerSheetRef}
         index={-1}
         enablePanDownToClose

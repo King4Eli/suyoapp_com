@@ -31,6 +31,7 @@ import {
   Skeleton,
   bottomsheet_renderBackdrop,
   bottomsheet_renderHandle,
+  bottomsheet_renderBackground,
 } from '../funcs/functions_stateful';
 import { useFocusEffect } from '@react-navigation/native';
 import { styles, namer, __CONFIG__, SOCIAL_PLATFORMS } from '../funcs/static';
@@ -487,13 +488,22 @@ export default function Peoples_Screen({
             {
               paddingTop: 8,
               paddingBottom: 5,
-              backgroundColor: colors.background,
+              backgroundColor: colors.surface,
             },
           ]}
         >
-          <Text style={styles.title}>Report {reportedUserName}</Text>
+          <Text style={[styles.title, { color: colors.text }]}>
+            Report {reportedUserName}
+          </Text>
           <Text
-            style={[styles.subtitle, { marginBottom: 12, textAlign: 'center' }]}
+            style={[
+              styles.subtitle,
+              {
+                marginBottom: 12,
+                textAlign: 'center',
+                color: colors.textSecondary,
+              },
+            ]}
           >
             Select a reason
           </Text>
@@ -525,9 +535,20 @@ export default function Peoples_Screen({
               <BottomSheetTextInput
                 style={[
                   styles.input,
-                  { height: 120, textAlignVertical: 'top', marginBottom: 0 },
+                  {
+                    height: 120,
+                    textAlignVertical: 'top',
+                    marginBottom: 0,
+                    paddingTop: 10,
+                    borderRadius: 12,
+                    color: colors.text,
+                    borderColor: colors.border,
+                    backgroundColor: colors.inputBackground,
+                  },
                 ]}
                 placeholder="Please specify"
+                placeholderTextColor={colors.placeholder}
+                selectionColor={colors.primary}
                 value={otherText}
                 onChangeText={setOtherText}
                 multiline
@@ -1985,6 +2006,7 @@ export default function Peoples_Screen({
       </View>
 
       <BottomSheet
+        backgroundComponent={bottomsheet_renderBackground}
         ref={bottomSheetRef_reportUser.ref}
         index={-1}
         enablePanDownToClose
