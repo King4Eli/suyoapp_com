@@ -63,9 +63,7 @@
       "indexes": {
         "fk_convo_match_id": {
           "name": "fk_convo_match_id",
-          "columns": [
-            "convo_match_id"
-          ],
+          "columns": ["convo_match_id"],
           "isUnique": false
         }
       },
@@ -73,9 +71,7 @@
       "compositePrimaryKeys": {
         "conversations_convo_id": {
           "name": "conversations_convo_id",
-          "columns": [
-            "convo_id"
-          ]
+          "columns": ["convo_id"]
         }
       },
       "uniqueConstraints": {},
@@ -139,25 +135,17 @@
       "indexes": {
         "fk_comment_user": {
           "name": "fk_comment_user",
-          "columns": [
-            "comment_user_id"
-          ],
+          "columns": ["comment_user_id"],
           "isUnique": false
         },
         "idx_comment_parent": {
           "name": "idx_comment_parent",
-          "columns": [
-            "comment_parent_id"
-          ],
+          "columns": ["comment_parent_id"],
           "isUnique": false
         },
         "idx_comment_post": {
           "name": "idx_comment_post",
-          "columns": [
-            "comment_post_id",
-            "comment_status",
-            "comment_dateAdded"
-          ],
+          "columns": ["comment_post_id", "comment_status", "comment_dateAdded"],
           "isUnique": false
         }
       },
@@ -165,9 +153,7 @@
       "compositePrimaryKeys": {
         "feed_comments_comment_id": {
           "name": "feed_comments_comment_id",
-          "columns": [
-            "comment_id"
-          ]
+          "columns": ["comment_id"]
         }
       },
       "uniqueConstraints": {},
@@ -232,17 +218,12 @@
       "indexes": {
         "idx_post_feed_order": {
           "name": "idx_post_feed_order",
-          "columns": [
-            "post_status",
-            "post_dateAdded"
-          ],
+          "columns": ["post_status", "post_dateAdded"],
           "isUnique": false
         },
         "idx_post_user": {
           "name": "idx_post_user",
-          "columns": [
-            "post_user_id"
-          ],
+          "columns": ["post_user_id"],
           "isUnique": false
         }
       },
@@ -250,9 +231,7 @@
       "compositePrimaryKeys": {
         "feed_posts_post_id": {
           "name": "feed_posts_post_id",
-          "columns": [
-            "post_id"
-          ]
+          "columns": ["post_id"]
         }
       },
       "uniqueConstraints": {},
@@ -302,17 +281,12 @@
       "indexes": {
         "fk_reaction_user": {
           "name": "fk_reaction_user",
-          "columns": [
-            "reaction_user_id"
-          ],
+          "columns": ["reaction_user_id"],
           "isUnique": false
         },
         "idx_reaction_unique": {
           "name": "idx_reaction_unique",
-          "columns": [
-            "reaction_post_id",
-            "reaction_user_id"
-          ],
+          "columns": ["reaction_post_id", "reaction_user_id"],
           "isUnique": true
         }
       },
@@ -320,9 +294,7 @@
       "compositePrimaryKeys": {
         "feed_reactions_id_ai": {
           "name": "feed_reactions_id_ai",
-          "columns": [
-            "id_ai"
-          ]
+          "columns": ["id_ai"]
         }
       },
       "uniqueConstraints": {},
@@ -381,9 +353,7 @@
       "indexes": {
         "code": {
           "name": "code",
-          "columns": [
-            "code"
-          ],
+          "columns": ["code"],
           "isUnique": false
         }
       },
@@ -391,9 +361,7 @@
       "compositePrimaryKeys": {
         "gn_education_variant_id_ai": {
           "name": "gn_education_variant_id_ai",
-          "columns": [
-            "id_ai"
-          ]
+          "columns": ["id_ai"]
         }
       },
       "uniqueConstraints": {},
@@ -452,9 +420,7 @@
       "indexes": {
         "code": {
           "name": "code",
-          "columns": [
-            "code"
-          ],
+          "columns": ["code"],
           "isUnique": false
         }
       },
@@ -462,9 +428,7 @@
       "compositePrimaryKeys": {
         "gn_ethnicity_variant_id_ai": {
           "name": "gn_ethnicity_variant_id_ai",
-          "columns": [
-            "id_ai"
-          ]
+          "columns": ["id_ai"]
         }
       },
       "uniqueConstraints": {},
@@ -523,9 +487,7 @@
       "indexes": {
         "code": {
           "name": "code",
-          "columns": [
-            "code"
-          ],
+          "columns": ["code"],
           "isUnique": false
         }
       },
@@ -533,9 +495,7 @@
       "compositePrimaryKeys": {
         "gn_intent_variant_id_ai": {
           "name": "gn_intent_variant_id_ai",
-          "columns": [
-            "id_ai"
-          ]
+          "columns": ["id_ai"]
         }
       },
       "uniqueConstraints": {},
@@ -596,9 +556,7 @@
       "compositePrimaryKeys": {
         "gn_interests_variant_id_ai": {
           "name": "gn_interests_variant_id_ai",
-          "columns": [
-            "id_ai"
-          ]
+          "columns": ["id_ai"]
         }
       },
       "uniqueConstraints": {},
@@ -657,9 +615,7 @@
       "indexes": {
         "code": {
           "name": "code",
-          "columns": [
-            "code"
-          ],
+          "columns": ["code"],
           "isUnique": false
         }
       },
@@ -667,9 +623,7 @@
       "compositePrimaryKeys": {
         "gn_language_variant_id_ai": {
           "name": "gn_language_variant_id_ai",
-          "columns": [
-            "id_ai"
-          ]
+          "columns": ["id_ai"]
         }
       },
       "uniqueConstraints": {},
@@ -728,9 +682,7 @@
       "indexes": {
         "code": {
           "name": "code",
-          "columns": [
-            "code"
-          ],
+          "columns": ["code"],
           "isUnique": false
         }
       },
@@ -738,9 +690,7 @@
       "compositePrimaryKeys": {
         "gn_politicalview_variant_id_ai": {
           "name": "gn_politicalview_variant_id_ai",
-          "columns": [
-            "id_ai"
-          ]
+          "columns": ["id_ai"]
         }
       },
       "uniqueConstraints": {},
@@ -794,9 +744,7 @@
       "compositePrimaryKeys": {
         "gn_prompts_variant_id_ai": {
           "name": "gn_prompts_variant_id_ai",
-          "columns": [
-            "id_ai"
-          ]
+          "columns": ["id_ai"]
         }
       },
       "uniqueConstraints": {},
@@ -850,9 +798,7 @@
       "compositePrimaryKeys": {
         "gn_religion_variant_id_ai": {
           "name": "gn_religion_variant_id_ai",
-          "columns": [
-            "id_ai"
-          ]
+          "columns": ["id_ai"]
         }
       },
       "uniqueConstraints": {},
@@ -954,23 +900,17 @@
       "indexes": {
         "fk_iap_payment_id_ref": {
           "name": "fk_iap_payment_id_ref",
-          "columns": [
-            "payment_id_ref"
-          ],
+          "columns": ["payment_id_ref"],
           "isUnique": false
         },
         "fk_iap_user_id_ref": {
           "name": "fk_iap_user_id_ref",
-          "columns": [
-            "user_id_ref"
-          ],
+          "columns": ["user_id_ref"],
           "isUnique": false
         },
         "fk_iap_variant_id_ref": {
           "name": "fk_iap_variant_id_ref",
-          "columns": [
-            "variant_id_ref"
-          ],
+          "columns": ["variant_id_ref"],
           "isUnique": false
         }
       },
@@ -978,9 +918,7 @@
       "compositePrimaryKeys": {
         "iap_transactions_transaction_id": {
           "name": "iap_transactions_transaction_id",
-          "columns": [
-            "transaction_id"
-          ]
+          "columns": ["transaction_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1067,16 +1005,12 @@
       "indexes": {
         "fk_report_user": {
           "name": "fk_report_user",
-          "columns": [
-            "report_currentuser"
-          ],
+          "columns": ["report_currentuser"],
           "isUnique": false
         },
         "idx_report_device": {
           "name": "idx_report_device",
-          "columns": [
-            "device_id"
-          ],
+          "columns": ["device_id"],
           "isUnique": false
         }
       },
@@ -1084,9 +1018,7 @@
       "compositePrimaryKeys": {
         "logs_application_report_id": {
           "name": "logs_application_report_id",
-          "columns": [
-            "report_id"
-          ]
+          "columns": ["report_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1136,10 +1068,7 @@
       "indexes": {
         "map_type": {
           "name": "map_type",
-          "columns": [
-            "map_type",
-            "map_code"
-          ],
+          "columns": ["map_type", "map_code"],
           "isUnique": true
         }
       },
@@ -1147,9 +1076,7 @@
       "compositePrimaryKeys": {
         "mapping_lookup_map_id": {
           "name": "mapping_lookup_map_id",
-          "columns": [
-            "map_id"
-          ]
+          "columns": ["map_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1214,25 +1141,17 @@
       "indexes": {
         "fk_last_message": {
           "name": "fk_last_message",
-          "columns": [
-            "last_message_id"
-          ],
+          "columns": ["last_message_id"],
           "isUnique": false
         },
         "idx_match_userid_pair": {
           "name": "idx_match_userid_pair",
-          "columns": [
-            "match_user_id_from",
-            "match_user_id_to"
-          ],
+          "columns": ["match_user_id_from", "match_user_id_to"],
           "isUnique": true
         },
         "idx_match_userid_pair_reverse": {
           "name": "idx_match_userid_pair_reverse",
-          "columns": [
-            "match_user_id_to",
-            "match_user_id_from"
-          ],
+          "columns": ["match_user_id_to", "match_user_id_from"],
           "isUnique": true
         }
       },
@@ -1240,9 +1159,7 @@
       "compositePrimaryKeys": {
         "matches_match_id": {
           "name": "matches_match_id",
-          "columns": [
-            "match_id"
-          ]
+          "columns": ["match_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1330,31 +1247,22 @@
       "indexes": {
         "fk_userid_ref": {
           "name": "fk_userid_ref",
-          "columns": [
-            "user_id_ref"
-          ],
+          "columns": ["user_id_ref"],
           "isUnique": false
         },
         "fk_variant_ref": {
           "name": "fk_variant_ref",
-          "columns": [
-            "variant_ref"
-          ],
+          "columns": ["variant_ref"],
           "isUnique": false
         },
         "idx_user_status": {
           "name": "idx_user_status",
-          "columns": [
-            "user_id_ref",
-            "status"
-          ],
+          "columns": ["user_id_ref", "status"],
           "isUnique": false
         },
         "status": {
           "name": "status",
-          "columns": [
-            "status"
-          ],
+          "columns": ["status"],
           "isUnique": false
         }
       },
@@ -1362,9 +1270,7 @@
       "compositePrimaryKeys": {
         "payments_payment_id": {
           "name": "payments_payment_id",
-          "columns": [
-            "payment_id"
-          ]
+          "columns": ["payment_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1453,9 +1359,7 @@
       "indexes": {
         "product_list_variant_fk": {
           "name": "product_list_variant_fk",
-          "columns": [
-            "product_lists_id_ref"
-          ],
+          "columns": ["product_lists_id_ref"],
           "isUnique": false
         }
       },
@@ -1463,9 +1367,7 @@
       "compositePrimaryKeys": {
         "product_list_variant_id_ai": {
           "name": "product_list_variant_id_ai",
-          "columns": [
-            "id_ai"
-          ]
+          "columns": ["id_ai"]
         }
       },
       "uniqueConstraints": {},
@@ -1538,9 +1440,7 @@
       "compositePrimaryKeys": {
         "product_lists_pl_sku": {
           "name": "product_lists_pl_sku",
-          "columns": [
-            "pl_sku"
-          ]
+          "columns": ["pl_sku"]
         }
       },
       "uniqueConstraints": {},
@@ -1577,9 +1477,7 @@
       "compositePrimaryKeys": {
         "stripe_events_event_id": {
           "name": "stripe_events_event_id",
-          "columns": [
-            "event_id"
-          ]
+          "columns": ["event_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1688,23 +1586,17 @@
       "indexes": {
         "fk_payment_id_ref": {
           "name": "fk_payment_id_ref",
-          "columns": [
-            "payment_id_ref"
-          ],
+          "columns": ["payment_id_ref"],
           "isUnique": false
         },
         "fk_user_id_ref": {
           "name": "fk_user_id_ref",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         },
         "fk_variant_id_ref": {
           "name": "fk_variant_id_ref",
-          "columns": [
-            "variant_id_ref"
-          ],
+          "columns": ["variant_id_ref"],
           "isUnique": false
         }
       },
@@ -1712,9 +1604,7 @@
       "compositePrimaryKeys": {
         "subscriptions_id": {
           "name": "subscriptions_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -1751,9 +1641,7 @@
       "compositePrimaryKeys": {
         "user_boost_usage_user_id": {
           "name": "user_boost_usage_user_id",
-          "columns": [
-            "user_id"
-          ]
+          "columns": ["user_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1799,9 +1687,7 @@
       "compositePrimaryKeys": {
         "user_direct_message_usage_user_id": {
           "name": "user_direct_message_usage_user_id",
-          "columns": [
-            "user_id"
-          ]
+          "columns": ["user_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1880,10 +1766,7 @@
       "indexes": {
         "user_payment_notices_user_seen": {
           "name": "user_payment_notices_user_seen",
-          "columns": [
-            "user_id",
-            "seen"
-          ],
+          "columns": ["user_id", "seen"],
           "isUnique": false
         }
       },
@@ -1891,9 +1774,7 @@
       "compositePrimaryKeys": {
         "user_payment_notices_id": {
           "name": "user_payment_notices_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -1939,9 +1820,7 @@
       "compositePrimaryKeys": {
         "user_rose_usage_user_id": {
           "name": "user_rose_usage_user_id",
-          "columns": [
-            "user_id"
-          ]
+          "columns": ["user_id"]
         }
       },
       "uniqueConstraints": {},
@@ -2012,16 +1891,12 @@
       "indexes": {
         "user_verifications_user": {
           "name": "user_verifications_user",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         },
         "user_verifications_status": {
           "name": "user_verifications_status",
-          "columns": [
-            "status"
-          ],
+          "columns": ["status"],
           "isUnique": false
         }
       },
@@ -2029,9 +1904,7 @@
       "compositePrimaryKeys": {
         "user_verifications_id": {
           "name": "user_verifications_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -2571,44 +2444,32 @@
       "indexes": {
         "idx_active": {
           "name": "idx_active",
-          "columns": [
-            "user_active"
-          ],
+          "columns": ["user_active"],
           "isUnique": false
         },
         "idx_dob": {
           "name": "idx_dob",
-          "columns": [
-            "user_bio_dob"
-          ],
+          "columns": ["user_bio_dob"],
           "isUnique": false
         },
         "idx_gender": {
           "name": "idx_gender",
-          "columns": [
-            "user_bio_gender"
-          ],
+          "columns": ["user_bio_gender"],
           "isUnique": false
         },
         "user_email": {
           "name": "user_email",
-          "columns": [
-            "user_email"
-          ],
+          "columns": ["user_email"],
           "isUnique": true
         },
         "user_geo_hash": {
           "name": "user_geo_hash",
-          "columns": [
-            "geo_hash"
-          ],
+          "columns": ["geo_hash"],
           "isUnique": false
         },
         "user_phonenumber": {
           "name": "user_phonenumber",
-          "columns": [
-            "user_phonenumber"
-          ],
+          "columns": ["user_phonenumber"],
           "isUnique": true
         }
       },
@@ -2616,17 +2477,13 @@
       "compositePrimaryKeys": {
         "users_user_id": {
           "name": "users_user_id",
-          "columns": [
-            "user_id"
-          ]
+          "columns": ["user_id"]
         }
       },
       "uniqueConstraints": {
         "users_autoIncrement_unique": {
           "name": "users_autoIncrement_unique",
-          "columns": [
-            "autoIncrement"
-          ]
+          "columns": ["autoIncrement"]
         }
       },
       "checkConstraint": {}
@@ -2761,16 +2618,12 @@
       "indexes": {
         "fk_userid_device": {
           "name": "fk_userid_device",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         },
         "uq_device_id": {
           "name": "uq_device_id",
-          "columns": [
-            "device_id"
-          ],
+          "columns": ["device_id"],
           "isUnique": true
         }
       },
@@ -2778,9 +2631,7 @@
       "compositePrimaryKeys": {
         "users_devices_id_ai": {
           "name": "users_devices_id_ai",
-          "columns": [
-            "id_ai"
-          ]
+          "columns": ["id_ai"]
         }
       },
       "uniqueConstraints": {},
@@ -2822,16 +2673,12 @@
       "indexes": {
         "fk_interests_user_id": {
           "name": "fk_interests_user_id",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         },
         "fk_interests_variant_id_ref": {
           "name": "fk_interests_variant_id_ref",
-          "columns": [
-            "interests_variant_ref_id"
-          ],
+          "columns": ["interests_variant_ref_id"],
           "isUnique": false
         }
       },
@@ -2839,9 +2686,7 @@
       "compositePrimaryKeys": {
         "users_interests_id_ai": {
           "name": "users_interests_id_ai",
-          "columns": [
-            "id_ai"
-          ]
+          "columns": ["id_ai"]
         }
       },
       "uniqueConstraints": {},
@@ -2904,16 +2749,12 @@
       "indexes": {
         "users_locations_user": {
           "name": "users_locations_user",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         },
         "users_locations_geo_hash": {
           "name": "users_locations_geo_hash",
-          "columns": [
-            "geo_hash"
-          ],
+          "columns": ["geo_hash"],
           "isUnique": false
         }
       },
@@ -2921,9 +2762,7 @@
       "compositePrimaryKeys": {
         "users_locations_id_ai": {
           "name": "users_locations_id_ai",
-          "columns": [
-            "id_ai"
-          ]
+          "columns": ["id_ai"]
         }
       },
       "uniqueConstraints": {},
@@ -2972,16 +2811,12 @@
       "indexes": {
         "fk_prompt_user_id": {
           "name": "fk_prompt_user_id",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         },
         "fk_prompts_variant_id": {
           "name": "fk_prompts_variant_id",
-          "columns": [
-            "prompts_variant_ref_id"
-          ],
+          "columns": ["prompts_variant_ref_id"],
           "isUnique": false
         }
       },
@@ -2989,9 +2824,7 @@
       "compositePrimaryKeys": {
         "users_prompt_id_ai": {
           "name": "users_prompt_id_ai",
-          "columns": [
-            "id_ai"
-          ]
+          "columns": ["id_ai"]
         }
       },
       "uniqueConstraints": {},
@@ -3064,23 +2897,17 @@
       "indexes": {
         "fk_reportedpost_id": {
           "name": "fk_reportedpost_id",
-          "columns": [
-            "reported_post_id"
-          ],
+          "columns": ["reported_post_id"],
           "isUnique": false
         },
         "fk_reporter_userid": {
           "name": "fk_reporter_userid",
-          "columns": [
-            "reporter_user_id"
-          ],
+          "columns": ["reporter_user_id"],
           "isUnique": false
         },
         "fk_userid_reported": {
           "name": "fk_userid_reported",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         }
       },
@@ -3088,9 +2915,7 @@
       "compositePrimaryKeys": {
         "users_reported_id_ai": {
           "name": "users_reported_id_ai",
-          "columns": [
-            "id_ai"
-          ]
+          "columns": ["id_ai"]
         }
       },
       "uniqueConstraints": {},

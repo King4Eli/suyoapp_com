@@ -1,9 +1,12 @@
 {
   "dependencies": {
     "drizzle-kit": "^0.31.11",
-    "drizzle-orm": "^0.45.3"
+    "drizzle-orm": "^0.45.3",
+    "ngeohash": "^0.6.4",
+    "node-typescript": "^0.1.3"
   },
   "devDependencies": {
+    "@types/ngeohash": "^0.6.8",
     "@types/node": "^26.6.3"
   },
   "type": "module"

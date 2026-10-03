@@ -1,6 +1,9 @@
 # Runtime state — don't commit scraped user ids
 saveduser.json
 
+# Raw captured request — contains auth token
+.http_payload.txt
+.expected_output.json
 # Local env
 .env
 .env.*
